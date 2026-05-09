@@ -1,0 +1,48 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.idea/
+*.iml
+.vscode/
+
+# Dart / Flutter
+.dart_tool/
+.packages
+build/
+*.dart.js
+*.info.json
+*.js
+*.js.deps
+*.js.map
+
+# Pub
+.pub-cache/
+.pub/
+
+# Dashboard (Svelte + Vite)
+dashboard/node_modules/
+dashboard/dist/
+dashboard/.svelte-kit/
+dashboard/build/
+
+# .NET (Dialect.AspNetCore NuGet package)
+**/bin/
+**/obj/
+*.user
+
+# Heavy/local reference material (cloned repos, datasets)
+references/local/
+
+# Spike outputs (audio, model weights, generated artifacts)
+spikes/**/output/
+spikes/**/*.wav
+spikes/**/*.mp3
+spikes/**/*.pt
+spikes/**/*.onnx
+spikes/**/*.bin
+
+# Coverage
+coverage/
+*.lcov

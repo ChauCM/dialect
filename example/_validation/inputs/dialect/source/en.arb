@@ -1,0 +1,30 @@
+{
+  "@@locale": "en",
+
+  "checkout.bookNow": "Book Now",
+  "@checkout.bookNow": {
+    "description": "Primary CTA on the checkout screen. 'Book' is a verb meaning 'make a reservation' (see glossary). Used on a confirm-and-pay button.",
+    "context": "checkout_screen"
+  },
+
+  "checkout.itemCount": "{count, plural, =0{No items} =1{1 item} other{{count} items}}",
+  "@checkout.itemCount": {
+    "description": "Item summary on the checkout cart line. Used in body text, not a button.",
+    "context": "checkout_screen",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+
+  "common.cancel": "Cancel",
+  "@common.cancel": {
+    "description": "Cancel action label. Used on dialog buttons and as a back-out option across screens.",
+    "context": "shared"
+  },
+
+  "common.loading": "Loading...",
+  "@common.loading": {
+    "description": "Generic loading indicator. Shown while async data is being fetched. Trailing ellipsis is intentional.",
+    "context": "shared"
+  }
+}

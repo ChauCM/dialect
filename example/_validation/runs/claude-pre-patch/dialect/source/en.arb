@@ -1,0 +1,219 @@
+{
+  "@@locale": "en",
+
+  "checkout.bookNow": "Book Now",
+  "@checkout.bookNow": {
+    "description": "Primary CTA on the checkout screen. 'Book' is a verb meaning 'make a reservation' (see glossary). Used on a confirm-and-pay button.",
+    "context": "checkout_screen"
+  },
+
+  "checkout.bookingConfirmed": "Booking confirmed. Check your trips for details.",
+  "@checkout.bookingConfirmed": {
+    "description": "Snackbar shown after the user successfully confirms a booking on the checkout screen. Tells them the action succeeded and points them to the 'trips' area to review details.",
+    "context": "checkout_screen"
+  },
+
+  "checkout.freeCancellation": "Free cancellation for 48 hours",
+  "@checkout.freeCancellation": {
+    "description": "Reassurance line shown below the total on the checkout screen, telling the user they can cancel for free within 48 hours of booking.",
+    "context": "checkout_screen"
+  },
+
+  "checkout.hostedBy": "Hosted by {hostName}",
+  "@checkout.hostedBy": {
+    "description": "Subtitle under a listing title on the checkout screen, attributing the property to its host. 'Host' is a noun for the person who lists the property (see glossary).",
+    "context": "checkout_screen",
+    "placeholders": {
+      "hostName": { "type": "String" }
+    }
+  },
+
+  "checkout.houseRulesAgreement": "By booking you agree to the House Rules and Cancellation Policy.",
+  "@checkout.houseRulesAgreement": {
+    "description": "Fine-print disclaimer at the bottom of the checkout screen. 'Book' here is the verb meaning 'make a reservation'. 'House Rules' and 'Cancellation Policy' are the names of platform policy documents; treat them as named policies, not generic phrases.",
+    "context": "checkout_screen"
+  },
+
+  "checkout.itemCount": "{count, plural, =0{No items} =1{1 item} other{{count} items}}",
+  "@checkout.itemCount": {
+    "description": "Item summary on the checkout cart line. Used in body text, not a button.",
+    "context": "checkout_screen",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+
+  "checkout.nightsCount": "{count, plural, =1{1 night} other{{count} nights}}",
+  "@checkout.nightsCount": {
+    "description": "Number of nights of stay shown in the checkout summary (e.g. '3 nights'). Body text, not a button.",
+    "context": "checkout_screen",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+
+  "checkout.pricePerNight": "${price} per night",
+  "@checkout.pricePerNight": {
+    "description": "Per-night price line on the checkout screen, e.g. '$82 per night'. The dollar sign is a hardcoded currency symbol in source; keep it as-is per the glossary rule to not translate currency symbols.",
+    "context": "checkout_screen",
+    "placeholders": {
+      "price": { "type": "int" }
+    }
+  },
+
+  "checkout.title": "Confirm and pay",
+  "@checkout.title": {
+    "description": "AppBar title on the checkout screen. Action-oriented summary of what the user is about to do.",
+    "context": "checkout_screen"
+  },
+
+  "checkout.total": "Total: ${amount}",
+  "@checkout.total": {
+    "description": "Total price line at the bottom of the checkout summary, e.g. 'Total: $246'. The dollar sign is a hardcoded currency symbol; keep it as-is.",
+    "context": "checkout_screen",
+    "placeholders": {
+      "amount": { "type": "int" }
+    }
+  },
+
+  "checkout.yourTrip": "Your trip",
+  "@checkout.yourTrip": {
+    "description": "Section header on the checkout screen introducing the trip-details block (nights, price). 'Trip' is the noun meaning a booked stay (see glossary).",
+    "context": "checkout_screen"
+  },
+
+  "common.appTitle": "Stay Booking Demo",
+  "@common.appTitle": {
+    "description": "MaterialApp title used by the OS for task switchers and recents. The product is a short-stay booking demo app.",
+    "context": "shared"
+  },
+
+  "common.cancel": "Cancel",
+  "@common.cancel": {
+    "description": "Cancel action label. Used on dialog buttons and as a back-out option across screens.",
+    "context": "shared"
+  },
+
+  "common.delete": "Delete",
+  "@common.delete": {
+    "description": "Destructive confirm button label, e.g. inside a 'Delete account?' dialog. Verb, imperative.",
+    "context": "shared"
+  },
+
+  "common.loading": "Loading...",
+  "@common.loading": {
+    "description": "Generic loading indicator. Shown while async data is being fetched. Trailing ellipsis is intentional.",
+    "context": "shared"
+  },
+
+  "home.hostedByShort": "Hosted by {hostName}",
+  "@home.hostedByShort": {
+    "description": "Subtitle on the home-screen listing card, attributing the listing to its host. Same phrasing as the checkout version but kept separate so future tweaks (e.g. shorter form on the card) don't have to fight a shared key. 'Host' is the platform-role noun (see glossary).",
+    "context": "home_screen",
+    "placeholders": {
+      "hostName": { "type": "String" }
+    }
+  },
+
+  "home.openSettings": "Open settings",
+  "@home.openSettings": {
+    "description": "Label on the button on the home screen that navigates to the settings screen.",
+    "context": "home_screen"
+  },
+
+  "home.sampleListingTitle": "Seaside cottage in Da Nang",
+  "@home.sampleListingTitle": {
+    "description": "Title of the single demo listing card shown on the home screen of this example app. Da Nang is a city in Vietnam — treat it as a proper noun and do not translate.",
+    "context": "home_screen"
+  },
+
+  "home.title": "Your trips",
+  "@home.title": {
+    "description": "AppBar title on the home screen. Lists the user's upcoming and past trips. 'Trips' is the noun meaning booked stays (see glossary).",
+    "context": "home_screen"
+  },
+
+  "settings.accountActionsSection": "Account actions",
+  "@settings.accountActionsSection": {
+    "description": "Section header on the settings screen grouping destructive / session actions like Sign out and Delete account. Displayed in uppercase by the UI; provide normal case here.",
+    "context": "settings_screen"
+  },
+
+  "settings.accountSection": "Account",
+  "@settings.accountSection": {
+    "description": "Section header on the settings screen grouping account-identity rows (name, email). Displayed in uppercase by the UI; provide normal case here.",
+    "context": "settings_screen"
+  },
+
+  "settings.darkMode": "Dark mode",
+  "@settings.darkMode": {
+    "description": "Label for the dark-mode toggle row on the settings screen.",
+    "context": "settings_screen"
+  },
+
+  "settings.deleteAccount": "Delete account",
+  "@settings.deleteAccount": {
+    "description": "Row label on the settings screen that opens the delete-account confirmation dialog. Verb phrase.",
+    "context": "settings_screen"
+  },
+
+  "settings.deleteAccountConfirmBody": "This permanently removes your bookings, trips, and host listings. This cannot be undone.",
+  "@settings.deleteAccountConfirmBody": {
+    "description": "Body text of the confirmation dialog shown when the user taps Delete account on settings. Warns that bookings, trips, and host listings will be erased. 'Trips' and 'host' are platform-role terms (see glossary).",
+    "context": "settings_screen"
+  },
+
+  "settings.deleteAccountConfirmTitle": "Delete account?",
+  "@settings.deleteAccountConfirmTitle": {
+    "description": "Title of the confirmation dialog shown when the user taps Delete account on settings. Includes the question mark.",
+    "context": "settings_screen"
+  },
+
+  "settings.editProfileHint": "Tap to edit your profile",
+  "@settings.editProfileHint": {
+    "description": "Subtitle on the account row of the settings screen, hinting that tapping opens profile editing.",
+    "context": "settings_screen"
+  },
+
+  "settings.email": "Email",
+  "@settings.email": {
+    "description": "Label for the row on the settings screen showing the user's email address.",
+    "context": "settings_screen"
+  },
+
+  "settings.language": "Language",
+  "@settings.language": {
+    "description": "Label for the language-picker row on the settings screen.",
+    "context": "settings_screen"
+  },
+
+  "settings.notifications": "Notifications",
+  "@settings.notifications": {
+    "description": "Label for the notifications toggle row on the settings screen.",
+    "context": "settings_screen"
+  },
+
+  "settings.notificationsSubtitle": "Trip updates, host messages, and booking reminders.",
+  "@settings.notificationsSubtitle": {
+    "description": "Subtitle under the Notifications toggle on the settings screen, explaining what kinds of notifications are sent. 'Trip' and 'host' are platform-role terms (see glossary).",
+    "context": "settings_screen"
+  },
+
+  "settings.preferencesSection": "Preferences",
+  "@settings.preferencesSection": {
+    "description": "Section header on the settings screen grouping user-preference toggles (dark mode, notifications, language). Displayed in uppercase by the UI; provide normal case here.",
+    "context": "settings_screen"
+  },
+
+  "settings.signOut": "Sign out",
+  "@settings.signOut": {
+    "description": "Row label on the settings screen that signs the user out of their account. Verb phrase.",
+    "context": "settings_screen"
+  },
+
+  "settings.title": "Settings",
+  "@settings.title": {
+    "description": "AppBar title of the settings screen.",
+    "context": "settings_screen"
+  }
+}

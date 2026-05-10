@@ -1,0 +1,40 @@
+{
+  "@@locale": "vi",
+
+  "checkout.bookNow": "Đặt ngay",
+  "checkout.bookingConfirmed": "Đã xác nhận đặt phòng. Xem chi tiết trong chuyến đi của bạn.",
+  "checkout.freeCancellation": "Miễn phí hủy trong 48 giờ",
+  "checkout.hostedBy": "Chủ nhà: {hostName}",
+  "checkout.houseRulesAgreement": "Khi đặt, bạn đồng ý với Nội quy nhà và Chính sách hủy.",
+  "checkout.itemCount": "{count, plural, other{{count} mục}}",
+  "checkout.nightsCount": "{count, plural, other{{count} đêm}}",
+  "checkout.pricePerNight": "${price} mỗi đêm",
+  "checkout.title": "Xác nhận và thanh toán",
+  "checkout.total": "Tổng: ${amount}",
+  "checkout.yourTrip": "Chuyến đi của bạn",
+
+  "common.appTitle": "Ứng dụng đặt phòng demo",
+  "common.cancel": "Hủy",
+  "common.delete": "Xóa",
+  "common.loading": "Đang tải...",
+
+  "home.hostedByShort": "Chủ nhà: {hostName}",
+  "home.openSettings": "Mở cài đặt",
+  "home.sampleListingTitle": "Nhà gỗ ven biển ở Đà Nẵng",
+  "home.title": "Chuyến đi của bạn",
+
+  "settings.accountActionsSection": "Tác vụ tài khoản",
+  "settings.accountSection": "Tài khoản",
+  "settings.darkMode": "Chế độ tối",
+  "settings.deleteAccount": "Xóa tài khoản",
+  "settings.deleteAccountConfirmBody": "Thao tác này xóa vĩnh viễn các đặt phòng, chuyến đi và tin đăng cho thuê của bạn. Không thể hoàn tác.",
+  "settings.deleteAccountConfirmTitle": "Xóa tài khoản?",
+  "settings.editProfileHint": "Chạm để chỉnh sửa hồ sơ",
+  "settings.email": "Email",
+  "settings.language": "Ngôn ngữ",
+  "settings.notifications": "Thông báo",
+  "settings.notificationsSubtitle": "Cập nhật chuyến đi, tin nhắn từ chủ nhà và nhắc nhở đặt phòng.",
+  "settings.preferencesSection": "Tùy chọn",
+  "settings.signOut": "Đăng xuất",
+  "settings.title": "Cài đặt"
+}

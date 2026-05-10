@@ -1,0 +1,40 @@
+{
+  "@@locale": "es",
+
+  "checkout.bookNow": "Reservar ahora",
+  "checkout.bookingConfirmed": "Reserva confirmada. Consulta los detalles en tus viajes.",
+  "checkout.freeCancellation": "Cancelación gratis durante 48 horas",
+  "checkout.hostedBy": "Anfitrión: {hostName}",
+  "checkout.houseRulesAgreement": "Al reservar aceptas las Normas de la casa y la Política de cancelación.",
+  "checkout.itemCount": "{count, plural, =0{Sin artículos} =1{1 artículo} other{{count} artículos}}",
+  "checkout.nightsCount": "{count, plural, =1{1 noche} other{{count} noches}}",
+  "checkout.pricePerNight": "${price} por noche",
+  "checkout.title": "Confirmar y pagar",
+  "checkout.total": "Total: ${amount}",
+  "checkout.yourTrip": "Tu viaje",
+
+  "common.appTitle": "Demo de reservas",
+  "common.cancel": "Cancelar",
+  "common.delete": "Eliminar",
+  "common.loading": "Cargando...",
+
+  "home.hostedByShort": "Anfitrión: {hostName}",
+  "home.openSettings": "Abrir ajustes",
+  "home.sampleListingTitle": "Cabaña frente al mar en Da Nang",
+  "home.title": "Tus viajes",
+
+  "settings.accountActionsSection": "Acciones de la cuenta",
+  "settings.accountSection": "Cuenta",
+  "settings.darkMode": "Modo oscuro",
+  "settings.deleteAccount": "Eliminar cuenta",
+  "settings.deleteAccountConfirmBody": "Esto elimina permanentemente tus reservas, viajes y anuncios como anfitrión. No se puede deshacer.",
+  "settings.deleteAccountConfirmTitle": "¿Eliminar cuenta?",
+  "settings.editProfileHint": "Toca para editar tu perfil",
+  "settings.email": "Correo",
+  "settings.language": "Idioma",
+  "settings.notifications": "Notificaciones",
+  "settings.notificationsSubtitle": "Novedades de tus viajes, mensajes del anfitrión y recordatorios de reservas.",
+  "settings.preferencesSection": "Preferencias",
+  "settings.signOut": "Cerrar sesión",
+  "settings.title": "Ajustes"
+}

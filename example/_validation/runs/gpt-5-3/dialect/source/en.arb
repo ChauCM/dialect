@@ -1,0 +1,198 @@
+{
+  "@@locale": "en",
+
+  "checkout.agreementNotice": "By booking you agree to the House Rules and Cancellation Policy.",
+  "@checkout.agreementNotice": {
+    "description": "Legal acknowledgement shown near the bottom of checkout before the user confirms payment.",
+    "context": "checkout_screen"
+  },
+
+  "checkout.bookNow": "Book Now",
+  "@checkout.bookNow": {
+    "description": "Primary CTA on the checkout screen. 'Book' is a verb meaning 'make a reservation' (see glossary). Used on a confirm-and-pay button.",
+    "context": "checkout_screen"
+  },
+
+  "checkout.bookingConfirmedMessage": "Booking confirmed. Check your trips for details.",
+  "@checkout.bookingConfirmedMessage": {
+    "description": "Snackbar message shown after a successful booking confirmation. 'Trips' refers to booked stays in the app.",
+    "context": "checkout_screen"
+  },
+
+  "checkout.confirmAndPay": "Confirm and pay",
+  "@checkout.confirmAndPay": {
+    "description": "Checkout app bar title shown while the user reviews details before booking.",
+    "context": "checkout_screen"
+  },
+
+  "checkout.freeCancellationWindow": "Free cancellation for 48 hours",
+  "@checkout.freeCancellationWindow": {
+    "description": "Policy note under the total price indicating the free cancellation window length.",
+    "context": "checkout_screen"
+  },
+
+  "checkout.hostedBy": "Hosted by {hostName}",
+  "@checkout.hostedBy": {
+    "description": "Host attribution line under the listing title. 'Host' means the person listing the property.",
+    "context": "checkout_screen",
+    "placeholders": {
+      "hostName": { "type": "String" }
+    }
+  },
+
+  "checkout.itemCount": "{count, plural, =0{No items} =1{1 item} other{{count} items}}",
+  "@checkout.itemCount": {
+    "description": "Item summary on the checkout cart line. Used in body text, not a button.",
+    "context": "checkout_screen",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+
+  "checkout.nightsCount": "{count, plural, =1{1 night} other{{count} nights}}",
+  "@checkout.nightsCount": {
+    "description": "Trip duration row in checkout, showing number of nights booked.",
+    "context": "checkout_screen",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+
+  "checkout.pricePerNight": "${pricePerNight} per night",
+  "@checkout.pricePerNight": {
+    "description": "Line item in checkout showing nightly rate. Keep the dollar symbol position as in source.",
+    "context": "checkout_screen",
+    "placeholders": {
+      "pricePerNight": { "type": "int" }
+    }
+  },
+
+  "checkout.totalAmount": "Total: ${total}",
+  "@checkout.totalAmount": {
+    "description": "Checkout total amount label before the final action button.",
+    "context": "checkout_screen",
+    "placeholders": {
+      "total": { "type": "int" }
+    }
+  },
+
+  "checkout.yourTrip": "Your trip",
+  "@checkout.yourTrip": {
+    "description": "Section header in checkout summarizing itinerary and pricing details.",
+    "context": "checkout_screen"
+  },
+
+  "common.cancel": "Cancel",
+  "@common.cancel": {
+    "description": "Cancel action label. Used on dialog buttons and as a back-out option across screens.",
+    "context": "shared"
+  },
+
+  "common.delete": "Delete",
+  "@common.delete": {
+    "description": "Generic destructive action label used on confirmation dialogs and danger actions.",
+    "context": "shared"
+  },
+
+  "common.loading": "Loading...",
+  "@common.loading": {
+    "description": "Generic loading indicator. Shown while async data is being fetched. Trailing ellipsis is intentional.",
+    "context": "shared"
+  },
+
+  "home.openSettings": "Open settings",
+  "@home.openSettings": {
+    "description": "Button label on the home screen that navigates to app settings.",
+    "context": "home_screen"
+  },
+
+  "home.yourTrips": "Your trips",
+  "@home.yourTrips": {
+    "description": "Home screen app bar title for the list of booked stays.",
+    "context": "home_screen"
+  },
+
+  "settings.account": "Account",
+  "@settings.account": {
+    "description": "Section header for account-related profile information.",
+    "context": "settings_screen"
+  },
+
+  "settings.accountActions": "Account actions",
+  "@settings.accountActions": {
+    "description": "Section header for account-level actions like sign out and account deletion.",
+    "context": "settings_screen"
+  },
+
+  "settings.darkMode": "Dark mode",
+  "@settings.darkMode": {
+    "description": "Settings toggle label for enabling dark theme.",
+    "context": "settings_screen"
+  },
+
+  "settings.deleteAccount": "Delete account",
+  "@settings.deleteAccount": {
+    "description": "Danger action label that starts account deletion flow.",
+    "context": "settings_screen"
+  },
+
+  "settings.deleteAccountConfirmBody": "This permanently removes your bookings, trips, and host listings. This cannot be undone.",
+  "@settings.deleteAccountConfirmBody": {
+    "description": "Alert dialog body warning about irreversible account deletion consequences.",
+    "context": "settings_screen"
+  },
+
+  "settings.deleteAccountConfirmTitle": "Delete account?",
+  "@settings.deleteAccountConfirmTitle": {
+    "description": "Alert dialog title asking user to confirm account deletion.",
+    "context": "settings_screen"
+  },
+
+  "settings.email": "Email",
+  "@settings.email": {
+    "description": "Label for the email row in account details.",
+    "context": "settings_screen"
+  },
+
+  "settings.language": "Language",
+  "@settings.language": {
+    "description": "Label for preferred app language setting.",
+    "context": "settings_screen"
+  },
+
+  "settings.notifications": "Notifications",
+  "@settings.notifications": {
+    "description": "Settings toggle label for notifications.",
+    "context": "settings_screen"
+  },
+
+  "settings.notificationsDescription": "Trip updates, host messages, and booking reminders.",
+  "@settings.notificationsDescription": {
+    "description": "Supporting text under notifications toggle describing message categories.",
+    "context": "settings_screen"
+  },
+
+  "settings.preferences": "Preferences",
+  "@settings.preferences": {
+    "description": "Section header for user preference settings.",
+    "context": "settings_screen"
+  },
+
+  "settings.signOut": "Sign out",
+  "@settings.signOut": {
+    "description": "Action label to sign out from the current account.",
+    "context": "settings_screen"
+  },
+
+  "settings.tapToEditProfile": "Tap to edit your profile",
+  "@settings.tapToEditProfile": {
+    "description": "Helper text under profile row inviting the user to edit account profile details.",
+    "context": "settings_screen"
+  },
+
+  "settings.title": "Settings",
+  "@settings.title": {
+    "description": "Settings screen app bar title.",
+    "context": "settings_screen"
+  }
+}

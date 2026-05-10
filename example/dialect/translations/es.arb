@@ -1,0 +1,37 @@
+{
+  "@@locale": "es",
+
+  "checkout.bookNow": "Reservar ahora",
+  "checkout.bookingConfirmedMessage": "Reserva confirmada. Consulta tus viajes para ver los detalles.",
+  "checkout.freeCancellation": "Cancelación gratuita durante 48 horas",
+  "checkout.hostedBy": "Anfitrión: {hostName}",
+  "checkout.itemCount": "{count, plural, =0{Sin artículos} =1{1 artículo} one{{count} artículo} other{{count} artículos}}",
+  "checkout.nightsCount": "{count, plural, one{{count} noche} other{{count} noches}}",
+  "checkout.pricePerNight": "${price} por noche",
+  "checkout.termsNotice": "Al reservar aceptas las Normas de la casa y la Política de cancelación.",
+  "checkout.title": "Confirmar y pagar",
+  "checkout.total": "Total: ${amount}",
+  "checkout.yourTripHeader": "Tu viaje",
+
+  "common.cancel": "Cancelar",
+  "common.delete": "Eliminar",
+  "common.loading": "Cargando...",
+
+  "home.openSettings": "Abrir ajustes",
+  "home.title": "Tus viajes",
+
+  "settings.accountActionsSection": "Acciones de la cuenta",
+  "settings.accountSection": "Cuenta",
+  "settings.darkMode": "Modo oscuro",
+  "settings.deleteAccount": "Eliminar cuenta",
+  "settings.deleteAccountConfirmBody": "Esto eliminará permanentemente tus reservas, viajes y anuncios como anfitrión. Esta acción no se puede deshacer.",
+  "settings.deleteAccountConfirmTitle": "¿Eliminar cuenta?",
+  "settings.editProfileHint": "Toca para editar tu perfil",
+  "settings.emailLabel": "Correo electrónico",
+  "settings.language": "Idioma",
+  "settings.notifications": "Notificaciones",
+  "settings.notificationsDescription": "Novedades de tus viajes, mensajes del anfitrión y recordatorios de reservas.",
+  "settings.preferencesSection": "Preferencias",
+  "settings.signOut": "Cerrar sesión",
+  "settings.title": "Ajustes"
+}

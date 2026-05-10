@@ -89,7 +89,7 @@ If a feature request feels like "let's also do X for audience Y," check this sec
 
 The full v1.0 list is in [`planning/mvp-plan.md`](planning/mvp-plan.md). Suggested implementation order:
 
-1. **The convention without code.** Hand-author `dialect.yaml` and `glossary.yaml` example files. Drop them into a small sample Flutter app with 2–3 screens. Point a stock AI agent (Claude Code / Cursor) at `dialect.yaml` and ask it to extract strings + translate. **If the agent reliably produces correct ARB without further help, the convention is right.** This is the cheapest validation — do it before writing CLI code.
+1. **The convention without code.** Hand-author `dialect.yaml` and `glossary.yaml` example files. Drop them into a small sample Flutter app with 2–3 screens. Point a stock AI agent (Claude Code / Cursor) at `dialect.yaml` and ask it to extract strings + translate. **If the agent reliably produces correct ARB without further help, the convention is right.** This is the cheapest validation — do it before writing CLI code. Canonical demo locale set: `es, ja, ar, de, vi` (covers RTL, plural-category diversity, non-Latin scripts, German length pain, Vietnamese NFC normalization).
 2. **Dart CLI scaffold.** `pub init`, `bin/dialect.dart` entry point, basic command routing (`args` package). Wire up `dialect --version` and `dialect --help`.
 3. **`dialect init`** — pure file generation. Scaffold the `dialect/` directory with the convention-documented `dialect.yaml` from step 1.
 4. **`dialect check` (structural)** — ARB parser, key existence check, placeholder match, plural-category validation.
@@ -171,7 +171,30 @@ If you're a fresh agent landing in this repo, here's the prompt to start with:
 
 ---
 
-## 9. When to push back
+## 9. Dev workflow (once the Dart scaffold exists)
+
+The repo currently has **no code** — only docs (`docs/`, `planning/`, `research/`, `references/`, `spikes/`). The list below is the loop you'll use the moment §5 step 2 ("Dart CLI scaffold") creates `pubspec.yaml` and `bin/dialect.dart`. Before that point these commands won't do anything useful.
+
+| Task | Command |
+|---|---|
+| Install deps | `dart pub get` |
+| Run the CLI from source | `dart run bin/dialect.dart <args>` (e.g. `dart run bin/dialect.dart --help`) |
+| Run all tests | `dart test` |
+| Run a single test file | `dart test test/path/to/foo_test.dart` |
+| Run a single test by name | `dart test --name '<substring of test description>'` |
+| Format | `dart format .` (use defaults — no custom line length) |
+| Static analysis | `dart analyze` |
+| Build the release binary | `dart compile exe bin/dialect.dart -o build/dialect` (~7 MB self-contained) |
+| Build the dashboard SPA | `cd dashboard && pnpm install && pnpm build` (Svelte + Vite; emitted assets get embedded into the Dart binary) |
+| Run the dashboard server in dev | `dart run bin/dialect.dart serve` (Dart Shelf on `localhost:4077`) |
+
+Per `CONTRIBUTING.md`: Dart code follows `dart format` defaults, keep functions small and testable, and prefer explicit types over `var` for public APIs.
+
+The `Dialect.AspNetCore` NuGet package (v1.1) lives under `dialect_aspnetcore/` and is targeted at `net8.0`; it has its own `dotnet test` / `dotnet pack` lifecycle and is independent of the Dart build.
+
+---
+
+## 10. When to push back
 
 The brainstorm reflects a series of deliberate trade-offs. If a future request would:
 

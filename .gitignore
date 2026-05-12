@@ -27,9 +27,10 @@ dashboard/dist/
 dashboard/.svelte-kit/
 dashboard/build/
 
-# .NET (Dialect.AspNetCore NuGet package)
-**/bin/
-**/obj/
+# .NET (Dialect.AspNetCore NuGet package — only the C# project's outputs,
+# not the Dart CLI's bin/dialect.dart entry point).
+dialect_aspnetcore/**/bin/
+dialect_aspnetcore/**/obj/
 *.user
 
 # Heavy/local reference material (cloned repos, datasets)

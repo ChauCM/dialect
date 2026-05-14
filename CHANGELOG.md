@@ -6,6 +6,19 @@ work-in-progress milestones from `planning/mvp-plan.md`.
 ## [Unreleased]
 
 ### Added
+- **M2.** ARB read/write + ICU detection (`lib/arb/`).
+  - `arb_file.dart`: typed model with `description`, `context`, `placeholders`,
+    `locked`, `glossary_exempt`, `source_hash`, plus extras pass-through.
+  - `arb_parser.dart`: reads ARB JSON; NFC-normalizes all string values
+    (`unorm_dart`) so Vietnamese NFD vs NFC inputs hash identically.
+  - `arb_writer.dart`: emits canonical ARB JSON matching the seed file
+    byte-for-byte (sorted keys, `@@locale` first, `@key` after its key,
+    blank-line separators).
+  - `icu_message.dart`: focused scanner exposing
+    `extractPlaceholders`, `extractPluralCategories`, `hasExpressions`.
+    Handles `''` and `'…'` ICU escape, nested plural/select branches,
+    selectordinal, and the Round-2 "=N mirrors AND CLDR categories"
+    pattern. 40 tests including byte-identical round-trip on the seed.
 - **M1.** Dart CLI scaffold: `dart create --template=cli` baseline, `pubspec.yaml`
   with SDK constraint `^3.4.0`, `args ^2.7.0` and `lints ^6.0.0` dev. Entry point
   at `bin/dialect.dart`. `DialectCommandRunner` wires the seven v1.0 commands

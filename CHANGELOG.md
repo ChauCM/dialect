@@ -5,6 +5,37 @@ work-in-progress milestones from `planning/mvp-plan.md`.
 
 ## [Unreleased]
 
+### Changed
+- **M2 hardening.** Pre-emptive fixes to the ARB substrate before M3 builds
+  on it.
+  - Parser preserves unknown `@@<name>` file-level metadata in
+    `ArbFile.fileMetadata` (e.g. Flutter `gen_l10n`'s `@@last_modified`).
+    Writer emits it after `@@locale` in sorted order. Prevents silent
+    data loss on `dialect sync`.
+  - Orphan `@key` blocks (no matching key/value) preserved in
+    `ArbFile.orphanMetadata` so M4 can surface them as structural errors
+    without re-reading raw JSON. Writer skips orphans by construction —
+    `dialect check --fix` strips them implicitly.
+  - `example/dialect/source/en.arb` synced with the canonical 30-key
+    extract from `_validation/runs/claude-post-patch/`. Matches the
+    translation files now.
+  - `arb_roundtrip_test.dart` resolves the seed via `test/_support/repo_root.dart`
+    instead of a `cwd`-relative path.
+  - Removed unused `intl: ^0.20.2` dependency.
+- **Tooling.** `tool/sync_version.dart` keeps `lib/version.dart` in lock-
+  step with `pubspec.yaml`'s `version:` field. `--check` mode runs in CI
+  so a forgotten sync fails the build. Stricter hand-picked lints
+  (`unawaited_futures`, `avoid_dynamic_calls`, `prefer_relative_imports`,
+  `directives_ordering`, `prefer_final_locals`, `cancel_subscriptions`,
+  `close_sinks`) layered on top of `package:lints/recommended.yaml`.
+- **CI.** `.github/workflows/ci.yml` runs `dart pub get`, version-sync
+  `--check`, `dart format --set-exit-if-changed`, `dart analyze
+  --fatal-infos --fatal-warnings`, and `dart test` on every push and PR.
+- **Docs.** `planning/mvp-plan.md` updated to reflect that
+  `intl_translation` is deprecated and Dialect ships a focused ICU
+  scanner; future agents reading the plan won't try to "fix" the code
+  by ripping out the scanner.
+
 ### Added
 - **M2.** ARB read/write + ICU detection (`lib/arb/`).
   - `arb_file.dart`: typed model with `description`, `context`, `placeholders`,

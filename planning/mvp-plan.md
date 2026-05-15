@@ -217,7 +217,7 @@ For large orgs with compliance and scale needs.
 ### CLI: Dart
 
 - Flutter devs can contribute immediately — same language as their app code, same toolchain.
-- ARB is Flutter's native format. Dart has the most mature ARB + ICU MessageFormat tooling (`intl`, `intl_translation`).
+- ARB is Flutter's native format. Dart owns the ARB ecosystem (Flutter's own `gen_l10n` and `package:intl`). For ICU MessageFormat *parsing* the situation is messier: `package:intl_translation` has been deprecated and there is no well-maintained public Dart parser. Dialect therefore ships a focused ICU scanner in `lib/arb/icu_message.dart` — scope limited to placeholder-name and plural-category extraction (the two structural checks v1.0 needs). It does not evaluate or format messages. If a v1.1+ check rule needs deeper AST analysis (skeleton parsing, gender variants, etc.) we swap in a real parser at that point. Validated against five models in `example/_validation/COMPARISON.md`; full ICU edge-case coverage in `test/arb/icu_message_test.dart`.
 - `dart compile exe` produces a fully self-contained ~6-8 MB native binary. No Dart runtime needed at runtime.
 - Flutter devs install via `dart pub global activate dialect`. Backend engineers install pre-built binaries (Homebrew / Scoop / curl) and never see the Dart SDK. See [Distribution](#distribution) below.
 - LLM client for `dialect translate --auto` is a hand-rolled HTTP wrapper around Anthropic / OpenAI REST APIs (~50 lines per provider). No community SDK dependency that could rot.

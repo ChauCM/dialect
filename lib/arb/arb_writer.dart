@@ -26,9 +26,20 @@ class ArbWriter {
     final buf = StringBuffer();
     buf.writeln('{');
 
-    // @@locale first.
+    // @@locale always first.
     buf.write('  "@@locale": ');
     buf.write(jsonEncode(arb.locale));
+
+    // Other file-level @@-metadata in sorted order — preserve, do not
+    // silently strip user data (e.g. Flutter gen_l10n's @@last_modified).
+    final extraFileKeys = arb.fileMetadata.keys.toList()..sort();
+    for (final k in extraFileKeys) {
+      buf.writeln(',');
+      buf.write('  ');
+      buf.write(jsonEncode(k));
+      buf.write(': ');
+      buf.write(jsonEncode(arb.fileMetadata[k]));
+    }
 
     final sorted = [...arb.entries]..sort((a, b) => a.key.compareTo(b.key));
 

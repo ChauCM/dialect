@@ -24,6 +24,7 @@ class ArbParser {
     }
 
     String? locale;
+    final fileMetadata = <String, Object?>{};
     final partials = <String, _PartialEntry>{};
     final insertionOrder = <String>[];
 
@@ -43,8 +44,10 @@ class ArbParser {
       }
 
       if (rawKey.startsWith('@@')) {
-        // Other ARB-level metadata (e.g. @@last_modified). Not used by
-        // Dialect v1.0; silently dropped on read. v1.1 may preserve.
+        // Other ARB-level metadata (e.g. Flutter gen_l10n's @@last_modified,
+        // custom @@x-context). Preserve verbatim so the writer round-trips
+        // them — silent stripping would corrupt user data on `dialect sync`.
+        fileMetadata[rawKey] = value;
         return;
       }
 
@@ -78,13 +81,15 @@ class ArbParser {
     }
 
     final entries = <ArbEntry>[];
+    final orphans = <String, ArbMetadata>{};
     for (final key in insertionOrder) {
       final p = partials[key]!;
       if (p.value == null) {
-        // Metadata-only entry — orphan @key without a value. Dialect check
-        // will flag this in M4. We drop it on parse to keep the model clean;
-        // the structural check reads the raw JSON separately if it needs to
-        // diagnose this case.
+        // Metadata-only entry — `@key` block without a corresponding
+        // key/value pair. Preserve so `dialect check` (M4) can surface it
+        // as a structural error. `dialect check --fix` strips orphans by
+        // construction — the writer never emits orphanMetadata.
+        if (p.metadata != null) orphans[key] = p.metadata!;
         continue;
       }
       entries.add(
@@ -92,7 +97,12 @@ class ArbParser {
       );
     }
 
-    return ArbFile(locale: locale!, entries: entries);
+    return ArbFile(
+      locale: locale!,
+      entries: entries,
+      fileMetadata: fileMetadata,
+      orphanMetadata: orphans,
+    );
   }
 
   static ArbMetadata _parseMetadata(Map<dynamic, dynamic> raw) {

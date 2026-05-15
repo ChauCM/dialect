@@ -117,14 +117,40 @@ void main() {
       );
     });
 
-    test('drops orphan @key blocks without a value', () {
+    test('preserves orphan @key blocks for the structural check', () {
+      // An `@key` block without a corresponding key/value pair is a
+      // structural error `dialect check` (M4) needs to flag. The parser
+      // surfaces it in `orphanMetadata` so M4 doesn't have to re-read raw
+      // JSON. `dialect check --fix` strips orphans by construction.
       final arb = ArbParser.parse('''
 {
   "@@locale": "en",
   "@orphan": { "description": "no value" }
 }
 ''');
-      expect(arb.entryFor('orphan'), isNull);
+      expect(arb.entryFor('orphan'), isNull,
+          reason: 'orphan does not become a real entry');
+      expect(arb.orphanMetadata.keys, ['orphan']);
+      expect(arb.orphanMetadata['orphan']!.description, 'no value');
+    });
+
+    test('preserves unknown @@ file-level metadata', () {
+      // Flutter gen_l10n emits @@last_modified by default. Other tools
+      // emit @@x-context or custom @@-prefixed fields. Silently dropping
+      // them on read would corrupt user data when `dialect sync` writes
+      // back.
+      final arb = ArbParser.parse('''
+{
+  "@@locale": "en",
+  "@@last_modified": "2026-05-22T10:00:00.000Z",
+  "@@x-context": "checkout",
+  "k": "v"
+}
+''');
+      expect(arb.fileMetadata['@@last_modified'], '2026-05-22T10:00:00.000Z');
+      expect(arb.fileMetadata['@@x-context'], 'checkout');
+      expect(arb.fileMetadata.containsKey('@@locale'), isFalse,
+          reason: '@@locale lives on its own field, not in fileMetadata');
     });
   });
 }

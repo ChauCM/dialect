@@ -13,11 +13,19 @@
 
 include: package:lints/recommended.yaml
 
-# Uncomment the following section to specify additional rules.
-
-# linter:
-#   rules:
-#     - camel_case_types
+# Hand-picked additions on top of `package:lints/recommended.yaml`. We
+# intentionally do not switch wholesale to `package:very_good_analysis` —
+# its stylistic rules (always-final-locals, no-print-in-CLI) would fight
+# CLI development. These are the safety/clarity rules without the noise.
+linter:
+  rules:
+    - unawaited_futures        # Catch fire-and-forget Futures.
+    - avoid_dynamic_calls      # Force typed access; M2 substrate is typed.
+    - prefer_relative_imports  # Within lib/, prefer `../arb/foo.dart` over `package:dialect/arb/foo.dart`.
+    - directives_ordering      # Stable, deterministic import ordering.
+    - prefer_final_locals      # Locals are immutable unless explicitly mutated.
+    - cancel_subscriptions     # Stream subscriptions must be cancelled.
+    - close_sinks              # IOSinks/StreamSinks must be closed.
 
 analyzer:
   exclude:

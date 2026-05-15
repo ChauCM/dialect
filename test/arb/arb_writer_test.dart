@@ -80,6 +80,40 @@ void main() {
       expect(out.contains('"source_hash": "abc123"'), isTrue);
     });
 
+    test('emits @@ file-level metadata after @@locale in sorted order', () {
+      final arb = ArbFile(
+        locale: 'en',
+        entries: [ArbEntry(key: 'k', value: 'v')],
+        fileMetadata: {
+          '@@x-context': 'checkout',
+          '@@last_modified': '2026-05-22T10:00:00.000Z',
+        },
+      );
+      final out = ArbWriter.encode(arb);
+      // Locale first.
+      expect(out.indexOf('"@@locale"'), greaterThan(0));
+      // @@last_modified before @@x-context (alphabetical), both before "k".
+      final lmIdx = out.indexOf('"@@last_modified"');
+      final xcIdx = out.indexOf('"@@x-context"');
+      final kIdx = out.indexOf('"k"');
+      expect(lmIdx, greaterThan(out.indexOf('"@@locale"')));
+      expect(xcIdx, greaterThan(lmIdx));
+      expect(kIdx, greaterThan(xcIdx));
+    });
+
+    test('orphan metadata is not emitted (--fix strips by construction)', () {
+      final arb = ArbFile(
+        locale: 'en',
+        entries: [ArbEntry(key: 'k', value: 'v')],
+        orphanMetadata: {
+          'orphan': ArbMetadata(description: 'should not appear'),
+        },
+      );
+      final out = ArbWriter.encode(arb);
+      expect(out.contains('orphan'), isFalse);
+      expect(out.contains('should not appear'), isFalse);
+    });
+
     test('output parses back as valid JSON', () {
       final arb = ArbFile(locale: 'en', entries: [
         ArbEntry(

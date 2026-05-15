@@ -7,15 +7,13 @@ import 'package:dialect/arb/arb_parser.dart';
 import 'package:dialect/arb/arb_writer.dart';
 import 'package:test/test.dart';
 
+import '../_support/repo_root.dart';
+
 void main() {
   group('ARB round-trip', () {
     test('round-trips example/dialect/source/en.arb byte-identically', () {
-      final file = File('example/dialect/source/en.arb');
-      expect(
-        file.existsSync(),
-        isTrue,
-        reason: 'seed fixture should exist',
-      );
+      final file = File(repoPath(['example', 'dialect', 'source', 'en.arb']));
+      expect(file.existsSync(), isTrue, reason: 'seed fixture should exist');
       final source = file.readAsStringSync();
 
       final arb = ArbParser.parse(source);
@@ -24,8 +22,7 @@ void main() {
       expect(
         emitted,
         equals(source),
-        reason:
-            'writer output must be byte-identical to the canonical seed; '
+        reason: 'writer output must be byte-identical to the canonical seed; '
             'a diff here means either the writer drifted from convention '
             'or the seed file is not in canonical form',
       );
@@ -34,7 +31,7 @@ void main() {
     test('parse → write → parse → write is stable', () {
       // For any input the writer accepts, applying the round-trip a second
       // time must produce the same output as the first.
-      final file = File('example/dialect/source/en.arb');
+      final file = File(repoPath(['example', 'dialect', 'source', 'en.arb']));
       final source = file.readAsStringSync();
 
       final first = ArbWriter.encode(ArbParser.parse(source));

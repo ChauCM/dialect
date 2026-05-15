@@ -13,7 +13,12 @@
 library;
 
 class ArbFile {
-  ArbFile({required this.locale, required this.entries});
+  ArbFile({
+    required this.locale,
+    required this.entries,
+    this.fileMetadata = const {},
+    this.orphanMetadata = const {},
+  });
 
   /// IETF BCP 47 locale tag, e.g. `en`, `es`, `pt-BR`.
   final String locale;
@@ -21,6 +26,19 @@ class ArbFile {
   /// Translation entries, in the order they appear after parsing.
   /// `dialect check --fix` re-sorts these on write.
   final List<ArbEntry> entries;
+
+  /// Other `@@<name>` file-level metadata, preserved verbatim so we never
+  /// silently strip fields Dialect doesn't know about (e.g. Flutter
+  /// `gen_l10n`'s `@@last_modified`, custom `@@x-context`). Keyed by the
+  /// `@@`-prefixed name, value is the JSON-decoded payload.
+  final Map<String, Object?> fileMetadata;
+
+  /// `@key` metadata blocks whose corresponding key/value pair is missing.
+  /// Preserved here (rather than silently dropped) so `dialect check` can
+  /// flag them as a structural error. `dialect check --fix` strips them
+  /// from the written output by construction — the writer never emits
+  /// `orphanMetadata`.
+  final Map<String, ArbMetadata> orphanMetadata;
 
   ArbEntry? entryFor(String key) {
     for (final e in entries) {

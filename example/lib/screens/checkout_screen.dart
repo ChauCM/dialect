@@ -29,7 +29,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     if (!mounted) return;
     setState(() => _confirming = false);
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Booking confirmed. Check your trips for details.')),
+      const SnackBar(
+          content: Text('Booking confirmed. Check your trips for details.')),
     );
   }
 

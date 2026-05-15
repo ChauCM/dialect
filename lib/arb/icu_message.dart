@@ -131,9 +131,7 @@ class IcuMessage {
         .trim()
         .toLowerCase();
 
-    if (type == 'plural' ||
-        type == 'selectordinal' ||
-        type == 'select') {
+    if (type == 'plural' || type == 'selectordinal' || type == 'select') {
       final body = secondComma == -1 ? '' : rest.substring(secondComma + 1);
       final branches = _parseBranches(body);
       return _Expr(varName: varName, type: type, branches: branches);

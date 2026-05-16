@@ -5,6 +5,25 @@ work-in-progress milestones from `planning/mvp-plan.md`.
 
 ## [Unreleased]
 
+### Added
+- **M3.** `dialect init` — the first user-facing command.
+  - Accepts an optional positional `[path]` argument (defaults to cwd).
+  - `--force` overwrites an existing `dialect/` directory.
+  - Writes `dialect/dialect.yaml`, `dialect/glossary.yaml`,
+    `dialect/source/en.arb`; creates `dialect/translations/`.
+  - Appends `.dialect/` to `.gitignore` (creates the file if missing,
+    deduplicates if already present).
+  - Exit codes: 0 success, 64 usage, 65 dialect/ exists w/o `--force`,
+    66 target directory missing.
+- **Templates pipeline.** Canonical seed YAML/ARB at repo-root
+  `templates/`; `tool/sync_templates.dart` bakes them into Dart
+  constants under `lib/templates/*.dart`. `--check` mode wired into CI
+  so a hand-edited generated file fails the build. The generator pipes
+  output through in-project `dart format` so the on-disk shape always
+  matches what `dart format` would produce. 9 init tests in
+  `test/commands/init_test.dart` (creation, byte-identical templates,
+  .gitignore handling, --force, error cases).
+
 ### Changed
 - **M2 hardening.** Pre-emptive fixes to the ARB substrate before M3 builds
   on it.

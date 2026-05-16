@@ -45,9 +45,12 @@ void main() {
       );
     });
 
-    test('stub commands exit 0', () async {
+    test('remaining stub commands exit 0', () async {
+      // Once a command lands its real implementation, remove it from this
+      // list (it gets its own per-command test file). The remaining list
+      // is the M4–M10 milestones' worth of stubs.
       final runner = DialectCommandRunner();
-      for (final cmd in const ['init', 'sync', 'check', 'status', 'serve']) {
+      for (final cmd in const ['sync', 'check', 'status', 'serve']) {
         expect(await runner.run([cmd]), 0, reason: 'dialect $cmd stub');
       }
     });

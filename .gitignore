@@ -47,3 +47,6 @@ spikes/**/*.bin
 # Coverage
 coverage/
 *.lcov
+
+# Dialect ephemeral plan files (regenerated each command run)
+.dialect/

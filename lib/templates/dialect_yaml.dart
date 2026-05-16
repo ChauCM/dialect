@@ -1,0 +1,206 @@
+// GENERATED FILE — do not edit by hand.
+// Run `dart run tool/sync_templates.dart` to regenerate.
+// Source of truth: `templates/dialect.yaml`.
+
+// dart format off
+const String dialectYamlTemplate =
+    r'''# ============================================================
+# Dialect — Localization Convention
+# ============================================================
+# This file configures Dialect AND teaches AI assistants how
+# to work with this project's translations.
+#
+# If you are an AI assistant: read this entire file before
+# extracting or translating any strings.
+#
+# === The project ===
+#   See the `project:` block at the bottom of this file.
+#   Read it first — it tells you what the app does, which
+#   disambiguates glossary terms (e.g. "Trip" = a booked
+#   travel stay, not a corporate business trip).
+#
+# === Where strings live ===
+#   - Canonical source strings live in dialect/source/*.arb
+#   - Translated strings live in dialect/translations/<locale>.arb
+#     (one file per target locale)
+#   - You write to these files only. Do not modify the source code.
+#
+# === Key naming ===
+#   - Keys follow the pattern:  namespace.camelCaseKey
+#     e.g.  checkout.bookNow, common.cancel, settings.darkMode
+#   - The namespace prefix indicates scope. Common ones:
+#       common.*    — shared across every screen
+#       checkout.*  — booking / payment flows
+#       settings.*  — preferences screen
+#     Use existing namespaces when they fit. You MAY introduce
+#     a new namespace if no existing one makes sense; the
+#     `platforms.<platform>.namespaces` list below is the set
+#     of namespaces that currently sync to each platform, not
+#     a restriction on what you can create in source. The
+#     developer will add new namespaces to that list before
+#     running `dialect sync`.
+#   - Two screens that currently render the same English string
+#     should get separate keys (e.g. `home.hostedBy` and
+#     `checkout.hostedBy`). Identical-today is a coincidence,
+#     not a guarantee. Only put strings under `common.*` when
+#     they are *logically* shared (Cancel/Save/Loading/Delete).
+#
+# === After editing, normalize with the CLI ===
+#   You do not need to remember sort order, formatting, or
+#   indentation rules. Add or edit entries in any reasonable
+#   shape, then run:
+#       dialect check --fix     # normalizes + flags issues
+#       dialect sync            # generates platform outputs
+#   `dialect check --fix` deterministically sorts keys, moves
+#   `@@locale` to the top, places each `@key` block after its
+#   own key, strips any `@key` blocks accidentally added to
+#   translation files, and validates placeholder/plural shape.
+#   Spend your effort on the SEMANTIC parts (good descriptions,
+#   good translations, glossary application). The CLI handles
+#   the rest.
+#
+# === @key metadata (semantic part — your responsibility) ===
+#   - Every key in the SOURCE ARB MUST have a "description"
+#     field in its matching `@key` entry. The description
+#     tells future translators (human or AI) what the string
+#     means *in context* — not just what it literally says.
+#       Bad:   "description": "Book now button"
+#       Good:  "description": "CTA on the checkout screen.
+#               'Book' is a verb meaning 'make a reservation',
+#               NOT a physical book."
+#   - Add "context": "<screen_or_feature>" when the same word
+#     might mean different things in different places.
+#   - For strings with variables, add "placeholders" describing
+#     each variable's type and meaning.
+#   - Metadata lives only in the SOURCE ARB. Don't repeat it
+#     in translation files; the CLI will strip it if you do.
+#
+# === Placeholders ===
+#   - Use ICU MessageFormat for interpolation:  "Hello {userName}"
+#   - Declare each placeholder in @key.placeholders with at
+#     least a `type` (`String`, `int`, `double`, `DateTime`).
+#   - Use the SAME placeholder name in every translation. Do
+#     not translate the name itself. (`dialect check` will
+#     catch mismatches.)
+#
+# === Plurals ===
+#   - Use ICU plural select:
+#       "{count, plural, =1{1 item} other{{count} items}}"
+#   - Cover the CLDR plural categories required by the target
+#     locale IN ADDITION TO any `=N` exact-match cases. The
+#     two are independent: ICU evaluates `=N` first and falls
+#     back to the matching CLDR category. You need BOTH —
+#     not one or the other.
+#     Common CLDR sets:
+#       English:    one / other
+#       German:     one / other
+#       Spanish:    one / other
+#       Arabic:     zero / one / two / few / many / other
+#       Japanese:   other  (single-form)
+#       Vietnamese: other  (single-form)
+#   - Mirror any `=N` exact-match cases the source provides.
+#     Don't synthesize extra `=N` cases the source doesn't have.
+#   - Worked example. Source (English):
+#       "{count, plural, =0{No items} =1{1 item} other{{count} items}}"
+#     Correct Arabic translation:
+#       "{count, plural,
+#          =0{لا توجد عناصر} =1{عنصر واحد}
+#          zero{لا توجد عناصر} one{عنصر واحد} two{عنصران}
+#          few{{count} عناصر} many{{count} عنصرًا} other{{count} عنصر}}"
+#     Notice: the `=0`/`=1` mirrors stay, AND all six CLDR
+#     categories are present. Dropping the categories and
+#     keeping only `=0`/`=1`/`other` is WRONG — counts of
+#     2, 3, 4, 11, 100 etc. will fall to `other` instead of
+#     the correct grammatical form.
+#   - The CLI (`dialect check`) flags missing CLDR categories
+#     as an error in `--strict`. Trust it; it will tell you
+#     which category you missed.
+#
+# === Currency, units, dates, numbers ===
+#   - Do not translate currency symbols, units, or numeric
+#     values themselves.
+#   - Match the position of the currency symbol used in the
+#     source string. Per-locale repositioning of `$` is a
+#     runtime number-formatting concern (use `intl`), not a
+#     translation concern.
+#
+# === Glossary ===
+#   - Before translating, read dialect/glossary.yaml.
+#   - The `term` in the glossary is the canonical lemma (e.g.
+#     "Book" as a verb). Use the appropriate inflection or
+#     derivation in the target language — "Booking confirmed"
+#     becomes Spanish `Reserva confirmada` (noun form), not
+#     `Reservar confirmado` (mechanical verb substitution).
+#     The `meaning` field tells you which sense applies.
+#   - If a glossary term appears in a non-literal sense in a
+#     specific key (e.g. "Book club" meaning a physical book),
+#     mark the SOURCE key with `"glossary_exempt": true` in
+#     its `@key` block and leave a brief note in the
+#     description.
+#
+# === What NOT to extract ===
+#   The following are NOT user-facing copy and should remain
+#   hardcoded in source. Do not add them to ARB files.
+#     - Personal names (e.g. "Linh Nguyen" sample profile data)
+#     - Email addresses, phone numbers, URLs
+#     - Currency amounts ("82", "$246") — these are data,
+#       passed in as placeholders
+#     - Dates and times — formatted at runtime with `intl`
+#     - Language self-names in a language picker
+#       (the Spanish UI still says "Español" in its picker, so
+#       these names live in a per-locale data table, not in
+#       translation files)
+#     - Brand/product names you would not translate verbally
+#     - Demo or placeholder content that exists only to make
+#       the app look populated (sample listings, lorem ipsum)
+#   If in doubt: ask whether the string would change for a
+#   different user. If yes, it's data, not copy.
+#
+# === Workflow you should follow ===
+#   1. Read dialect/dialect.yaml (this file) and dialect/glossary.yaml.
+#   2. Read dialect/source/en.arb to see what keys already exist
+#      and the style/length of existing descriptions.
+#   3. For extraction tasks: find user-facing strings in the source
+#      code that are not in the "What NOT to extract" list, propose
+#      a namespace.camelCaseKey for each, and add them to
+#      dialect/source/en.arb with full @key metadata.
+#      Do NOT overwrite keys that already exist — they are the
+#      product of earlier decisions.
+#   4. For translation tasks: for every key in dialect/source/en.arb,
+#      ensure a corresponding entry exists in each
+#      dialect/translations/<locale>.arb. Keep the same key name;
+#      translate only the value. Preserve placeholders and ICU
+#      plural structure exactly. Respect the glossary.
+#   5. Sort all keys per the sort-order rule above before saving.
+#
+# === Things you must NOT do ===
+#   - Do not rename existing keys without being asked.
+#   - Do not change source code to reference different keys.
+#   - Do not invent new @key fields outside this convention.
+#   - Do not translate the source locale itself.
+#   - Do not delete keys you don't recognize.
+#   - Do not mirror @key metadata into translation ARB files.
+#
+# ============================================================
+
+
+project:
+  name: "Your project"
+  description: >
+    One-line description of what your app does. Translators
+    and AI assistants read this to disambiguate glossary terms.
+
+source_locale: en
+target_locales: []  # add the locales you ship in, e.g. [es, fr, ja]
+
+platforms:
+  flutter:
+    output: lib/l10n/
+    format: arb
+    namespaces: [common]  # add more as your project grows
+
+# Per-locale overrides for the length-ratio check.
+# Each value is the [min, max] multiplier of source character length.
+# Default for locales not listed: [0.3, 2.5].
+length_ratio: {}
+''';

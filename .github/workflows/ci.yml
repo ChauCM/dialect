@@ -29,6 +29,9 @@ jobs:
       - name: Verify lib/version.dart is in sync with pubspec.yaml
         run: dart run tool/sync_version.dart --check
 
+      - name: Verify lib/templates/ is in sync with templates/
+        run: dart run tool/sync_templates.dart --check
+
       - name: dart format (check only)
         run: dart format --output=none --set-exit-if-changed .
 

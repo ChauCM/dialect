@@ -24,7 +24,8 @@ void main() {
 
   Future<int> runInit(List<String> args) {
     return DialectCommandRunner()
-        .run(<String>['init', ...args, tmp.path]).then((code) => code ?? 0);
+        .run(<String>['init', ...args, tmp.path])
+        .then((code) => code ?? 0);
   }
 
   group('dialect init', () {
@@ -32,10 +33,14 @@ void main() {
       final code = await runInit([]);
       expect(code, 0);
 
-      expect(File(p.join(tmp.path, 'dialect', 'dialect.yaml')).existsSync(),
-          isTrue);
-      expect(File(p.join(tmp.path, 'dialect', 'glossary.yaml')).existsSync(),
-          isTrue);
+      expect(
+        File(p.join(tmp.path, 'dialect', 'dialect.yaml')).existsSync(),
+        isTrue,
+      );
+      expect(
+        File(p.join(tmp.path, 'dialect', 'glossary.yaml')).existsSync(),
+        isTrue,
+      );
       expect(
         File(p.join(tmp.path, 'dialect', 'source', 'en.arb')).existsSync(),
         isTrue,
@@ -57,8 +62,9 @@ void main() {
         glossaryYamlTemplate,
       );
       expect(
-        File(p.join(tmp.path, 'dialect', 'source', 'en.arb'))
-            .readAsStringSync(),
+        File(
+          p.join(tmp.path, 'dialect', 'source', 'en.arb'),
+        ).readAsStringSync(),
         sourceArbTemplate,
       );
     });
@@ -70,29 +76,40 @@ void main() {
       expect(gitignore, contains('.dialect/'));
     });
 
-    test('appends to an existing .gitignore preserving prior content',
-        () async {
-      File(p.join(tmp.path, '.gitignore')).writeAsStringSync('build/\n*.log\n');
-      await runInit([]);
-      final out = File(p.join(tmp.path, '.gitignore')).readAsStringSync();
-      expect(out, startsWith('build/\n*.log\n'));
-      expect(out, contains('.dialect/'));
-    });
+    test(
+      'appends to an existing .gitignore preserving prior content',
+      () async {
+        File(
+          p.join(tmp.path, '.gitignore'),
+        ).writeAsStringSync('build/\n*.log\n');
+        await runInit([]);
+        final out = File(p.join(tmp.path, '.gitignore')).readAsStringSync();
+        expect(out, startsWith('build/\n*.log\n'));
+        expect(out, contains('.dialect/'));
+      },
+    );
 
-    test("does not duplicate .dialect/ if it's already in .gitignore",
-        () async {
-      File(p.join(tmp.path, '.gitignore'))
-          .writeAsStringSync('build/\n.dialect/\n*.log\n');
-      await runInit([]);
-      final out = File(p.join(tmp.path, '.gitignore')).readAsStringSync();
-      expect(out, 'build/\n.dialect/\n*.log\n',
-          reason: 'an existing .dialect/ entry must not be duplicated');
-    });
+    test(
+      "does not duplicate .dialect/ if it's already in .gitignore",
+      () async {
+        File(
+          p.join(tmp.path, '.gitignore'),
+        ).writeAsStringSync('build/\n.dialect/\n*.log\n');
+        await runInit([]);
+        final out = File(p.join(tmp.path, '.gitignore')).readAsStringSync();
+        expect(
+          out,
+          'build/\n.dialect/\n*.log\n',
+          reason: 'an existing .dialect/ entry must not be duplicated',
+        );
+      },
+    );
 
     test('refuses to overwrite an existing dialect/ without --force', () async {
       Directory(p.join(tmp.path, 'dialect')).createSync();
-      File(p.join(tmp.path, 'dialect', 'sentinel'))
-          .writeAsStringSync('do not delete');
+      File(
+        p.join(tmp.path, 'dialect', 'sentinel'),
+      ).writeAsStringSync('do not delete');
 
       final code = await runInit([]);
       expect(code, isNot(0));
@@ -105,8 +122,9 @@ void main() {
 
     test('--force overwrites an existing dialect/', () async {
       Directory(p.join(tmp.path, 'dialect')).createSync();
-      File(p.join(tmp.path, 'dialect', 'stale.yaml'))
-          .writeAsStringSync('stale');
+      File(
+        p.join(tmp.path, 'dialect', 'stale.yaml'),
+      ).writeAsStringSync('stale');
 
       final code = await runInit(['--force']);
       expect(code, 0);
@@ -124,15 +142,18 @@ void main() {
 
     test('rejects more than one positional path argument', () async {
       final code = await DialectCommandRunner()
-          .run(<String>['init', tmp.path, '/another/path']).then((c) => c ?? 0);
+          .run(<String>['init', tmp.path, '/another/path'])
+          .then((c) => c ?? 0);
       expect(code, 64);
     });
 
     test('errors when the target directory does not exist', () async {
-      final code = await DialectCommandRunner().run(<String>[
-        'init',
-        '/no/such/path/xyz_${DateTime.now().millisecondsSinceEpoch}'
-      ]).then((c) => c ?? 0);
+      final code = await DialectCommandRunner()
+          .run(<String>[
+            'init',
+            '/no/such/path/xyz_${DateTime.now().millisecondsSinceEpoch}',
+          ])
+          .then((c) => c ?? 0);
       expect(code, 66);
     });
   });

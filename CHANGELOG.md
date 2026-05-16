@@ -5,6 +5,28 @@ work-in-progress milestones from `planning/mvp-plan.md`.
 
 ## [Unreleased]
 
+### Changed
+- **M3 follow-up.** Three small fixes before M4 starts.
+  - `templates/glossary.yaml` now ships with one example term + a
+    "Replace or delete this entry" hint, the same pedagogical role as
+    `common.example` in `source/en.arb`. Was effectively empty before.
+  - SDK floor bumped from `^3.4.0` to `^3.11.0` (current stable Dart).
+    Pre-1.0 policy: track current stable. Locks at "current + previous
+    two minor SDK versions" at 1.0 launch. Policy documented in
+    `planning/mvp-plan.md`.
+  - `tool/sync_templates.dart` simplified — the `dart format` pipe
+    workaround removed in favour of `// dart format off` directives in
+    the generated source. The directive landed in Dart 3.7 and is now
+    honored on every supported SDK.
+- **v1.0.1 backlog** (flagged from M3 review, intentionally not blocking
+  M4):
+  - `dialect init --force` is whole-tree overwrite for the canonical
+    files. A separate `--refresh` (write only missing files) is
+    friendlier for users with customized `dialect.yaml`.
+  - `project.name` could auto-detect from a sibling `pubspec.yaml`'s
+    `name:` field, falling back to the directory basename. Currently
+    everyone gets the placeholder "Your project".
+
 ### Added
 - **M3.** `dialect init` — the first user-facing command.
   - Accepts an optional positional `[path]` argument (defaults to cwd).

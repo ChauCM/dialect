@@ -221,6 +221,7 @@ For large orgs with compliance and scale needs.
 - `dart compile exe` produces a fully self-contained ~6-8 MB native binary. No Dart runtime needed at runtime.
 - Flutter devs install via `dart pub global activate dialect`. Backend engineers install pre-built binaries (Homebrew / Scoop / curl) and never see the Dart SDK. See [Distribution](#distribution) below.
 - LLM client for `dialect translate --auto` is a hand-rolled HTTP wrapper around Anthropic / OpenAI REST APIs (~50 lines per provider). No community SDK dependency that could rot.
+- **SDK floor policy.** Pre-1.0, `pubspec.yaml`'s `sdk:` constraint tracks current-stable Dart and we bump whenever a feature would simplify code (`// dart format off`, sealed classes, pattern matching, etc.). At 1.0 launch the floor locks to "current and previous two minor SDK versions" — documented in `CONTRIBUTING.md`. Post-1.0 bumps land on a ~6-month cadence in a major or minor release, never a patch.
 
 ### Review UI: Svelte
 

@@ -10,21 +10,24 @@ void main() {
     });
 
     test('emits sorted entries with metadata blocks', () {
-      final arb = ArbFile(locale: 'en', entries: [
-        ArbEntry(
-          key: 'common.cancel',
-          value: 'Cancel',
-          metadata: ArbMetadata(description: 'Cancel action label.'),
-        ),
-        ArbEntry(
-          key: 'checkout.bookNow',
-          value: 'Book Now',
-          metadata: ArbMetadata(
-            description: 'Primary CTA.',
-            context: 'checkout_screen',
+      final arb = ArbFile(
+        locale: 'en',
+        entries: [
+          ArbEntry(
+            key: 'common.cancel',
+            value: 'Cancel',
+            metadata: ArbMetadata(description: 'Cancel action label.'),
           ),
-        ),
-      ]);
+          ArbEntry(
+            key: 'checkout.bookNow',
+            value: 'Book Now',
+            metadata: ArbMetadata(
+              description: 'Primary CTA.',
+              context: 'checkout_screen',
+            ),
+          ),
+        ],
+      );
       final out = ArbWriter.encode(arb);
       // Sorted: checkout before common.
       final checkoutIdx = out.indexOf('"checkout.bookNow"');
@@ -37,19 +40,22 @@ void main() {
     });
 
     test('inlines placeholders blocks with leading-key-sorted order', () {
-      final arb = ArbFile(locale: 'en', entries: [
-        ArbEntry(
-          key: 'g',
-          value: 'Hello {name}, you have {count} items',
-          metadata: ArbMetadata(
-            description: 'd',
-            placeholders: {
-              'count': ArbPlaceholder(type: 'int'),
-              'name': ArbPlaceholder(type: 'String'),
-            },
+      final arb = ArbFile(
+        locale: 'en',
+        entries: [
+          ArbEntry(
+            key: 'g',
+            value: 'Hello {name}, you have {count} items',
+            metadata: ArbMetadata(
+              description: 'd',
+              placeholders: {
+                'count': ArbPlaceholder(type: 'int'),
+                'name': ArbPlaceholder(type: 'String'),
+              },
+            ),
           ),
-        ),
-      ]);
+        ],
+      );
       final out = ArbWriter.encode(arb);
       expect(out.contains('"placeholders": {'), isTrue);
       // Inline shape: { "type": "int" } per placeholder.
@@ -63,17 +69,20 @@ void main() {
     });
 
     test('includes locked/glossary_exempt/source_hash when set', () {
-      final arb = ArbFile(locale: 'es', entries: [
-        ArbEntry(
-          key: 'k',
-          value: 'v',
-          metadata: ArbMetadata(
-            locked: true,
-            glossaryExempt: true,
-            sourceHash: 'abc123',
+      final arb = ArbFile(
+        locale: 'es',
+        entries: [
+          ArbEntry(
+            key: 'k',
+            value: 'v',
+            metadata: ArbMetadata(
+              locked: true,
+              glossaryExempt: true,
+              sourceHash: 'abc123',
+            ),
           ),
-        ),
-      ]);
+        ],
+      );
       final out = ArbWriter.encode(arb);
       expect(out.contains('"locked": true'), isTrue);
       expect(out.contains('"glossary_exempt": true'), isTrue);
@@ -115,14 +124,17 @@ void main() {
     });
 
     test('output parses back as valid JSON', () {
-      final arb = ArbFile(locale: 'en', entries: [
-        ArbEntry(
-          key: 'a.b',
-          value: 'A',
-          metadata: ArbMetadata(description: 'desc'),
-        ),
-        ArbEntry(key: 'c', value: 'C'),
-      ]);
+      final arb = ArbFile(
+        locale: 'en',
+        entries: [
+          ArbEntry(
+            key: 'a.b',
+            value: 'A',
+            metadata: ArbMetadata(description: 'desc'),
+          ),
+          ArbEntry(key: 'c', value: 'C'),
+        ],
+      );
       final out = ArbWriter.encode(arb);
       // Should round-trip through the parser without throwing.
       expect(() => out, returnsNormally);

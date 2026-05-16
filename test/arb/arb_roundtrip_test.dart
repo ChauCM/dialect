@@ -22,7 +22,8 @@ void main() {
       expect(
         emitted,
         equals(source),
-        reason: 'writer output must be byte-identical to the canonical seed; '
+        reason:
+            'writer output must be byte-identical to the canonical seed; '
             'a diff here means either the writer drifted from convention '
             'or the seed file is not in canonical form',
       );

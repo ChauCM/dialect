@@ -56,15 +56,19 @@ class InitCommand extends Command<int> {
     }
 
     Directory(p.join(dialectDir.path, 'source')).createSync(recursive: true);
-    Directory(p.join(dialectDir.path, 'translations'))
-        .createSync(recursive: true);
+    Directory(
+      p.join(dialectDir.path, 'translations'),
+    ).createSync(recursive: true);
 
-    File(p.join(dialectDir.path, 'dialect.yaml'))
-        .writeAsStringSync(dialectYamlTemplate);
-    File(p.join(dialectDir.path, 'glossary.yaml'))
-        .writeAsStringSync(glossaryYamlTemplate);
-    File(p.join(dialectDir.path, 'source', 'en.arb'))
-        .writeAsStringSync(sourceArbTemplate);
+    File(
+      p.join(dialectDir.path, 'dialect.yaml'),
+    ).writeAsStringSync(dialectYamlTemplate);
+    File(
+      p.join(dialectDir.path, 'glossary.yaml'),
+    ).writeAsStringSync(glossaryYamlTemplate);
+    File(
+      p.join(dialectDir.path, 'source', 'en.arb'),
+    ).writeAsStringSync(sourceArbTemplate);
 
     final gitignoreUpdated = _ensureGitignore(targetDir);
 
@@ -114,10 +118,7 @@ class InitCommand extends Command<int> {
     if (alreadyIgnored) return false;
 
     final separator = existing.endsWith('\n') ? '\n' : '\n\n';
-    file.writeAsStringSync(
-      '$existing$separator$gitignoreSnippet',
-      flush: true,
-    );
+    file.writeAsStringSync('$existing$separator$gitignoreSnippet', flush: true);
     return true;
   }
 }

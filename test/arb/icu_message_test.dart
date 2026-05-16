@@ -8,10 +8,10 @@ void main() {
     });
 
     test('finds multiple placeholders in one string', () {
-      expect(
-        IcuMessage.extractPlaceholders('Hi {first} and {second}'),
-        {'first', 'second'},
-      );
+      expect(IcuMessage.extractPlaceholders('Hi {first} and {second}'), {
+        'first',
+        'second',
+      });
     });
 
     test('returns empty set for plain strings', () {
@@ -19,10 +19,9 @@ void main() {
     });
 
     test('finds the variable name in a typed placeholder', () {
-      expect(
-        IcuMessage.extractPlaceholders('{count, number, compactLong}'),
-        {'count'},
-      );
+      expect(IcuMessage.extractPlaceholders('{count, number, compactLong}'), {
+        'count',
+      });
     });
 
     test('finds the plural variable name', () {
@@ -53,10 +52,7 @@ void main() {
 
     test("two single-quotes are a literal apostrophe", () {
       // No placeholder; ''  is just `'` and there is no `{name}`.
-      expect(
-        IcuMessage.extractPlaceholders("It''s fine"),
-        isEmpty,
-      );
+      expect(IcuMessage.extractPlaceholders("It''s fine"), isEmpty);
     });
   });
 
@@ -122,10 +118,7 @@ void main() {
     });
 
     test('true for plurals', () {
-      expect(
-        IcuMessage.hasExpressions('{n, plural, other{x}}'),
-        isTrue,
-      );
+      expect(IcuMessage.hasExpressions('{n, plural, other{x}}'), isTrue);
     });
 
     test('false for plain strings', () {
@@ -133,10 +126,7 @@ void main() {
     });
 
     test('false when all braces are escaped', () {
-      expect(
-        IcuMessage.hasExpressions("Use '{' and '}' literally"),
-        isFalse,
-      );
+      expect(IcuMessage.hasExpressions("Use '{' and '}' literally"), isFalse);
     });
   });
 }

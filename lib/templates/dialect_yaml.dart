@@ -3,8 +3,7 @@
 // Source of truth: `templates/dialect.yaml`.
 
 // dart format off
-const String dialectYamlTemplate =
-    r'''# ============================================================
+const String dialectYamlTemplate = r'''# ============================================================
 # Dialect — Localization Convention
 # ============================================================
 # This file configures Dialect AND teaches AI assistants how
@@ -204,3 +203,4 @@ platforms:
 # Default for locales not listed: [0.3, 2.5].
 length_ratio: {}
 ''';
+// dart format on

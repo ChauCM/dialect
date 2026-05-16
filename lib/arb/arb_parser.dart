@@ -18,9 +18,7 @@ class ArbParser {
   static ArbFile parse(String content) {
     final root = jsonDecode(content);
     if (root is! Map) {
-      throw const FormatException(
-        'ARB root must be a JSON object.',
-      );
+      throw const FormatException('ARB root must be a JSON object.');
     }
 
     String? locale;
@@ -53,8 +51,10 @@ class ArbParser {
 
       if (rawKey.startsWith('@')) {
         final dataKey = rawKey.substring(1);
-        final partial =
-            partials.putIfAbsent(dataKey, () => _PartialEntry(dataKey));
+        final partial = partials.putIfAbsent(
+          dataKey,
+          () => _PartialEntry(dataKey),
+        );
         if (value is! Map) {
           throw FormatException(
             'Metadata for "$dataKey" must be a JSON object, got '
@@ -92,9 +92,7 @@ class ArbParser {
         if (p.metadata != null) orphans[key] = p.metadata!;
         continue;
       }
-      entries.add(
-        ArbEntry(key: key, value: p.value!, metadata: p.metadata),
-      );
+      entries.add(ArbEntry(key: key, value: p.value!, metadata: p.metadata));
     }
 
     return ArbFile(

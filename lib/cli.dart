@@ -12,10 +12,7 @@ import 'version.dart';
 
 class DialectCommandRunner extends CommandRunner<int> {
   DialectCommandRunner()
-      : super(
-          'dialect',
-          'AI-native localization for Flutter-led teams.',
-        ) {
+    : super('dialect', 'AI-native localization for Flutter-led teams.') {
     argParser.addFlag(
       'version',
       negatable: false,

@@ -13,3 +13,4 @@ const String sourceArbTemplate = r'''{
   }
 }
 ''';
+// dart format on

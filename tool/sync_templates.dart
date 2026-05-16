@@ -78,8 +78,7 @@ void main(List<String> arguments) {
       exit(2);
     }
     final content = src.readAsStringSync();
-    final raw = _render(content, m.constName, m.source.last);
-    final desired = _formatInProject(raw, tgtPath, root, dryRun: check);
+    final desired = _render(content, m.constName, m.source.last);
     final tgt = File(tgtPath);
     final current = tgt.existsSync() ? tgt.readAsStringSync() : '';
 
@@ -116,52 +115,17 @@ String _render(String content, String constName, String sourceFile) {
     );
   }
   // `// dart format off` keeps `dart format` from rewrapping the
-  // single-line `const X = r'''…'''` declaration. We need to opt out
-  // because format would otherwise wrap long content onto two lines and
-  // un-wrap short content back onto one, leaving --check drifting against
-  // the file the generator wrote.
+  // single-line `const X = r'''…'''` declaration. The directive landed
+  // in Dart 3.7 and our pubspec sdk constraint pins ^3.11.0, so we can
+  // rely on it across every supported SDK.
   return '''// GENERATED FILE — do not edit by hand.
 // Run `dart run tool/sync_templates.dart` to regenerate.
 // Source of truth: `templates/$sourceFile`.
 
 // dart format off
 const String $constName = r\'\'\'$content\'\'\';
+// dart format on
 ''';
-}
-
-/// Pipe [source] through `dart format` from within the project, so the
-/// generator's output matches what `dart format` would produce on the
-/// same file under the project's `pubspec.yaml` SDK constraint. (Format's
-/// wrapping behavior is conditional on the package's language version,
-/// so formatting in a temp dir produces a different result than
-/// formatting in-tree.)
-///
-/// In dry-run (`--check`) mode the in-place format would mutate the
-/// existing file, which would mask drift. Instead we write to a sibling
-/// `.tmp` path in the project, format that, read it back, then delete.
-String _formatInProject(
-  String source,
-  String tgtPath,
-  String root, {
-  required bool dryRun,
-}) {
-  final tmp = File('$tgtPath.fmt.tmp');
-  tmp.createSync(recursive: true);
-  tmp.writeAsStringSync(source);
-  try {
-    final fmt = Process.runSync(
-      'dart',
-      ['format', '--output=write', tmp.path],
-      workingDirectory: root,
-    );
-    if (fmt.exitCode != 0) {
-      stderr.writeln('dart format failed:\n${fmt.stderr}');
-      exit(2);
-    }
-    return tmp.readAsStringSync();
-  } finally {
-    if (tmp.existsSync()) tmp.deleteSync();
-  }
 }
 
 String _repoRoot() {

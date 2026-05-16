@@ -4,7 +4,11 @@ version: 0.1.0-dev
 repository: https://github.com/chaucao/dialect
 
 environment:
-  sdk: ^3.4.0
+  # Pre-1.0 policy: track current stable Dart. Bump whenever a feature
+  # would simplify code or unblock a workaround. At 1.0 launch, lock to
+  # "current and previous two minor SDK versions" — documented in
+  # CONTRIBUTING.md at that point.
+  sdk: ^3.11.0
 
 executables:
   dialect: dialect

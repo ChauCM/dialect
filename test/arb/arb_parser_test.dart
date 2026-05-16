@@ -85,10 +85,16 @@ void main() {
       final nfd = unorm.nfd(nfc);
 
       // Sanity-check the test setup: NFD has more code units than NFC.
-      expect(nfd.length, greaterThan(nfc.length),
-          reason: 'NFD must have combining marks split out');
-      expect(nfd, isNot(equals(nfc)),
-          reason: 'NFC and NFD should differ for these chars');
+      expect(
+        nfd.length,
+        greaterThan(nfc.length),
+        reason: 'NFD must have combining marks split out',
+      );
+      expect(
+        nfd,
+        isNot(equals(nfc)),
+        reason: 'NFC and NFD should differ for these chars',
+      );
 
       final arb = ArbParser.parse('''
 {
@@ -98,9 +104,13 @@ void main() {
 ''');
 
       final value = arb.entryFor('home.title')!.value;
-      expect(value, nfc,
-          reason: 'parser must normalize NFD→NFC so two visually-equal '
-              'strings hash identically');
+      expect(
+        value,
+        nfc,
+        reason:
+            'parser must normalize NFD→NFC so two visually-equal '
+            'strings hash identically',
+      );
     });
 
     test('throws on missing @@locale', () {
@@ -128,8 +138,11 @@ void main() {
   "@orphan": { "description": "no value" }
 }
 ''');
-      expect(arb.entryFor('orphan'), isNull,
-          reason: 'orphan does not become a real entry');
+      expect(
+        arb.entryFor('orphan'),
+        isNull,
+        reason: 'orphan does not become a real entry',
+      );
       expect(arb.orphanMetadata.keys, ['orphan']);
       expect(arb.orphanMetadata['orphan']!.description, 'no value');
     });
@@ -149,8 +162,11 @@ void main() {
 ''');
       expect(arb.fileMetadata['@@last_modified'], '2026-05-22T10:00:00.000Z');
       expect(arb.fileMetadata['@@x-context'], 'checkout');
-      expect(arb.fileMetadata.containsKey('@@locale'), isFalse,
-          reason: '@@locale lives on its own field, not in fileMetadata');
+      expect(
+        arb.fileMetadata.containsKey('@@locale'),
+        isFalse,
+        reason: '@@locale lives on its own field, not in fileMetadata',
+      );
     });
   });
 }

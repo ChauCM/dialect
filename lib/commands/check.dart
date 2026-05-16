@@ -16,7 +16,8 @@ class CheckCommand extends Command<int> {
       ..addFlag(
         'fix',
         negatable: false,
-        help: 'Normalize ARB files in place (sort, @@locale first, '
+        help:
+            'Normalize ARB files in place (sort, @@locale first, '
             '@key block placement, strip metadata from translations).',
       );
   }

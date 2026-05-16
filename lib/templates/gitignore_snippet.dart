@@ -3,7 +3,7 @@
 // Source of truth: `templates/gitignore_snippet`.
 
 // dart format off
-const String gitignoreSnippet =
-    r'''# Dialect ephemeral plan files (regenerated each command run)
+const String gitignoreSnippet = r'''# Dialect ephemeral plan files (regenerated each command run)
 .dialect/
 ''';
+// dart format on

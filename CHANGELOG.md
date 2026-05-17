@@ -5,6 +5,37 @@ work-in-progress milestones from `planning/mvp-plan.md`.
 
 ## [Unreleased]
 
+### Added
+- **M4.** `dialect check` — structural validation + `--fix` normalization.
+  - **Five structural rules** under `lib/checks/structural/`: `missing_keys`,
+    `placeholder_match`, `plural_categories`, `empty_values`,
+    `orphan_metadata`. Each rule emits typed `Issue` objects with severity,
+    locale, key, file path, line number, and a real soft-mode hint (not a
+    stub). The `Rule` interface is shared with M8 semantic rules.
+  - **CLDR table** (`lib/checks/cldr_categories.dart`) covers ~25 common
+    locales; unknown locales emit a friendly warning rather than silently
+    skipping.
+  - **Position tracking** added to the parser: every top-level key gets a
+    1-based line number (`ArbFile.entryLines`) via a regex post-pass over
+    the source text. Powers `file:line` hints in the check report. Both
+    `"key":` and `"@key":` lines are recorded so orphan metadata gets a
+    position too.
+  - **Project loader** (`lib/project/dialect_project.dart`) reads
+    `dialect.yaml` + source ARB + every target translation. Minimal
+    `DialectConfig` parser; M5 extends with `platforms` and
+    `length_ratio`.
+  - **`--fix` mode** re-emits every ARB through `ArbWriter`: sorts keys,
+    hoists `@@locale`, places `@key` blocks correctly, strips translation
+    metadata, drops orphans. Re-runs the check pass on the rewritten
+    files so the exit code reflects post-fix state.
+  - **Real-world fixture coverage**: the plural-categories rule uses
+    `_validation/runs/{gpt-5-3,claude-post-patch}/dialect/translations/ar.arb`
+    as the negative / positive fixtures (the M0+ Codex defect → live bug
+    fixture, no synthetic mockery).
+  - Exit codes: 0 clean / 1 errors / 64 usage / 65 malformed ARB or YAML
+    / 66 no project. Soft mode exits 0 for warnings-only;`--strict`
+    promotes everything to errors.
+
 ### Changed
 - **M3 follow-up.** Three small fixes before M4 starts.
   - `templates/glossary.yaml` now ships with one example term + a

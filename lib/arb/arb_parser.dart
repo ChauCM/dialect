@@ -14,8 +14,10 @@ import 'arb_file.dart';
 class ArbParser {
   const ArbParser._();
 
-  /// Parse ARB content from a UTF-8 string.
-  static ArbFile parse(String content) {
+  /// Parse ARB content from a UTF-8 string. [sourcePath] is recorded on
+  /// the returned [ArbFile] so the check-report formatter can produce
+  /// `file:line` hints.
+  static ArbFile parse(String content, {String? sourcePath}) {
     final root = jsonDecode(content);
     if (root is! Map) {
       throw const FormatException('ARB root must be a JSON object.');
@@ -100,7 +102,51 @@ class ArbParser {
       entries: entries,
       fileMetadata: fileMetadata,
       orphanMetadata: orphans,
+      entryLines: _lineMap(content),
+      sourcePath: sourcePath,
     );
+  }
+
+  /// Build a `raw-key → 1-based line number` map by regex-scanning
+  /// [content] for top-level entries. Both `"key":` and `"@key":` lines
+  /// are recorded — the latter is the only positional evidence for
+  /// orphan metadata blocks.
+  ///
+  /// Not a full JSON parser — relies on canonical formatting (entries at
+  /// indent 2, one per line). `dialect check --fix` enforces this. For
+  /// non-canonical files the worst case is missing line numbers in the
+  /// check report, which degrades gracefully.
+  static Map<String, int> _lineMap(String content) {
+    final lineOffsets = <int>[0];
+    for (var i = 0; i < content.length; i++) {
+      if (content.codeUnitAt(i) == 0x0A) lineOffsets.add(i + 1);
+    }
+    // Top-level entries: line begins with 1–4 spaces, then "<key>", then `:`.
+    final pattern = RegExp(
+      r'^[\t ]{1,4}"((?:[^"\\]|\\.)*)"\s*:',
+      multiLine: true,
+    );
+    final result = <String, int>{};
+    for (final m in pattern.allMatches(content)) {
+      final key = m.group(1)!;
+      if (result.containsKey(key)) continue; // first occurrence wins
+      result[key] = _lineFor(lineOffsets, m.start);
+    }
+    return result;
+  }
+
+  static int _lineFor(List<int> offsets, int pos) {
+    var lo = 0;
+    var hi = offsets.length;
+    while (lo < hi) {
+      final mid = (lo + hi) ~/ 2;
+      if (offsets[mid] <= pos) {
+        lo = mid + 1;
+      } else {
+        hi = mid;
+      }
+    }
+    return lo; // 1-based
   }
 
   static ArbMetadata _parseMetadata(Map<dynamic, dynamic> raw) {

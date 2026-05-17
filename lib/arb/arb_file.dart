@@ -18,6 +18,8 @@ class ArbFile {
     required this.entries,
     this.fileMetadata = const {},
     this.orphanMetadata = const {},
+    this.entryLines = const {},
+    this.sourcePath,
   });
 
   /// IETF BCP 47 locale tag, e.g. `en`, `es`, `pt-BR`.
@@ -39,6 +41,17 @@ class ArbFile {
   /// from the written output by construction — the writer never emits
   /// `orphanMetadata`.
   final Map<String, ArbMetadata> orphanMetadata;
+
+  /// 1-based line numbers for each top-level key in the original source
+  /// text. Populated by the parser via a post-decode scan; used by the
+  /// `dialect check` report formatter to produce `file:line` hints.
+  /// `jsonDecode` strips positions, so we re-derive them.
+  final Map<String, int> entryLines;
+
+  /// Path to the source file this ARB was parsed from, if known. Set by
+  /// the project loader. Used by report formatting; `null` when the ARB
+  /// came from an in-memory string (e.g. unit tests).
+  final String? sourcePath;
 
   ArbEntry? entryFor(String key) {
     for (final e in entries) {

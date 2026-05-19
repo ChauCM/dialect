@@ -6,6 +6,35 @@ work-in-progress milestones from `planning/mvp-plan.md`.
 ## [Unreleased]
 
 ### Added
+- **M5.** `dialect sync` — ARB-passthrough adapter.
+  - Walks `platforms:` in `dialect.yaml`. For each platform with
+    `format: arb`, writes `<output>/app_<locale>.arb` files (Flutter's
+    `gen_l10n` convention).
+  - Source ARB output keeps `@key` metadata; translation outputs strip
+    metadata per the convention.
+  - Namespace filter: keys whose prefix (before the first `.`) isn't in
+    `platforms.<p>.namespaces` are dropped from that platform's output.
+    Empty namespaces list = no filtering.
+  - Output paths resolved against the **project root** (not cwd), so
+    `dialect sync /path/to/proj` and `cd /path/to/proj && dialect sync`
+    write identical bytes to the same locations.
+  - **Idempotent**: re-running `sync` with no changes does not touch
+    any files (mtime preserved). `_maybeWrite` skips writes when the
+    desired bytes already match disk.
+  - **Sync does not auto-fix the input ARBs.** Run `dialect check --fix`
+    separately to normalize sources; sync produces canonical output
+    regardless (because it goes through `ArbWriter`).
+  - Non-`arb` formats print a "lands in v1.1" hint and skip without
+    erroring.
+- **`DialectConfig.platforms`** parsing — typed `PlatformConfig`
+  (`name`, `output`, `format`, `namespaces`). `length_ratio` and
+  `project` blocks still flow through `extras` for M8.
+- **`lib/adapters/arb_adapter.dart`** — `ArbAdapter.prepare`
+  (filter + strip), `ArbAdapter.encode` (delegates to `ArbWriter`),
+  `ArbAdapter.filenameFor` (the `app_<locale>.arb` convention; v1.1
+  spec will make this configurable via `platforms.<p>.filename_pattern`).
+
+### Added
 - **M4.** `dialect check` — structural validation + `--fix` normalization.
   - **Five structural rules** under `lib/checks/structural/`: `missing_keys`,
     `placeholder_match`, `plural_categories`, `empty_values`,

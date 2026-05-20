@@ -30,16 +30,16 @@ void main() {
         platform: platform,
         isSource: true,
       );
-      expect(src.entries.first.metadata, isNotNull);
+      expect(src.arb.entries.first.metadata, isNotNull);
 
       final trans = ArbAdapter.prepare(
         source,
         platform: platform,
         isSource: false,
       );
-      expect(trans.entries.first.metadata, isNull);
+      expect(trans.arb.entries.first.metadata, isNull);
       expect(
-        trans.entries.length,
+        trans.arb.entries.length,
         source.entries.length,
         reason: 'stripping metadata does not drop entries',
       );
@@ -58,7 +58,7 @@ void main() {
         platform: platform,
         isSource: true,
       );
-      expect(out.entries.map((e) => e.key), ['common.greet']);
+      expect(out.arb.entries.map((e) => e.key), ['common.greet']);
     });
 
     test('empty namespaces list means no filtering', () {
@@ -73,7 +73,7 @@ void main() {
         platform: platform,
         isSource: true,
       );
-      expect(out.entries.map((e) => e.key), [
+      expect(out.arb.entries.map((e) => e.key), [
         'common.greet',
         'checkout.bookNow',
         'bare',
@@ -102,7 +102,51 @@ void main() {
         platform: platform,
         isSource: true,
       );
-      expect(out.entries.map((e) => e.key), ['checkout.a', 'checkout.b']);
+      expect(out.arb.entries.map((e) => e.key), ['checkout.a', 'checkout.b']);
+    });
+
+    test('reports bare-namespace keys via bareKeysSkipped', () {
+      final source = ArbFile(
+        locale: 'en',
+        entries: [
+          ArbEntry(key: 'common.ok', value: 'OK'),
+          ArbEntry(key: 'loose_key', value: 'no prefix'),
+          ArbEntry(key: 'another_bare', value: 'still bare'),
+        ],
+      );
+      final platform = PlatformConfig(
+        name: 'flutter',
+        output: 'lib/l10n',
+        format: 'arb',
+        namespaces: ['common'],
+      );
+      final out = ArbAdapter.prepare(
+        source,
+        platform: platform,
+        isSource: true,
+      );
+      expect(out.arb.entries.map((e) => e.key), ['common.ok']);
+      expect(out.bareKeysSkipped, ['loose_key', 'another_bare']);
+    });
+
+    test('empty namespaces list does not flag bare keys', () {
+      // When filtering is off, bare keys flow through, so we don't warn.
+      final source = ArbFile(
+        locale: 'en',
+        entries: [ArbEntry(key: 'loose_key', value: 'kept')],
+      );
+      final platform = PlatformConfig(
+        name: 'flutter',
+        output: 'lib/l10n',
+        format: 'arb',
+      );
+      final out = ArbAdapter.prepare(
+        source,
+        platform: platform,
+        isSource: true,
+      );
+      expect(out.bareKeysSkipped, isEmpty);
+      expect(out.arb.entries.map((e) => e.key), ['loose_key']);
     });
 
     test('orphan metadata is dropped on output', () {
@@ -123,7 +167,7 @@ void main() {
         platform: platform,
         isSource: true,
       );
-      expect(out.orphanMetadata, isEmpty);
+      expect(out.arb.orphanMetadata, isEmpty);
     });
   });
 

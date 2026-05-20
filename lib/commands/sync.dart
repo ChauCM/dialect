@@ -56,6 +56,7 @@ class SyncCommand extends Command<int> {
 
     var totalWritten = 0;
     var totalSkipped = 0;
+    final bareKeysPerPlatform = <String, Set<String>>{};
 
     for (final platform in project.config.platforms.values) {
       if (platform.format != 'arb') {
@@ -67,9 +68,14 @@ class SyncCommand extends Command<int> {
         totalSkipped++;
         continue;
       }
-      final written = _syncPlatform(project, platform);
-      totalWritten += written;
+      final outcome = _syncPlatform(project, platform);
+      totalWritten += outcome.filesWritten;
+      if (outcome.bareKeys.isNotEmpty) {
+        bareKeysPerPlatform[platform.name] = outcome.bareKeys;
+      }
     }
+
+    _maybeWarnBareKeys(bareKeysPerPlatform);
 
     if (totalWritten == 0 && totalSkipped == 0) {
       stdout.writeln(
@@ -85,43 +91,75 @@ class SyncCommand extends Command<int> {
     return 0;
   }
 
-  /// Sync one platform. Returns the number of files written (or
-  /// rewritten — files whose on-disk bytes already match are touched
-  /// not at all, preserving mtime).
-  int _syncPlatform(DialectProject project, PlatformConfig platform) {
+  /// Sync one platform. Returns ([_PlatformOutcome.filesWritten] +
+  /// [_PlatformOutcome.bareKeys]) — files whose on-disk bytes already
+  /// match are touched not at all, preserving mtime.
+  _PlatformOutcome _syncPlatform(
+    DialectProject project,
+    PlatformConfig platform,
+  ) {
     final outDir = Directory(p.join(project.root, platform.output));
     outDir.createSync(recursive: true);
 
     var written = 0;
+    final bareKeys = <String>{};
 
     // Source ARB — keep metadata.
-    final sourceOut = _maybeWrite(
+    final preparedSource = ArbAdapter.prepare(
+      project.source,
+      platform: platform,
+      isSource: true,
+    );
+    bareKeys.addAll(preparedSource.bareKeysSkipped);
+    if (_maybeWrite(
       outDir.path,
       ArbAdapter.filenameFor(project.config.sourceLocale),
-      ArbAdapter.encode(
-        ArbAdapter.prepare(project.source, platform: platform, isSource: true),
-      ),
-    );
-    if (sourceOut) written++;
+      ArbAdapter.encode(preparedSource.arb),
+    )) {
+      written++;
+    }
 
     // Translations — strip metadata.
     for (final entry in project.translations.entries) {
       final locale = entry.key;
-      final translated = ArbAdapter.prepare(
+      final prepared = ArbAdapter.prepare(
         entry.value,
         platform: platform,
         isSource: false,
       );
+      bareKeys.addAll(prepared.bareKeysSkipped);
       if (_maybeWrite(
         outDir.path,
         ArbAdapter.filenameFor(locale),
-        ArbAdapter.encode(translated),
+        ArbAdapter.encode(prepared.arb),
       )) {
         written++;
       }
     }
 
-    return written;
+    return _PlatformOutcome(filesWritten: written, bareKeys: bareKeys);
+  }
+
+  /// Emit one summary warning per platform that filtered bare-namespace
+  /// keys. Bare keys are valid per the convention but "discouraged" —
+  /// the user picked them deliberately, so we don't suppress entirely.
+  void _maybeWarnBareKeys(Map<String, Set<String>> bareKeysPerPlatform) {
+    if (bareKeysPerPlatform.isEmpty) return;
+    stdout.writeln('');
+    for (final entry in bareKeysPerPlatform.entries) {
+      final keys = entry.value.toList()..sort();
+      final preview = keys.length > 5
+          ? '${keys.take(5).join(", ")}, … (${keys.length - 5} more)'
+          : keys.join(', ');
+      stdout.writeln(
+        '⚠ ${entry.key}: skipped ${keys.length} bare-namespace '
+        'key(s) (no `.` prefix): $preview',
+      );
+    }
+    stdout.writeln(
+      '  hint: add a namespace prefix per convention (e.g. `common.key`), '
+      'or set `namespaces: []` on this platform to disable filtering.',
+    );
   }
 
   /// Write [content] to `<dir>/<filename>` only if the on-disk bytes
@@ -137,4 +175,10 @@ class SyncCommand extends Command<int> {
     stdout.writeln('  wrote: $path');
     return true;
   }
+}
+
+class _PlatformOutcome {
+  _PlatformOutcome({required this.filesWritten, required this.bareKeys});
+  final int filesWritten;
+  final Set<String> bareKeys;
 }

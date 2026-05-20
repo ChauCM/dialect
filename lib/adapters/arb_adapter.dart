@@ -32,10 +32,17 @@ class ArbAdapter {
   const ArbAdapter._();
 
   /// Apply the namespace filter and strip translation metadata, returning
-  /// a new [ArbFile] ready to hand to [ArbWriter].
+  /// a [PreparedArb] ready to hand to [ArbWriter] (plus diagnostics).
   ///
   /// [isSource] preserves `@key` metadata when true; false strips it.
-  static ArbFile prepare(
+  ///
+  /// Bare-namespace keys (no `.` prefix) are valid per the convention
+  /// but "discouraged"; they get filtered out when [platform.namespaces]
+  /// is non-empty (since they don't match any namespace). The list of
+  /// dropped keys flows back through [PreparedArb.bareKeysSkipped] so
+  /// the sync command can surface them — silent drops are worse than
+  /// verbose discipline.
+  static PreparedArb prepare(
     ArbFile arb, {
     required PlatformConfig platform,
     required bool isSource,
@@ -45,26 +52,34 @@ class ArbAdapter {
     final ns = namespaces.toSet();
 
     final entries = <ArbEntry>[];
+    final bareSkipped = <String>[];
     for (final entry in arb.entries) {
       if (!keepAll) {
         final nsPrefix = entry.namespace;
-        if (nsPrefix == null || !ns.contains(nsPrefix)) continue;
+        if (nsPrefix == null) {
+          bareSkipped.add(entry.key);
+          continue;
+        }
+        if (!ns.contains(nsPrefix)) continue;
       }
       entries.add(
         isSource ? entry : ArbEntry(key: entry.key, value: entry.value),
       );
     }
 
-    return ArbFile(
-      locale: arb.locale,
-      entries: entries,
-      fileMetadata: arb.fileMetadata,
-      // Orphans are never emitted — same contract as the writer.
-      orphanMetadata: const {},
-      // Line numbers are tied to the source file; meaningless after
-      // namespace filtering. Drop them.
-      entryLines: const {},
-      sourcePath: arb.sourcePath,
+    return PreparedArb(
+      arb: ArbFile(
+        locale: arb.locale,
+        entries: entries,
+        fileMetadata: arb.fileMetadata,
+        // Orphans are never emitted — same contract as the writer.
+        orphanMetadata: const {},
+        // Line numbers are tied to the source file; meaningless after
+        // namespace filtering. Drop them.
+        entryLines: const {},
+        sourcePath: arb.sourcePath,
+      ),
+      bareKeysSkipped: bareSkipped,
     );
   }
 
@@ -77,4 +92,18 @@ class ArbAdapter {
   /// `{locale}.arb` vs `intl_{locale}.arb`). Hard-coded for now keeps
   /// v1.0 ergonomic for the dominant case.
   static String filenameFor(String locale) => 'app_$locale.arb';
+}
+
+/// Output of [ArbAdapter.prepare]: the filtered ARB plus a list of
+/// bare-namespace keys that were dropped (so sync can surface them).
+class PreparedArb {
+  PreparedArb({required this.arb, required this.bareKeysSkipped});
+
+  /// The filtered, metadata-handled ARB ready for [ArbWriter].
+  final ArbFile arb;
+
+  /// Bare-namespace keys (no `.` prefix) that were dropped because the
+  /// platform has a non-empty `namespaces:` list. Empty when filtering
+  /// is off or when the source has no bare keys.
+  final List<String> bareKeysSkipped;
 }

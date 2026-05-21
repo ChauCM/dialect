@@ -15,6 +15,7 @@ executables:
 
 dependencies:
   args: ^2.7.0
+  crypto: ^3.0.6
   path: ^1.9.0
   unorm_dart: ^0.3.0
   yaml: ^3.1.3

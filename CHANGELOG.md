@@ -6,6 +6,28 @@ work-in-progress milestones from `planning/mvp-plan.md`.
 ## [Unreleased]
 
 ### Added
+- **M6.** `dialect status` — per-locale coverage table.
+  - Columns: `Locale`, `Coverage`, `Stale`, `New`, `Locked`. Output via
+    a Unicode box-drawing table (`lib/render/table.dart`).
+  - `Coverage` = `(translated keys) / (source keys)`. `New` = source
+    keys missing from the translation. `Locked` = entries with
+    `@key.locked: true`. `Stale` = locked entries whose stored
+    `@key.source_hash` no longer matches the current source value's
+    hash.
+- **`@key.source_hash` spec** at `dialect/spec/source_hash.md`. SHA-256
+  of the NFC-normalized source value, truncated to 16 lowercase hex
+  chars. Written by the dashboard at lock-time (M10); read by status,
+  the dashboard's stale indicator, and `dialect translate --skip-locked`
+  (M8+). Hashing the value only — not description or placeholders —
+  so a description edit doesn't invalidate locked translations.
+- **`lib/arb/source_hash.dart`** — `computeSourceHash` implementing the
+  spec. 6 tests including a locked-in fixture so future implementations
+  can't silently change the on-disk fingerprint format.
+- **`lib/render/table.dart`** — generic Unicode-table renderer.
+  Right-aligns numeric data columns, left-aligns text and the header.
+  Zero deps. 5 tests.
+
+### Added
 - **M5.** `dialect sync` — ARB-passthrough adapter.
   - Walks `platforms:` in `dialect.yaml`. For each platform with
     `format: arb`, writes `<output>/app_<locale>.arb` files (Flutter's

@@ -11,6 +11,10 @@
 ///                                  (const sourceArbTemplate)
 ///   templates/gitignore_snippet  → lib/templates/gitignore_snippet.dart
 ///                                  (const gitignoreSnippet)
+///   templates/import_plan.md     → lib/templates/import_plan_md.dart
+///                                  (const importPlanMdTemplate)
+///   templates/describe_plan.md   → lib/templates/describe_plan_md.dart
+///                                  (const describePlanMdTemplate)
 ///
 /// `dialect init` (M3) writes these constants verbatim to the user's
 /// project. The canonical convention lives in source control as YAML/ARB
@@ -61,6 +65,16 @@ const List<_Mapping> _mappings = [
     source: ['templates', 'gitignore_snippet'],
     target: ['lib', 'templates', 'gitignore_snippet.dart'],
     constName: 'gitignoreSnippet',
+  ),
+  _Mapping(
+    source: ['templates', 'import_plan.md'],
+    target: ['lib', 'templates', 'import_plan_md.dart'],
+    constName: 'importPlanMdTemplate',
+  ),
+  _Mapping(
+    source: ['templates', 'describe_plan.md'],
+    target: ['lib', 'templates', 'describe_plan_md.dart'],
+    constName: 'describePlanMdTemplate',
   ),
 ];
 

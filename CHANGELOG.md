@@ -6,6 +6,36 @@ work-in-progress milestones from `planning/mvp-plan.md`.
 ## [Unreleased]
 
 ### Added
+- **M7.** `dialect import` + `dialect describe` — AI-pointer flow.
+  - `dialect import --from <fmt> --path <path>` writes
+    `.dialect/import-plan.md`. `dialect describe [--path <path>]`
+    writes `.dialect/describe-plan.md`. Dialect itself never opens
+    `.dart`/`.kt`/`.swift`/`.cs` files; the plan tells the user's AI
+    where to look. CLAUDE.md §3.1 made literal.
+  - Plan-file content is the load-bearing product surface. Each plan
+    is self-contained — it inlines the load-bearing convention rules
+    (key style, namespaces, "what NOT to extract", placeholder
+    preservation, ICU plural shape, glossary application, hard
+    guardrails) so a stock AI agent doesn't need follow-up prompting,
+    and points at `dialect/dialect.yaml` as the canonical source if
+    anything conflicts.
+  - Templates live at `templates/import_plan.md` and
+    `templates/describe_plan.md` (reviewable in PRs as Markdown);
+    `tool/sync_templates.dart` bakes them into
+    `lib/templates/{import,describe}_plan_md.dart`. Runtime token
+    substitution via `lib/templates/plan_render.dart`. Tokens:
+    `{{FROM}}`, `{{PATH}}`, `{{SOURCE_LOCALE}}`, `{{TARGET_LOCALES}}`,
+    `{{PROJECT_NAME}}` (reads `project.name` from `dialect.yaml` with
+    a friendly fallback), `{{NAMESPACES}}` (sorted union across
+    platforms), `{{GENERATED_AT}}` (ISO 8601 UTC). Unknown tokens are
+    left in place so seed-file typos are loud, not silent.
+  - Plan files overwrite on every run — `.dialect/` is gitignored
+    ephemera per M3, not durable state.
+  - Exit codes consistent with `status`/`check`: 0 success / 64
+    usage (missing `--path` on import, unknown `--from`) / 65
+    malformed `dialect.yaml` / 66 no project.
+
+### Added
 - **M6.** `dialect status` — per-locale coverage table.
   - Columns: `Locale`, `Coverage`, `Stale`, `New`, `Locked`. Output via
     a Unicode box-drawing table (`lib/render/table.dart`).

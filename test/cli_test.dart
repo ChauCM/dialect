@@ -50,7 +50,7 @@ void main() {
       // list (it gets its own per-command test file). The remaining list
       // is the M4–M10 milestones' worth of stubs.
       final runner = DialectCommandRunner();
-      for (final cmd in const ['serve']) {
+      for (final cmd in const <String>['serve']) {
         expect(await runner.run([cmd]), 0, reason: 'dialect $cmd stub');
       }
     });

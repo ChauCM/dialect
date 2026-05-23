@@ -4,7 +4,7 @@ import 'arb_file.dart';
 
 /// Writes an [ArbFile] to canonical ARB JSON.
 ///
-/// Canonical format, matching `example/dialect/source/en.arb` byte-for-byte:
+/// Canonical format, matching `test/fixtures/canonical/dialect/source/en.arb` byte-for-byte:
 /// - 2-space indentation.
 /// - `@@locale` is always the first entry.
 /// - Entries are sorted by key, byte-wise lexicographic ordering (dot is

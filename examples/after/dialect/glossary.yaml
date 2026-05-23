@@ -1,0 +1,67 @@
+# ============================================================
+# Project glossary — Dialect convention
+# ============================================================
+# Terms with non-obvious or domain-specific translations.
+# `dialect check` verifies that translations of strings
+# containing these terms use the prescribed translation.
+#
+# Escape hatch: if a string uses a term in a non-literal sense
+# (e.g. "Book club" really means a physical book), mark the
+# key with @key.glossary_exempt: true in the source ARB.
+# ============================================================
+
+terms:
+  - term: "Book"
+    meaning: >
+      Verb meaning 'make a reservation' (as in "Book Now"). Not a
+      physical book. Use the appropriate inflection in the target
+      language (the noun form 'Booking' uses the corresponding
+      derived noun).
+    translations:
+      es: "Reservar"
+      de: "Buchen"
+      ja: "予約する"
+      vi: "Đặt"
+      ar: "احجز"
+
+  - term: "Trip"
+    meaning: >
+      A booked stay — the user's reservation at a listing.
+      Not a business trip or generic journey. Use the term your
+      locale uses for short-stay accommodation rentals.
+    translations:
+      es: "Viaje"
+      de: "Reise"
+      ja: "旅行"
+      vi: "Chuyến đi"
+      ar: "رحلة"
+
+  - term: "Host"
+    meaning: >
+      The person renting out a listing. Used as a noun. The verb
+      form "Hosted by" appears as "Hosted by {hostName}" on the
+      checkout screen.
+    translations:
+      es: "Anfitrión"
+      de: "Gastgeber"
+      ja: "ホスト"
+      vi: "Chủ nhà"
+      ar: "المضيف"
+
+style:
+  # Project-wide tone. Short phrase; "friendly, concise" is a good default.
+  tone: "friendly, concise"
+
+  # Per-locale formality. Use the form your AI assistant should produce.
+  formality:
+    es: "tú (informal)"
+    de: "Sie (formal)"
+    ja: "です/ます (polite)"
+    vi: "bạn (informal)"
+    ar: "MSA (informal, second person)"
+
+  # Rules of thumb that apply across every locale.
+  general:
+    - "Preserve all ICU placeholders ({name}, {count}, etc.) exactly as in source."
+    - "Preserve all plural categories ICU expects for the target locale."
+    - "Do not translate brand names, currency symbols, or units."

@@ -180,13 +180,16 @@ void main() {
   });
 
   group('dialect status (integration)', () {
-    test('renders a clean status table against example/', () async {
-      final exit = await DialectCommandRunner().run(<String>[
-        'status',
-        _example(),
-      ]);
-      expect(exit, 0);
-    });
+    test(
+      'renders a clean status table against the canonical fixture',
+      () async {
+        final exit = await DialectCommandRunner().run(<String>[
+          'status',
+          _canonicalFixture(),
+        ]);
+        expect(exit, 0);
+      },
+    );
 
     test('errors gracefully when run outside a project', () async {
       final tmp = Directory.systemTemp.createTempSync('dialect_status_');
@@ -221,12 +224,12 @@ ArbFile _arb(String locale, {List<ArbEntry> entries = const []}) {
 
 ArbEntry _entry(String key, String value) => ArbEntry(key: key, value: value);
 
-String _example() {
+String _canonicalFixture() {
   // Walk up until pubspec.yaml exists; same pattern as test/_support.
   var dir = Directory.current;
   while (true) {
     if (File(p.join(dir.path, 'pubspec.yaml')).existsSync()) {
-      return p.join(dir.path, 'example');
+      return p.join(dir.path, 'test', 'fixtures', 'canonical');
     }
     final parent = dir.parent;
     if (parent.path == dir.path) {

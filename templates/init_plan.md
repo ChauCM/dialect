@@ -29,8 +29,12 @@ In `pubspec.yaml`, ensure these are present under `dependencies:`:
 ```yaml
 flutter_localizations:
   sdk: flutter
-intl: ^0.19.0
+intl: any
 ```
+
+`intl` is constrained by `flutter_localizations` (which pins a specific
+version per Flutter SDK), so `any` lets pub pick the version that matches
+your SDK. Do not hard-pin `intl` — it will fight the SDK constraint.
 
 Then run `flutter pub get`.
 
@@ -50,8 +54,13 @@ In your top-level `MaterialApp` (usually `lib/main.dart`), add the imports:
 
 ```dart
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:{{PUBSPEC_NAME}}/l10n/app_localizations.dart';
 ```
+
+The second import comes from `lib/l10n/app_localizations.dart`, the file
+`flutter gen-l10n` writes from the `l10n.yaml` above. (You may see older
+docs use `package:flutter_gen/gen_l10n/…` — that's the legacy
+`synthetic-package: true` path, deprecated in modern Flutter.)
 
 …and add these properties to `MaterialApp(...)`:
 

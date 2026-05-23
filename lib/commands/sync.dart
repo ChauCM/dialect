@@ -8,6 +8,16 @@ import '../config/dialect_config.dart';
 import '../project/dialect_project.dart';
 
 class SyncCommand extends Command<int> {
+  SyncCommand() {
+    argParser.addFlag(
+      'force',
+      negatable: false,
+      help: 'Rewrite every output file even if its contents already match. '
+          'Use when an external process has touched lib/l10n/ or you want '
+          'to refresh mtimes for a downstream watcher.',
+    );
+  }
+
   @override
   String get name => 'sync';
 
@@ -22,6 +32,7 @@ class SyncCommand extends Command<int> {
   @override
   Future<int> run() async {
     final results = argResults!;
+    final force = results['force'] as bool;
     final rest = results.rest;
     if (rest.length > 1) {
       stderr.writeln('sync takes at most one positional argument.');
@@ -68,7 +79,7 @@ class SyncCommand extends Command<int> {
         totalSkipped++;
         continue;
       }
-      final outcome = _syncPlatform(project, platform);
+      final outcome = _syncPlatform(project, platform, force: force);
       totalWritten += outcome.filesWritten;
       if (outcome.unnamespacedKeys.isNotEmpty) {
         unnamespacedPerPlatform[platform.name] = outcome.unnamespacedKeys;
@@ -96,8 +107,9 @@ class SyncCommand extends Command<int> {
   /// already match are touched not at all, preserving mtime.
   _PlatformOutcome _syncPlatform(
     DialectProject project,
-    PlatformConfig platform,
-  ) {
+    PlatformConfig platform, {
+    required bool force,
+  }) {
     final outDir = Directory(p.join(project.root, platform.output));
     outDir.createSync(recursive: true);
 
@@ -115,23 +127,27 @@ class SyncCommand extends Command<int> {
       outDir.path,
       ArbAdapter.filenameFor(project.config.sourceLocale),
       ArbAdapter.encode(preparedSource.arb),
+      force: force,
     )) {
       written++;
     }
 
-    // Translations — strip metadata.
+    // Translations — strip metadata. Namespace comes from the source ARB
+    // (translations carry no `@key` blocks by convention).
     for (final entry in project.translations.entries) {
       final locale = entry.key;
       final prepared = ArbAdapter.prepare(
         entry.value,
         platform: platform,
         isSource: false,
+        source: project.source,
       );
       unnamespacedKeys.addAll(prepared.keysMissingNamespace);
       if (_maybeWrite(
         outDir.path,
         ArbAdapter.filenameFor(locale),
         ArbAdapter.encode(prepared.arb),
+        force: force,
       )) {
         written++;
       }
@@ -169,12 +185,20 @@ class SyncCommand extends Command<int> {
   }
 
   /// Write [content] to `<dir>/<filename>` only if the on-disk bytes
-  /// differ. Returns true if a write happened. Skipping no-op writes
-  /// keeps mtimes stable and is part of the idempotency contract.
-  bool _maybeWrite(String dir, String filename, String content) {
+  /// differ — unless [force] is true, in which case always write.
+  /// Returns true if a write happened. Skipping no-op writes keeps
+  /// mtimes stable and is part of the idempotency contract.
+  bool _maybeWrite(
+    String dir,
+    String filename,
+    String content, {
+    required bool force,
+  }) {
     final path = p.join(dir, filename);
     final file = File(path);
-    if (file.existsSync() && file.readAsStringSync() == content) {
+    if (!force &&
+        file.existsSync() &&
+        file.readAsStringSync() == content) {
       return false;
     }
     file.writeAsStringSync(content);

@@ -203,6 +203,77 @@ void main() {
       expect(Directory(p.join(tmp.path, 'ios')).existsSync(), isFalse);
     });
 
+    test(
+      'translation outputs include filtered keys (regression: B3/B4)',
+      () async {
+        // Before the B3 fix, sync read `entry.namespace` directly on
+        // translation entries (which carry no @key blocks by convention),
+        // dropped every key, and emitted 3-line stubs. A subsequent
+        // re-sync then misreported "nothing to do" because the stale stub
+        // matched the freshly-generated empty stub byte-for-byte (B4).
+        _writeProject(
+          tmp.path,
+          sourceLocale: 'en',
+          targetLocales: ['es'],
+          source: '''
+{
+  "@@locale": "en",
+  "commonCancel": "Cancel",
+  "@commonCancel": { "namespace": "common" }
+}
+''',
+          translations: {
+            'es': '{ "@@locale": "es", "commonCancel": "Cancelar" }',
+          },
+          platforms: {
+            'flutter': {
+              'output': 'lib/l10n/',
+              'format': 'arb',
+              'namespaces': ['common'],
+            },
+          },
+        );
+
+        expect(await runSync(), 0);
+        final esOut = File(
+          p.join(tmp.path, 'lib', 'l10n', 'app_es.arb'),
+        ).readAsStringSync();
+        expect(
+          esOut,
+          contains('Cancelar'),
+          reason: 'namespace filter must let translated keys through',
+        );
+      },
+    );
+
+    test('--force runs end-to-end and produces canonical output', () async {
+      // The semantic contract — "write even if content matches" — is
+      // covered at the unit layer in test/adapters tests via the
+      // _maybeWrite branch. This integration test just proves the
+      // --force flag is plumbed through to sync without crashing and
+      // still produces canonical output bytes.
+      _writeProject(
+        tmp.path,
+        sourceLocale: 'en',
+        targetLocales: ['es'],
+        source: '{ "@@locale": "en", "k": "v" }',
+        translations: {'es': '{ "@@locale": "es", "k": "v-es" }'},
+        platforms: {
+          'flutter': {'output': 'lib/l10n/', 'format': 'arb'},
+        },
+      );
+      await runSync();
+      final canonical = File(
+        p.join(tmp.path, 'lib', 'l10n', 'app_es.arb'),
+      ).readAsStringSync();
+
+      expect(await runSync(['--force']), 0);
+      expect(
+        File(p.join(tmp.path, 'lib', 'l10n', 'app_es.arb')).readAsStringSync(),
+        canonical,
+      );
+    });
+
     test('warns when no platforms are configured', () async {
       _writeProject(
         tmp.path,

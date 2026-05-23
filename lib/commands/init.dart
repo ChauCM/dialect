@@ -157,6 +157,7 @@ class InitCommand extends Command<int> {
       'PROJECT_TYPE': projectType,
       'SOURCE_LOCALE': _readSourceLocale(targetDir) ?? 'en',
       'TARGET_LOCALES': _readTargetLocales(targetDir),
+      'PUBSPEC_NAME': _readPubspecName(targetDir) ?? '<your_pubspec_name>',
       'GENERATED_AT': DateTime.now().toUtc().toIso8601String(),
     };
     final body = renderPlanTemplate(initPlanMdTemplate, tokens);
@@ -267,6 +268,19 @@ class InitCommand extends Command<int> {
         .map((s) => s.trim().replaceAll('"', '').replaceAll("'", ''))
         .where((s) => s.isNotEmpty)
         .join(', ');
+  }
+
+  /// Read `name:` from `pubspec.yaml`. Used to spell the AppLocalizations
+  /// import correctly under modern Flutter's `synthetic-package: false`
+  /// default. Returns null when no pubspec exists (non-Flutter projects).
+  String? _readPubspecName(Directory targetDir) {
+    final file = File(p.join(targetDir.path, 'pubspec.yaml'));
+    if (!file.existsSync()) return null;
+    final match = RegExp(
+      r'^name:\s*(\S+)',
+      multiLine: true,
+    ).firstMatch(file.readAsStringSync());
+    return match?.group(1);
   }
 
   // ---- .gitignore --------------------------------------------------------

@@ -1,0 +1,189 @@
+{
+  "@@locale": "en",
+
+  "checkoutAgreementNotice": "By booking you agree to the House Rules and Cancellation Policy.",
+  "@checkoutAgreementNotice": {
+    "namespace": "checkout",
+    "description": "Legal-style notice under the Book Now button. 'House Rules' and 'Cancellation Policy' are document names; treat them as section/document titles, not generic phrases."
+  },
+
+  "checkoutAppBarTitle": "Confirm and pay",
+  "@checkoutAppBarTitle": {
+    "namespace": "checkout",
+    "description": "AppBar title on the checkout screen, just before the user pays for a booking."
+  },
+
+  "checkoutBookNow": "Book Now",
+  "@checkoutBookNow": {
+    "namespace": "checkout",
+    "description": "Primary CTA confirming the booking. 'Book' is a verb meaning 'make a reservation', NOT a physical book."
+  },
+
+  "checkoutBookingConfirmedSnack": "Booking confirmed. Check your trips for details.",
+  "@checkoutBookingConfirmedSnack": {
+    "namespace": "checkout",
+    "description": "SnackBar shown after the user successfully books a stay. 'Booking' is the noun form (the reservation that was just made)."
+  },
+
+  "checkoutFreeCancellation": "Free cancellation for 48 hours",
+  "@checkoutFreeCancellation": {
+    "namespace": "checkout",
+    "description": "Reassurance line under the total. 'Cancellation' is the noun form of the cancel-a-booking concept."
+  },
+
+  "checkoutHostedBy": "Hosted by {hostName}",
+  "@checkoutHostedBy": {
+    "namespace": "checkout",
+    "description": "Attribution line under the listing title on checkout. {hostName} is the host's first name.",
+    "placeholders": {
+      "hostName": { "type": "String", "example": "Linh" }
+    }
+  },
+
+  "checkoutNights": "{nights, plural, =1{1 night} other{{nights} nights}}",
+  "@checkoutNights": {
+    "namespace": "checkout",
+    "description": "Number of nights for the stay. Uses ICU plural. Source provides =1 exact-match and other; locales must add their CLDR categories on top.",
+    "placeholders": {
+      "nights": { "type": "int", "example": "3" }
+    }
+  },
+
+  "checkoutPricePerNight": "${pricePerNight} per night",
+  "@checkoutPricePerNight": {
+    "namespace": "checkout",
+    "description": "Per-night rate displayed on checkout. The dollar sign is the currency symbol — keep it in source position; do not translate currency symbols or amounts.",
+    "placeholders": {
+      "pricePerNight": { "type": "int", "example": "82" }
+    }
+  },
+
+  "checkoutTotal": "Total: ${amount}",
+  "@checkoutTotal": {
+    "namespace": "checkout",
+    "description": "Total amount due. The dollar sign is the currency symbol; do not translate the symbol or the amount.",
+    "placeholders": {
+      "amount": { "type": "int", "example": "246" }
+    }
+  },
+
+  "checkoutYourTrip": "Your trip",
+  "@checkoutYourTrip": {
+    "namespace": "checkout",
+    "description": "Section heading above the per-stay details (nights, price). 'Trip' = the booked stay."
+  },
+
+  "commonCancel": "Cancel",
+  "@commonCancel": {
+    "namespace": "common",
+    "description": "Generic cancel action — dismisses a dialog or aborts a flow without saving."
+  },
+
+  "commonDelete": "Delete",
+  "@commonDelete": {
+    "namespace": "common",
+    "description": "Generic destructive confirmation in a dialog. Imperative verb."
+  },
+
+  "commonLoading": "Loading...",
+  "@commonLoading": {
+    "namespace": "common",
+    "description": "Default placeholder text shown next to a spinner while content is being fetched."
+  },
+
+  "homeOpenSettings": "Open settings",
+  "@homeOpenSettings": {
+    "namespace": "home",
+    "description": "Outlined button on the home screen that navigates to the Settings screen."
+  },
+
+  "homeYourTrips": "Your trips",
+  "@homeYourTrips": {
+    "namespace": "home",
+    "description": "Home screen AppBar title. 'Trips' means booked stays (not generic travel)."
+  },
+
+  "settingsAccount": "Account",
+  "@settingsAccount": {
+    "namespace": "settings",
+    "description": "Section header for the user's account info (name, email). Rendered uppercase by the UI — translate in normal case; the UI applies the casing."
+  },
+
+  "settingsAccountActions": "Account actions",
+  "@settingsAccountActions": {
+    "namespace": "settings",
+    "description": "Section header above destructive account actions (sign out, delete account)."
+  },
+
+  "settingsAppBarTitle": "Settings",
+  "@settingsAppBarTitle": {
+    "namespace": "settings",
+    "description": "AppBar title on the Settings screen."
+  },
+
+  "settingsDarkMode": "Dark mode",
+  "@settingsDarkMode": {
+    "namespace": "settings",
+    "description": "Toggle label for switching the app to dark color scheme."
+  },
+
+  "settingsDeleteAccount": "Delete account",
+  "@settingsDeleteAccount": {
+    "namespace": "settings",
+    "description": "Destructive action that opens the delete-account confirmation dialog."
+  },
+
+  "settingsDeleteAccountDialogBody": "This permanently removes your bookings, trips, and host listings. This cannot be undone.",
+  "@settingsDeleteAccountDialogBody": {
+    "namespace": "settings",
+    "description": "Warning body in the delete-account dialog. 'Bookings' = reservations the user made; 'trips' = booked stays; 'host listings' = listings the user has put up for others to book."
+  },
+
+  "settingsDeleteAccountDialogTitle": "Delete account?",
+  "@settingsDeleteAccountDialogTitle": {
+    "namespace": "settings",
+    "description": "Title of the confirmation dialog shown before account deletion."
+  },
+
+  "settingsEditProfile": "Tap to edit your profile",
+  "@settingsEditProfile": {
+    "namespace": "settings",
+    "description": "Subtitle hint under the user's display name in the Account section."
+  },
+
+  "settingsEmail": "Email",
+  "@settingsEmail": {
+    "namespace": "settings",
+    "description": "Label for the user's email address row in the Account section."
+  },
+
+  "settingsLanguage": "Language",
+  "@settingsLanguage": {
+    "namespace": "settings",
+    "description": "Label for the language picker row."
+  },
+
+  "settingsNotifications": "Notifications",
+  "@settingsNotifications": {
+    "namespace": "settings",
+    "description": "Toggle label for enabling push notifications."
+  },
+
+  "settingsNotificationsDescription": "Trip updates, host messages, and booking reminders.",
+  "@settingsNotificationsDescription": {
+    "namespace": "settings",
+    "description": "Subtitle under the Notifications toggle, explaining what notifications cover. 'Trip' = a booked stay; 'host' = the person renting out the listing; 'booking' = noun form, the reservation."
+  },
+
+  "settingsPreferences": "Preferences",
+  "@settingsPreferences": {
+    "namespace": "settings",
+    "description": "Section header for in-app preference toggles (dark mode, notifications, language)."
+  },
+
+  "settingsSignOut": "Sign out",
+  "@settingsSignOut": {
+    "namespace": "settings",
+    "description": "Action that logs the user out of the app."
+  }
+}

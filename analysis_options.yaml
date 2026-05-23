@@ -29,9 +29,11 @@ linter:
 
 analyzer:
   exclude:
-    # `example/` is a separate Flutter package with its own pubspec.yaml.
-    # Analyze it independently via `cd example && dart analyze`.
-    - example/**
+    # `examples/<name>/` are separate Flutter packages with their own pubspec.yaml.
+    # Analyze each independently via `cd examples/<name> && flutter analyze`.
+    - examples/**
+    # Generated AppLocalizations for examples/after/ ship under lib/l10n/generated/.
+    - examples/after/lib/l10n/generated/**
 
 # For more information about the core and recommended set of lints, see
 # https://dart.dev/go/core-lints

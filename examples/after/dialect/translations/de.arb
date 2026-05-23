@@ -1,0 +1,61 @@
+{
+  "@@locale": "de",
+
+  "checkoutAgreementNotice": "Mit Ihrer Buchung akzeptieren Sie die Hausordnung und die Stornierungsbedingungen.",
+
+  "checkoutAppBarTitle": "Bestätigen und bezahlen",
+
+  "checkoutBookNow": "Jetzt buchen",
+
+  "checkoutBookingConfirmedSnack": "Buchung bestätigt. Details finden Sie unter „Ihre Reisen“.",
+
+  "checkoutFreeCancellation": "Kostenlose Stornierung innerhalb von 48 Stunden",
+
+  "checkoutHostedBy": "Gastgeber: {hostName}",
+
+  "checkoutNights": "{nights, plural, =1{1 Nacht} one{{nights} Nacht} other{{nights} Nächte}}",
+
+  "checkoutPricePerNight": "${pricePerNight} pro Nacht",
+
+  "checkoutTotal": "Gesamt: ${amount}",
+
+  "checkoutYourTrip": "Ihre Reise",
+
+  "commonCancel": "Abbrechen",
+
+  "commonDelete": "Löschen",
+
+  "commonLoading": "Wird geladen ...",
+
+  "homeOpenSettings": "Einstellungen öffnen",
+
+  "homeYourTrips": "Ihre Reisen",
+
+  "settingsAccount": "Konto",
+
+  "settingsAccountActions": "Kontoaktionen",
+
+  "settingsAppBarTitle": "Einstellungen",
+
+  "settingsDarkMode": "Dunkles Design",
+
+  "settingsDeleteAccount": "Konto löschen",
+
+  "settingsDeleteAccountDialogBody": "Damit werden Ihre Buchungen, Reisen und Gastgeber-Inserate dauerhaft entfernt. Diese Aktion kann nicht rückgängig gemacht werden.",
+
+  "settingsDeleteAccountDialogTitle": "Konto löschen?",
+
+  "settingsEditProfile": "Tippen Sie, um Ihr Profil zu bearbeiten",
+
+  "settingsEmail": "E-Mail",
+
+  "settingsLanguage": "Sprache",
+
+  "settingsNotifications": "Benachrichtigungen",
+
+  "settingsNotificationsDescription": "Reise-Updates, Nachrichten vom Gastgeber und Buchungserinnerungen.",
+
+  "settingsPreferences": "Präferenzen",
+
+  "settingsSignOut": "Abmelden"
+}

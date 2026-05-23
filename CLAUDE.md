@@ -143,10 +143,11 @@ dialect/
 │   ├── source_hash.md
 │   └── state.md
 ├── test/                       # Dart tests
-├── example/                    # Sample Flutter app used by the demo + validation harness
-│   ├── lib/
-│   ├── dialect/                # Live workspace
-│   └── _validation/            # Multi-model convention convergence harness
+│   └── fixtures/canonical/     # Version-controlled Dialect project used by check/status/roundtrip tests
+├── examples/                   # Two sister Flutter apps for demo + dialect CLI testing
+│   ├── before/                 # Bare app, hardcoded English strings — the realistic starting point
+│   ├── after/                  # Clone of before/, used as the test target for `dialect init`
+│   └── _validation/            # Multi-model convention convergence harness (reads examples/before/lib/)
 ├── tool/                       # Build helpers (sync_templates, build_dashboard, …)
 ├── docs/                       # User-facing docs
 ├── .github/workflows/          # CI + release pipelines

@@ -11,10 +11,10 @@ import '../_support/repo_root.dart';
 
 void main() {
   group('dialect check (integration)', () {
-    test('clean against the canonical example/ project', () async {
+    test('clean against the canonical fixture project', () async {
       final exit = await DialectCommandRunner().run(<String>[
         'check',
-        repoPath(['example']),
+        repoPath(['test', 'fixtures', 'canonical']),
       ]);
       expect(exit, 0);
     });

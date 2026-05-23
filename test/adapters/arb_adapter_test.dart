@@ -36,6 +36,7 @@ void main() {
         source,
         platform: platform,
         isSource: false,
+        source: source,
       );
       expect(trans.arb.entries.first.metadata, isNull);
       expect(
@@ -44,6 +45,100 @@ void main() {
         reason: 'stripping metadata does not drop entries',
       );
     });
+
+    test(
+      'translation filter joins on source namespaces (regression: B3)',
+      () {
+        // Translation files carry no `@key` metadata by convention. Sync
+        // used to read `entry.namespace` directly on translation entries,
+        // get null for everything, and drop every key into the
+        // "missing namespace" bucket. The fix: look up each key's
+        // namespace via the source ARB.
+        final source = ArbFile(
+          locale: 'en',
+          entries: [
+            ArbEntry(
+              key: 'commonGreet',
+              value: 'Hello',
+              metadata: ArbMetadata(namespace: 'common'),
+            ),
+            ArbEntry(
+              key: 'checkoutBookNow',
+              value: 'Book Now',
+              metadata: ArbMetadata(namespace: 'checkout'),
+            ),
+          ],
+        );
+        final translation = ArbFile(
+          locale: 'es',
+          entries: [
+            ArbEntry(key: 'commonGreet', value: 'Hola'),
+            ArbEntry(key: 'checkoutBookNow', value: 'Reservar ahora'),
+          ],
+        );
+        final platform = PlatformConfig(
+          name: 'flutter',
+          output: 'lib/l10n',
+          format: 'arb',
+          namespaces: ['common', 'checkout'],
+        );
+
+        final out = ArbAdapter.prepare(
+          translation,
+          platform: platform,
+          isSource: false,
+          source: source,
+        );
+        expect(
+          out.arb.entries.map((e) => e.key),
+          ['commonGreet', 'checkoutBookNow'],
+          reason: 'both keys must pass; namespace comes from source ARB',
+        );
+        expect(out.keysMissingNamespace, isEmpty);
+      },
+    );
+
+    test(
+      'translation key absent from source surfaces as missing namespace',
+      () {
+        // If a translation has a key that doesn't exist in source, we
+        // can't resolve a namespace for it — drop it and report. This
+        // is the same surface the user already sees for un-namespaced
+        // source keys.
+        final source = ArbFile(
+          locale: 'en',
+          entries: [
+            ArbEntry(
+              key: 'commonGreet',
+              value: 'Hello',
+              metadata: ArbMetadata(namespace: 'common'),
+            ),
+          ],
+        );
+        final translation = ArbFile(
+          locale: 'es',
+          entries: [
+            ArbEntry(key: 'commonGreet', value: 'Hola'),
+            ArbEntry(key: 'orphan', value: 'no source entry'),
+          ],
+        );
+        final platform = PlatformConfig(
+          name: 'flutter',
+          output: 'lib/l10n',
+          format: 'arb',
+          namespaces: ['common'],
+        );
+
+        final out = ArbAdapter.prepare(
+          translation,
+          platform: platform,
+          isSource: false,
+          source: source,
+        );
+        expect(out.arb.entries.map((e) => e.key), ['commonGreet']);
+        expect(out.keysMissingNamespace, ['orphan']);
+      },
+    );
 
     test('namespace filter drops keys outside the allowlist', () {
       final source = ArbFile(

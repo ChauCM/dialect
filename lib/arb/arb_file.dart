@@ -3,7 +3,7 @@
 /// ARB (Application Resource Bundle) is JSON with metadata. Each translation
 /// key has a value (the string itself) and an optional matching `@key` block
 /// describing it — see Dialect's convention in
-/// `example/dialect/dialect.yaml` for the full shape.
+/// `test/fixtures/canonical/dialect/dialect.yaml` for the full shape.
 ///
 /// This model is the substrate for every other v1.0 milestone:
 /// - `dialect sync` reads and writes it (M5).

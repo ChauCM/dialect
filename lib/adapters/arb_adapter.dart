@@ -10,10 +10,12 @@ import '../config/dialect_config.dart';
 ///
 /// 1. **Namespace filter.** Only keys whose `@key.namespace` metadata
 ///    appears in [PlatformConfig.namespaces] are included. An empty
-///    namespaces list disables the filter — every key passes. Keys
-///    without a `namespace` field (which the convention requires on
-///    source ARBs) are dropped when filtering is active, and flow back
-///    through [PreparedArb.keysMissingNamespace] so sync can surface them.
+///    namespaces list disables the filter — every key passes. The
+///    namespace is always read from the **source** ARB's `@key` block:
+///    translation files don't carry `@key` metadata by convention, so
+///    looking it up there would drop every translated key. Keys with no
+///    source-side namespace flow back through
+///    [PreparedArb.keysMissingNamespace] so sync can surface them.
 /// 2. **Metadata stripping.** Source ARBs keep their `@key` blocks
 ///    intact (Flutter's `gen_l10n` reads them). Translation ARBs are
 ///    key/value-only by convention; if a translation accidentally
@@ -32,20 +34,31 @@ class ArbAdapter {
   /// a [PreparedArb] ready to hand to [ArbWriter] (plus diagnostics).
   ///
   /// [isSource] preserves `@key` metadata when true; false strips it.
+  /// When [isSource] is false, [source] must be provided so the filter
+  /// can look up each key's namespace from the source ARB.
   static PreparedArb prepare(
     ArbFile arb, {
     required PlatformConfig platform,
     required bool isSource,
+    ArbFile? source,
   }) {
+    assert(
+      isSource || source != null,
+      'translation ARBs need the source ARB to resolve namespaces',
+    );
     final namespaces = platform.namespaces;
     final keepAll = namespaces.isEmpty;
     final ns = namespaces.toSet();
+
+    final namespaceOf = isSource
+        ? null
+        : {for (final e in source!.entries) e.key: e.namespace};
 
     final entries = <ArbEntry>[];
     final missingNamespace = <String>[];
     for (final entry in arb.entries) {
       if (!keepAll) {
-        final entryNs = entry.namespace;
+        final entryNs = isSource ? entry.namespace : namespaceOf![entry.key];
         if (entryNs == null) {
           missingNamespace.add(entry.key);
           continue;

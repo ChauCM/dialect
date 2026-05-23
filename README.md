@@ -53,44 +53,69 @@ Pre-built binaries for `macos-arm64`, `macos-x64`, `linux-x64`, `linux-arm64`, a
 
 ## Usage — two steps
 
-You have a Flutter app with hardcoded English strings (or a `lib/l10n/intl_en.arb`). You want Spanish, Japanese, and Arabic in production. The whole flow:
+You have a Flutter app with hardcoded English strings. You want Spanish, Japanese, and Arabic in production. The whole flow:
 
-### 1. Scaffold once
+### 1. One terminal command
 
 ```bash
 $ cd my-flutter-app
 $ dialect init
-$ $EDITOR dialect/dialect.yaml   # set `target_locales: [es, ja, ar]`
+
+✓ Scaffolded dialect/
+  dialect/dialect.yaml
+  dialect/glossary.yaml
+  dialect/source/en.arb
+  dialect/translations/  (empty)
+  .dialect/init-plan.md
+  AGENTS.md (created)
+
+Detected project type: Flutter
+Init plan written to: .dialect/init-plan.md
+
+Next: paste this in your AI agent (Claude Code, Cursor, …):
+
+  run dialect init and follow the instructions
 ```
 
-`dialect.yaml` is heavily commented — those comments are the spec your AI agent reads. You don't write a prompt; the YAML *is* the prompt.
+### 2. One chat message
 
-### 2. Ask your AI
-
-In your AI editor (Claude Code, Cursor, Cline, Copilot…):
+Open your AI agent and paste the line `dialect init` printed:
 
 ```
 Dev (typing in AI chat session):
-      "I just built the checkout screen. Please do translation with @dialect.yaml"
+      "run dialect init and follow the instructions"
 
-AI:   Reading dialect/dialect.yaml + dialect/glossary.yaml...
-      Convention loaded — target locales, platforms, glossary, key style.
+AI:   Running `dialect init`...
+      Reading .dialect/init-plan.md — Phase 1: Setup.
 
-      Reading lib/screens/checkout_screen.dart for context.
+      ✓ Added `flutter_localizations` + `intl` to pubspec.yaml
+      ✓ Created l10n.yaml
+      ✓ Wired MaterialApp.localizationsDelegates + supportedLocales
+      ✓ Added a locale picker in the Settings screen
+      ✓ Smoke test passed: `commonLoading` rendered through AppLocalizations
 
-      ✓ 12 entries written to dialect/source/en.arb with @description
-      ✓ Translated to every configured target locale respecting glossary.yaml
-      ✓ Wrote dialect/translations/{es,ja,ar}.arb
-      ✓ Ran `dialect check --fix` — normalized formatting
-      ✓ Ran `dialect sync` — platform files updated under lib/l10n/
-      ✓ Ran `dialect check` — clean
+      27 user-facing strings found under lib/. Proceeding to Phase 2
+      (codebase under the 50-string threshold — extracting + translating
+      in this same turn).
 
-      Done. 12 keys added, 3 locales complete, all platforms in sync.
+      ✓ Extracted 27 keys into dialect/source/en.arb with @key.namespace
+        + @key.description for each
+      ✓ Replaced hardcoded strings in lib/ with AppLocalizations.of(context)!
+      ✓ Translated to {es, ja, ar} respecting dialect/glossary.yaml
+      ✓ Ran `dialect check --fix && dialect sync && dialect check` — clean
+
+      Done. Run `flutter pub get && flutter run`, switch the locale via
+      Settings → Language, and you'll see translated text immediately.
+      Open `dialect serve` for a side-by-side review.
 ```
 
-That's it. **Everything the AI needs — target locales, platforms, glossary, the full convention — is in `dialect.yaml`.** The dev says what to translate; the convention says how. The AI then runs the deterministic CLI work (`dialect check --fix`, `dialect sync`) itself; you only see the result. The plan files Dialect emits (`.dialect/*-plan.md`) tell the agent exactly which CLI commands to chain.
+That's the whole adoption flow: one CLI command + one chat message. **Everything the AI needs** — target locales, platforms, glossary, the convention, the per-platform sync config, the playbook for what to do — **is already in the scaffolded `dialect/` directory and `.dialect/init-plan.md`**. You don't write a prompt; the convention *is* the prompt.
 
-Subsequent edits are the same shape: ship UI changes → "@dialect.yaml — translate the new strings" → done.
+The init plan is two-phased to scale gracefully:
+- **≤ 50 candidate strings** — the AI extracts + translates in one chat turn (the example above).
+- **> 50 strings** — the AI extracts and stops, summarizes the proposed key names, and asks you to confirm before translating. Saves you reviewing 500+ translation lines downstream of bad key names.
+
+After init, the AI writes (or appends to) **`AGENTS.md`** at the project root. Future translation work on the same project is just *"add translation for the new screen"* — the AGENTS.md tells whichever agent session you're in to read `dialect/dialect.yaml` and do the work. No re-onboarding.
 
 ### Advanced — manual touchpoints
 

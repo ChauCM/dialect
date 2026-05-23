@@ -6,6 +6,78 @@ work-in-progress milestones from `planning/mvp-plan.md`.
 ## [Unreleased]
 
 ### Added
+- **M10.** Svelte dashboard SPA + `dialect serve`.
+  - **Dart Shelf server** at `lib/server/server.dart` binds
+    `localhost:4077` by default (configurable via `--port`/`--host`).
+    Each request reloads the project from disk so external ARB edits
+    are visible immediately — the project is tiny, I/O is cheap, and
+    it removes the stale-cache foot-gun.
+  - **REST API** per `docs/architecture.md` § REST API:
+    - `GET /api/config` — parsed `dialect.yaml` plus the resolved
+      project name.
+    - `GET /api/strings?locale=<loc>` — every source key with the
+      matching translation entry. Includes `description`, `context`,
+      `placeholders`, `locked`, `glossary_exempt`, `source_hash`,
+      and computed `stale` + `missing` flags.
+    - `PUT /api/strings/<key>` — body `{ locale, value, locked?,
+      glossary_exempt? }`. Writes back through `ArbWriter`
+      (canonical formatting). Locking writes `@key.source_hash` per
+      `dialect/spec/source_hash.md`; unlocking clears it. Empty
+      metadata blocks are dropped (no `@key: {}` noise on
+      translation files).
+    - `GET /api/glossary` — parsed `glossary.yaml`.
+    - `GET /api/status` — reuses the M6 `computeStatus` math
+      byte-for-byte, so the dashboard footer and the CLI agree.
+    - `OPTIONS` preflight + permissive CORS so the SPA can run
+      under `pnpm dev` against the Dart server during dashboard
+      development.
+    - JSON 404 for unknown `/api/*` paths (never falls through to
+      the SPA HTML handler); JSON 500 for uncaught exceptions.
+  - **Svelte 5 SPA** (`dashboard/`, built with Vite, package
+    manager pinned to **pnpm**):
+    - `App.svelte` — locale switcher + filter sidebar + translation
+      table + coverage footer.
+    - `lib/TranslationTable.svelte` — keyboard-driven inline editing
+      (Enter to save, Esc to cancel, blur saves, optimistic refresh
+      of strings + status after each PUT).
+    - `lib/GlossaryHighlight.svelte` — whole-word glossary
+      highlighting of the source string with the canonical-translation
+      tooltip.
+    - `lib/LockToggle.svelte` — pin/lock control wired through the
+      `locked` field on PUT.
+    - `lib/FilterPanel.svelte` — missing/locked/stale toggles,
+      namespace radio group, search box.
+    - `lib/CoverageFooter.svelte` — coverage % + missing/stale/locked
+      counts from `/api/status`.
+    - `lib/api.ts` — typed `fetchConfig`/`fetchStrings`/`fetchGlossary`
+      /`fetchStatus`/`putString` wrappers.
+  - **Static-asset embedding.** `tool/build_dashboard.dart` walks
+    `dashboard/dist/` after `pnpm build` and emits
+    `lib/server/embedded_assets.g.dart` — a single
+    `const Map<String, List<int>>` from forward-slash paths to file
+    bytes. `dart compile exe bin/dialect.dart -o build/dialect`
+    produces an 8.1 MB self-contained binary that serves the SPA
+    with **zero `node_modules` on disk at runtime**. Generator
+    supports `--no-pnpm` (CI pre-builds) and `--check` (drift gate).
+  - **Empty-bundle fallback.** When the generator hasn't run on
+    this checkout, `/` serves a minimal "Dashboard not bundled
+    yet" HTML page that names the exact command to bake it in. The
+    REST API stays live so backend work can proceed without the
+    SPA build.
+  - **Real implementation of `dialect serve`** (was a stub).
+    `--port`/`--host` flags, project-load preflight surfaces "no
+    project" as exit 66 before binding the port, SIGINT clean
+    shutdown.
+  - **`ArbMetadata.copyWith`** — new helper with a sentinel for
+    `sourceHash` so callers can explicitly clear the field (unlock)
+    without colliding with the "leave it alone" default. Powers the
+    PUT mutation path.
+  - 13 new server route tests (now 178 total). Real E2E verified
+    against `build/dialect serve example/`: PUT writes
+    `Reservar AHORA` + `@key.source_hash` to `es.arb` on disk;
+    unlock reverts both.
+
+### Added
 - **M9.** Stable on-disk-contract spec docs under `dialect/spec/`.
   - **`icu-json.md`** — backend JSON output that preserves ICU
     plural/select expressions byte-identically. Flat keys (not nested

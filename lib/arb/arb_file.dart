@@ -123,6 +123,33 @@ class ArbMetadata {
   /// Preserved-as-is for forward compatibility. Unknown `@key.*` fields land
   /// here so the writer can pass them through.
   final Map<String, Object?> extras;
+
+  ArbMetadata copyWith({
+    String? description,
+    String? context,
+    Map<String, ArbPlaceholder>? placeholders,
+    bool? locked,
+    bool? glossaryExempt,
+    Object? sourceHash = _sentinel,
+    Map<String, Object?>? extras,
+  }) {
+    return ArbMetadata(
+      description: description ?? this.description,
+      context: context ?? this.context,
+      placeholders: placeholders ?? this.placeholders,
+      locked: locked ?? this.locked,
+      glossaryExempt: glossaryExempt ?? this.glossaryExempt,
+      // sourceHash uses an explicit sentinel so callers can pass `null`
+      // to clear the field (unlock action) without colliding with the
+      // "leave it alone" default.
+      sourceHash: identical(sourceHash, _sentinel)
+          ? this.sourceHash
+          : sourceHash as String?,
+      extras: extras ?? this.extras,
+    );
+  }
+
+  static const Object _sentinel = Object();
 }
 
 class ArbPlaceholder {

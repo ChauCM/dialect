@@ -45,14 +45,8 @@ void main() {
       );
     });
 
-    test('remaining stub commands exit 0', () async {
-      // Once a command lands its real implementation, remove it from this
-      // list (it gets its own per-command test file). The remaining list
-      // is the M4–M10 milestones' worth of stubs.
-      final runner = DialectCommandRunner();
-      for (final cmd in const <String>['serve']) {
-        expect(await runner.run([cmd]), 0, reason: 'dialect $cmd stub');
-      }
-    });
+    // M10 landed real implementations for every v1.0 command; no
+    // stub-only tests remain. Per-command behavior is covered in
+    // test/commands/<name>_test.dart and test/server/.
   });
 }

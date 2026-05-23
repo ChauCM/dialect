@@ -1,0 +1,69 @@
+name: Pages
+
+# Renders README.md into the dialect.tools landing page and pushes the
+# result to the gh-pages branch (which GitHub Pages serves). Runs on
+# every push to main so the live site stays in sync with the README.
+#
+# Why a workflow instead of letting GitHub Pages serve README.md
+# directly: GitHub Pages source is already pinned to the gh-pages
+# branch (with .nojekyll, the custom landing assets, and install.sh
+# colocated). Keeping the same branch lets us own the rendered HTML
+# and ship install.sh from the same place users `curl | sh` from.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'README.md'
+      - 'install.sh'
+      - 'tool/render_landing.py'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write   # push to gh-pages branch
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: main
+
+      - name: Checkout gh-pages
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: gh-pages
+
+      - name: Install renderer deps
+        run: pip install --quiet markdown
+
+      - name: Render README -> index.html
+        run: python3 main/tool/render_landing.py > gh-pages/index.html
+
+      - name: Refresh install.sh
+        run: cp main/install.sh gh-pages/install.sh
+
+      - name: Commit + push if changed
+        working-directory: gh-pages
+        run: |
+          set -eu
+          git config user.name "dialect-release-bot"
+          git config user.email "noreply@dialect.tools"
+          # CNAME and .nojekyll are persistent gh-pages-only files;
+          # we never want this workflow to delete them.
+          if git diff --quiet -- index.html install.sh; then
+            echo "No changes to publish."
+            exit 0
+          fi
+          git add index.html install.sh
+          git commit -m "site: render README @ ${GITHUB_SHA::7}"
+          git push origin gh-pages

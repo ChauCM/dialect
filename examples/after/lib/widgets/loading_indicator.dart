@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:after/l10n/app_localizations.dart';
 
 class LoadingIndicator extends StatelessWidget {
   const LoadingIndicator({super.key, this.message});
@@ -13,7 +14,7 @@ class LoadingIndicator extends StatelessWidget {
         children: [
           const CircularProgressIndicator(),
           const SizedBox(height: 12),
-          Text(message ?? 'Loading...'),
+          Text(message ?? AppLocalizations.of(context)!.commonLoading),
         ],
       ),
     );

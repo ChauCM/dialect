@@ -80,7 +80,8 @@ You have a Flutter app with hardcoded English strings. You want Spanish, Japanes
 
 ```
 Dev (typing in AI chat session):
-      "run dialect init and follow the instructions"
+      "run dialect init and follow the instructions.
+       Target Spanish, Japanese, and Arabic."
 
 AI:   Running `dialect init`...
       ✓ Scaffolded dialect/  → wrote dialect.yaml, glossary.yaml, en.arb
@@ -179,7 +180,9 @@ Dialect Review running at http://localhost:4077
 Reading from: ./dialect/
 ```
 
-Every key, every locale, side by side with `@description` context and glossary highlighting. Inline edits save back to ARB on blur. Lock human-reviewed translations to skip them on the next AI re-translate.
+![dialect serve — review UI](docs/dialect-serve.png)
+
+Every key, every locale, side by side with `@description` context and glossary highlighting. Per-locale coverage in the sidebar, status pills (missing / stale / locked), explicit Save / Revert in the editor, light + dark themes. Lock human-reviewed translations to skip them on the next AI re-translate.
 </details>
 
 <details>

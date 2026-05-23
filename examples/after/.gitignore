@@ -43,3 +43,6 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Dialect ephemeral plan files (regenerated each command run)
+.dialect/

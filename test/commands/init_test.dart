@@ -225,4 +225,50 @@ void main() {
       expect(occurrences, 1);
     });
   });
+
+  group('dialect init — pubspec generate flag', () {
+    test('inserts `generate: true` under flutter: when missing', () async {
+      File(p.join(tmp.path, 'pubspec.yaml')).writeAsStringSync('''
+name: stay_booking
+description: A demo app.
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.4.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
+''');
+      await runInit([]);
+      final body = File(p.join(tmp.path, 'pubspec.yaml')).readAsStringSync();
+      expect(body, contains('flutter:\n  generate: true\n'));
+      expect(body, contains('uses-material-design: true'));
+    });
+
+    test('leaves pubspec alone when generate is already set', () async {
+      const original = '''
+name: stay_booking
+flutter:
+  generate: false
+  uses-material-design: true
+''';
+      File(p.join(tmp.path, 'pubspec.yaml')).writeAsStringSync(original);
+      await runInit([]);
+      expect(
+        File(p.join(tmp.path, 'pubspec.yaml')).readAsStringSync(),
+        original,
+        reason: 'must not override an explicit user choice',
+      );
+    });
+
+    test('no-ops when pubspec.yaml is absent', () async {
+      // Bare directory — no Flutter project — init still succeeds.
+      expect(await runInit([]), 0);
+      expect(File(p.join(tmp.path, 'pubspec.yaml')).existsSync(), isFalse);
+    });
+  });
 }

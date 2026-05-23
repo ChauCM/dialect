@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:after/l10n/app_localizations.dart';
 
 import 'screens/checkout_screen.dart';
 import 'screens/settings_screen.dart';
@@ -7,26 +8,41 @@ void main() {
   runApp(const ExampleApp());
 }
 
-class ExampleApp extends StatelessWidget {
+class ExampleApp extends StatefulWidget {
   const ExampleApp({super.key});
+
+  @override
+  State<ExampleApp> createState() => _ExampleAppState();
+}
+
+class _ExampleAppState extends State<ExampleApp> {
+  Locale? _locale;
+
+  void _setLocale(Locale locale) => setState(() => _locale = locale);
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Stay Booking Demo',
+      locale: _locale,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       theme: ThemeData(useMaterial3: true, colorSchemeSeed: Colors.teal),
-      home: const HomeScreen(),
+      home: HomeScreen(onLocaleChanged: _setLocale),
     );
   }
 }
 
 class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({super.key, required this.onLocaleChanged});
+
+  final ValueChanged<Locale> onLocaleChanged;
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
-      appBar: AppBar(title: const Text('Your trips')),
+      appBar: AppBar(title: Text(l10n.homeYourTrips)),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -49,10 +65,12 @@ class HomeScreen extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           OutlinedButton(
-            onPressed: () => Navigator.of(
-              context,
-            ).push(MaterialPageRoute(builder: (_) => const SettingsScreen())),
-            child: const Text('Open settings'),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => SettingsScreen(onLocaleChanged: onLocaleChanged),
+              ),
+            ),
+            child: Text(l10n.homeOpenSettings),
           ),
         ],
       ),

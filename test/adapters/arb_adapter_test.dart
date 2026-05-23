@@ -154,6 +154,13 @@ void main() {
         isSource: true,
       );
       expect(out.arb.entries.map((e) => e.key), ['commonGreet']);
+      expect(
+        out.keysExcludedByNamespace,
+        {
+          'checkout': ['checkoutBookNow'],
+        },
+        reason: 'excluded-by-namespace keys are grouped by their namespace',
+      );
     });
 
     test('empty namespaces list means no filtering', () {

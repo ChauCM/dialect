@@ -148,6 +148,16 @@ For each user-facing string in the source code that should be localized:
 3. Replace the hardcoded string in the source code with
    `AppLocalizations.of(context)!.<key>`.
 
+Two housekeeping touches in this pass:
+
+- If you introduced any new namespace (anything other than `common`),
+  add it to `platforms.flutter.namespaces` in `dialect.yaml`. The list
+  ships with `[common]` only; namespaces not listed are dropped from
+  the synced output and `dialect sync` will warn you.
+- Remove the `commonExample` seed key and its `@commonExample` block
+  from `dialect/source/{{SOURCE_LOCALE}}.arb` once a real key replaces
+  it.
+
 **Do NOT extract:**
 
 - Personal names, emails, phone numbers, URLs
@@ -196,10 +206,13 @@ Run, in order, from the project root:
 ```
 dialect check --fix
 dialect sync
+flutter gen-l10n
 dialect check
 ```
 
-Stop and report if any step errors.
+`flutter gen-l10n` regenerates `AppLocalizations` from the freshly-synced
+`lib/l10n/*.arb` — without it, your call sites compile against a stale
+class. Stop and report if any step errors.
 
 ### 2.5 — Run the app
 

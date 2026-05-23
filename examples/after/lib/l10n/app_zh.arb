@@ -1,0 +1,61 @@
+{
+  "@@locale": "zh",
+
+  "checkoutBookNow": "立即预订",
+
+  "checkoutBookingConfirmed": "预订已确认。请在我的行程中查看详情。",
+
+  "checkoutFreeCancellation": "48小时内免费取消",
+
+  "checkoutHostedBy": "房东：{hostName}",
+
+  "checkoutNights": "{count, plural, =1{1晚} other{{count}晚}}",
+
+  "checkoutPolicyAgreement": "预订即表示您同意房屋规则和取消政策。",
+
+  "checkoutPricePerNight": "${pricePerNight}元/晚",
+
+  "checkoutTitle": "确认并付款",
+
+  "checkoutTotal": "总计：${total}",
+
+  "checkoutYourTrip": "您的行程",
+
+  "commonCancel": "取消",
+
+  "commonLoading": "加载中...",
+
+  "homeOpenSettings": "打开设置",
+
+  "homeYourTrips": "我的行程",
+
+  "settingsDarkMode": "深色模式",
+
+  "settingsDeleteAccount": "删除账户",
+
+  "settingsDeleteAccountDialogBody": "这将永久删除您的预订、行程和房东列表。此操作无法撤销。",
+
+  "settingsDeleteAccountDialogConfirm": "删除",
+
+  "settingsDeleteAccountDialogTitle": "删除账户？",
+
+  "settingsEmail": "邮箱",
+
+  "settingsLanguage": "语言",
+
+  "settingsNotifications": "通知",
+
+  "settingsNotificationsSubtitle": "行程更新、房东消息和预订提醒。",
+
+  "settingsSectionAccount": "账户",
+
+  "settingsSectionAccountActions": "账户操作",
+
+  "settingsSectionPreferences": "偏好设置",
+
+  "settingsSignOut": "退出登录",
+
+  "settingsTapToEditProfile": "点击编辑您的个人资料",
+
+  "settingsTitle": "设置"
+}

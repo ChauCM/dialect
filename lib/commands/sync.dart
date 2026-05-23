@@ -69,6 +69,7 @@ class SyncCommand extends Command<int> {
     var totalWritten = 0;
     var totalSkipped = 0;
     final unnamespacedPerPlatform = <String, Set<String>>{};
+    final excludedPerPlatform = <String, Set<String>>{};
 
     for (final platform in project.config.platforms.values) {
       if (platform.format != 'arb') {
@@ -85,9 +86,13 @@ class SyncCommand extends Command<int> {
       if (outcome.unnamespacedKeys.isNotEmpty) {
         unnamespacedPerPlatform[platform.name] = outcome.unnamespacedKeys;
       }
+      if (outcome.excludedNamespaces.isNotEmpty) {
+        excludedPerPlatform[platform.name] = outcome.excludedNamespaces;
+      }
     }
 
     _maybeWarnUnnamespaced(unnamespacedPerPlatform);
+    _maybeWarnExcludedNamespaces(excludedPerPlatform);
 
     if (totalWritten == 0 && totalSkipped == 0) {
       stdout.writeln(
@@ -116,6 +121,7 @@ class SyncCommand extends Command<int> {
 
     var written = 0;
     final unnamespacedKeys = <String>{};
+    final excludedNamespaces = <String>{};
 
     // Source ARB — keep metadata.
     final preparedSource = ArbAdapter.prepare(
@@ -124,6 +130,7 @@ class SyncCommand extends Command<int> {
       isSource: true,
     );
     unnamespacedKeys.addAll(preparedSource.keysMissingNamespace);
+    excludedNamespaces.addAll(preparedSource.keysExcludedByNamespace.keys);
     if (_maybeWrite(
       outDir.path,
       ArbAdapter.filenameFor(project.config.sourceLocale),
@@ -144,6 +151,9 @@ class SyncCommand extends Command<int> {
         source: project.source,
       );
       unnamespacedKeys.addAll(prepared.keysMissingNamespace);
+      // Excluded namespaces will mirror the source; re-collecting is a
+      // no-op for the set but keeps the contract symmetric.
+      excludedNamespaces.addAll(prepared.keysExcludedByNamespace.keys);
       if (_maybeWrite(
         outDir.path,
         ArbAdapter.filenameFor(locale),
@@ -157,6 +167,7 @@ class SyncCommand extends Command<int> {
     return _PlatformOutcome(
       filesWritten: written,
       unnamespacedKeys: unnamespacedKeys,
+      excludedNamespaces: excludedNamespaces,
     );
   }
 
@@ -185,6 +196,30 @@ class SyncCommand extends Command<int> {
     );
   }
 
+  /// Emit one summary warning per platform whose `namespaces:` allowlist
+  /// excluded keys that *did* have a namespace. The pilot case for this:
+  /// `dialect.yaml` ships with `namespaces: [common]`, the developer adds
+  /// keys in `home`/`checkout`/`settings` namespaces, and sync silently
+  /// drops every non-`common` key. Visible warning > silent truncation.
+  void _maybeWarnExcludedNamespaces(
+    Map<String, Set<String>> excludedPerPlatform,
+  ) {
+    if (excludedPerPlatform.isEmpty) return;
+    stdout.writeln('');
+    for (final entry in excludedPerPlatform.entries) {
+      final names = entry.value.toList()..sort();
+      stdout.writeln(
+        '⚠ ${entry.key}: skipped keys in namespace(s) not listed in '
+        '`platforms.${entry.key}.namespaces`: ${names.join(", ")}',
+      );
+    }
+    stdout.writeln(
+      '  hint: add these namespaces to '
+      '`platforms.<p>.namespaces` in dialect.yaml, or set '
+      '`namespaces: []` to include every namespace.',
+    );
+  }
+
   /// Write [content] to `<dir>/<filename>` only if the on-disk bytes
   /// differ — unless [force] is true, in which case always write.
   /// Returns true if a write happened. Skipping no-op writes keeps
@@ -210,7 +245,9 @@ class _PlatformOutcome {
   _PlatformOutcome({
     required this.filesWritten,
     required this.unnamespacedKeys,
+    required this.excludedNamespaces,
   });
   final int filesWritten;
   final Set<String> unnamespacedKeys;
+  final Set<String> excludedNamespaces;
 }

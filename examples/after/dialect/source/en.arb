@@ -1,0 +1,190 @@
+{
+  "@@locale": "en",
+
+  "checkoutBookNow": "Book Now",
+  "@checkoutBookNow": {
+    "namespace": "checkout",
+    "description": "Primary CTA button on the checkout screen. 'Book' is a verb meaning 'make a reservation', NOT a physical book.",
+    "context": "checkout CTA"
+  },
+
+  "checkoutBookingConfirmed": "Booking confirmed. Check your trips for details.",
+  "@checkoutBookingConfirmed": {
+    "namespace": "checkout",
+    "description": "Snackbar message shown after a booking is successfully completed."
+  },
+
+  "checkoutFreeCancellation": "Free cancellation for 48 hours",
+  "@checkoutFreeCancellation": {
+    "namespace": "checkout",
+    "description": "Policy note on the checkout screen informing the user they can cancel for free within 48 hours of booking."
+  },
+
+  "checkoutHostedBy": "Hosted by {hostName}",
+  "@checkoutHostedBy": {
+    "namespace": "checkout",
+    "description": "Line below the listing title showing the host's name.",
+    "placeholders": {
+      "hostName": { "type": "String", "description": "The host's display name." }
+    }
+  },
+
+  "checkoutNights": "{count, plural, =1{1 night} other{{count} nights}}",
+  "@checkoutNights": {
+    "namespace": "checkout",
+    "description": "Number of nights for the stay. Singular '1 night' or plural '{n} nights'.",
+    "placeholders": {
+      "count": { "type": "int", "description": "Number of nights." }
+    }
+  },
+
+  "checkoutPolicyAgreement": "By booking you agree to the House Rules and Cancellation Policy.",
+  "@checkoutPolicyAgreement": {
+    "namespace": "checkout",
+    "description": "Legal disclaimer at the bottom of the checkout screen. 'House Rules' and 'Cancellation Policy' are proper nouns for the host's policy documents."
+  },
+
+  "checkoutPricePerNight": "${pricePerNight} per night",
+  "@checkoutPricePerNight": {
+    "namespace": "checkout",
+    "description": "Nightly rate shown on the checkout screen. The dollar sign is part of the value; do not move or translate the symbol — currency repositioning is handled at runtime.",
+    "placeholders": {
+      "pricePerNight": { "type": "int", "description": "Price in whole dollars per night." }
+    }
+  },
+
+  "checkoutTitle": "Confirm and pay",
+  "@checkoutTitle": {
+    "namespace": "checkout",
+    "description": "App bar title on the checkout screen where the user reviews and pays for a booking."
+  },
+
+  "checkoutTotal": "Total: ${total}",
+  "@checkoutTotal": {
+    "namespace": "checkout",
+    "description": "Total cost for the stay shown on the checkout screen. The dollar sign is part of the value.",
+    "placeholders": {
+      "total": { "type": "int", "description": "Total price in whole dollars (nights × pricePerNight)." }
+    }
+  },
+
+  "checkoutYourTrip": "Your trip",
+  "@checkoutYourTrip": {
+    "namespace": "checkout",
+    "description": "Section heading on the checkout screen summarising the stay details (duration, price)."
+  },
+
+  "commonCancel": "Cancel",
+  "@commonCancel": {
+    "namespace": "common",
+    "description": "Generic cancel action used across dialogs and screens."
+  },
+
+  "commonLoading": "Loading...",
+  "@commonLoading": {
+    "namespace": "common",
+    "description": "Generic loading state indicator shown while waiting for async operations."
+  },
+
+  "homeOpenSettings": "Open settings",
+  "@homeOpenSettings": {
+    "namespace": "home",
+    "description": "Button on the home screen that navigates to the Settings screen."
+  },
+
+  "homeYourTrips": "Your trips",
+  "@homeYourTrips": {
+    "namespace": "home",
+    "description": "App bar title on the home screen listing the user's booked travel stays."
+  },
+
+  "settingsDarkMode": "Dark mode",
+  "@settingsDarkMode": {
+    "namespace": "settings",
+    "description": "Toggle label for the dark mode switch on the Settings screen."
+  },
+
+  "settingsDeleteAccount": "Delete account",
+  "@settingsDeleteAccount": {
+    "namespace": "settings",
+    "description": "List tile label for the delete-account action on the Settings screen. Shown in red to signal a destructive action."
+  },
+
+  "settingsDeleteAccountDialogBody": "This permanently removes your bookings, trips, and host listings. This cannot be undone.",
+  "@settingsDeleteAccountDialogBody": {
+    "namespace": "settings",
+    "description": "Body text of the delete-account confirmation dialog explaining the consequences."
+  },
+
+  "settingsDeleteAccountDialogConfirm": "Delete",
+  "@settingsDeleteAccountDialogConfirm": {
+    "namespace": "settings",
+    "description": "Confirm button in the delete-account dialog. Destructive — do NOT soften the wording."
+  },
+
+  "settingsDeleteAccountDialogTitle": "Delete account?",
+  "@settingsDeleteAccountDialogTitle": {
+    "namespace": "settings",
+    "description": "Title of the confirmation dialog shown before the user deletes their account."
+  },
+
+  "settingsEmail": "Email",
+  "@settingsEmail": {
+    "namespace": "settings",
+    "description": "Label for the email address list tile on the Settings screen."
+  },
+
+  "settingsLanguage": "Language",
+  "@settingsLanguage": {
+    "namespace": "settings",
+    "description": "Label for the language picker tile on the Settings screen."
+  },
+
+  "settingsNotifications": "Notifications",
+  "@settingsNotifications": {
+    "namespace": "settings",
+    "description": "Toggle label for the notifications switch on the Settings screen."
+  },
+
+  "settingsNotificationsSubtitle": "Trip updates, host messages, and booking reminders.",
+  "@settingsNotificationsSubtitle": {
+    "namespace": "settings",
+    "description": "Subtitle under the Notifications toggle describing what kinds of notifications the user will receive."
+  },
+
+  "settingsSectionAccount": "Account",
+  "@settingsSectionAccount": {
+    "namespace": "settings",
+    "description": "Section header for the Account section on the Settings screen."
+  },
+
+  "settingsSectionAccountActions": "Account actions",
+  "@settingsSectionAccountActions": {
+    "namespace": "settings",
+    "description": "Section header for the Account actions section on the Settings screen (sign out, delete account)."
+  },
+
+  "settingsSectionPreferences": "Preferences",
+  "@settingsSectionPreferences": {
+    "namespace": "settings",
+    "description": "Section header for the Preferences section on the Settings screen."
+  },
+
+  "settingsSignOut": "Sign out",
+  "@settingsSignOut": {
+    "namespace": "settings",
+    "description": "List tile label for the sign-out action on the Settings screen."
+  },
+
+  "settingsTapToEditProfile": "Tap to edit your profile",
+  "@settingsTapToEditProfile": {
+    "namespace": "settings",
+    "description": "Subtitle on the profile list tile prompting the user to tap to edit their profile details."
+  },
+
+  "settingsTitle": "Settings",
+  "@settingsTitle": {
+    "namespace": "settings",
+    "description": "App bar title on the Settings screen."
+  }
+}

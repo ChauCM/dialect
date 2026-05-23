@@ -95,6 +95,13 @@ class InitCommand extends Command<int> {
       stdout.writeln('  .gitignore (added .dialect/)');
     }
 
+    if (projectType == 'Flutter') {
+      final added = _ensureFlutterGenerateFlag(targetDir);
+      if (added) {
+        stdout.writeln('  pubspec.yaml (added `flutter: generate: true`)');
+      }
+    }
+
     stdout.writeln('');
     stdout.writeln('Detected project type: $projectType');
     stdout.writeln('Init plan written to: $initPlanPath');
@@ -281,6 +288,36 @@ class InitCommand extends Command<int> {
       multiLine: true,
     ).firstMatch(file.readAsStringSync());
     return match?.group(1);
+  }
+
+  // ---- pubspec.yaml mutation -------------------------------------------
+
+  /// `flutter gen-l10n` refuses to run without `flutter: generate: true`
+  /// in pubspec.yaml. The plan template can mention it, but missing the
+  /// flag is the kind of opaque blocker that derails the first run, so
+  /// init writes it directly. Returns true if the file was modified.
+  ///
+  /// We skip when `generate:` already appears under any indented context
+  /// (the user may have explicitly set `false` and we don't second-guess
+  /// that). We insert the flag as the first child of `flutter:` so it
+  /// sits next to existing siblings like `uses-material-design`.
+  bool _ensureFlutterGenerateFlag(Directory targetDir) {
+    final file = File(p.join(targetDir.path, 'pubspec.yaml'));
+    if (!file.existsSync()) return false;
+    final existing = file.readAsStringSync();
+    if (RegExp(r'^\s+generate:\s', multiLine: true).hasMatch(existing)) {
+      return false;
+    }
+    final lines = existing.split('\n');
+    for (var i = 0; i < lines.length; i++) {
+      // Top-level `flutter:` block opener — may have a trailing comment.
+      if (RegExp(r'^flutter:\s*(#.*)?$').hasMatch(lines[i])) {
+        lines.insert(i + 1, '  generate: true');
+        file.writeAsStringSync(lines.join('\n'));
+        return true;
+      }
+    }
+    return false;
   }
 
   // ---- .gitignore --------------------------------------------------------

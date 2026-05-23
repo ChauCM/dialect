@@ -1,0 +1,61 @@
+{
+  "@@locale": "vi",
+
+  "checkoutBookNow": "Đặt ngay",
+
+  "checkoutBookingConfirmed": "Đặt phòng thành công. Kiểm tra chuyến đi của bạn để biết thêm chi tiết.",
+
+  "checkoutFreeCancellation": "Hủy miễn phí trong 48 giờ",
+
+  "checkoutHostedBy": "Chủ nhà: {hostName}",
+
+  "checkoutNights": "{count, plural, =1{1 đêm} other{{count} đêm}}",
+
+  "checkoutPolicyAgreement": "Bằng cách đặt phòng, bạn đồng ý với Nội quy nhà và Chính sách hủy phòng.",
+
+  "checkoutPricePerNight": "${pricePerNight} mỗi đêm",
+
+  "checkoutTitle": "Xác nhận và thanh toán",
+
+  "checkoutTotal": "Tổng: ${total}",
+
+  "checkoutYourTrip": "Chuyến đi của bạn",
+
+  "commonCancel": "Hủy",
+
+  "commonLoading": "Đang tải...",
+
+  "homeOpenSettings": "Mở cài đặt",
+
+  "homeYourTrips": "Chuyến đi của bạn",
+
+  "settingsDarkMode": "Chế độ tối",
+
+  "settingsDeleteAccount": "Xóa tài khoản",
+
+  "settingsDeleteAccountDialogBody": "Thao tác này sẽ xóa vĩnh viễn các đặt phòng, chuyến đi và danh sách nhà của bạn. Không thể hoàn tác.",
+
+  "settingsDeleteAccountDialogConfirm": "Xóa",
+
+  "settingsDeleteAccountDialogTitle": "Xóa tài khoản?",
+
+  "settingsEmail": "Email",
+
+  "settingsLanguage": "Ngôn ngữ",
+
+  "settingsNotifications": "Thông báo",
+
+  "settingsNotificationsSubtitle": "Cập nhật chuyến đi, tin nhắn từ chủ nhà và nhắc nhở đặt phòng.",
+
+  "settingsSectionAccount": "Tài khoản",
+
+  "settingsSectionAccountActions": "Thao tác tài khoản",
+
+  "settingsSectionPreferences": "Tùy chọn",
+
+  "settingsSignOut": "Đăng xuất",
+
+  "settingsTapToEditProfile": "Nhấn để chỉnh sửa hồ sơ của bạn",
+
+  "settingsTitle": "Cài đặt"
+}

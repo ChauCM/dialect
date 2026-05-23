@@ -15,7 +15,10 @@ import '../config/dialect_config.dart';
 ///    translation files don't carry `@key` metadata by convention, so
 ///    looking it up there would drop every translated key. Keys with no
 ///    source-side namespace flow back through
-///    [PreparedArb.keysMissingNamespace] so sync can surface them.
+///    [PreparedArb.keysMissingNamespace]; keys whose namespace is set but
+///    not in the platform's allowlist flow through
+///    [PreparedArb.keysExcludedByNamespace] so sync can warn instead of
+///    silently truncating the output.
 /// 2. **Metadata stripping.** Source ARBs keep their `@key` blocks
 ///    intact (Flutter's `gen_l10n` reads them). Translation ARBs are
 ///    key/value-only by convention; if a translation accidentally
@@ -56,6 +59,7 @@ class ArbAdapter {
 
     final entries = <ArbEntry>[];
     final missingNamespace = <String>[];
+    final excludedByNamespace = <String, List<String>>{};
     for (final entry in arb.entries) {
       if (!keepAll) {
         final entryNs = isSource ? entry.namespace : namespaceOf![entry.key];
@@ -63,7 +67,10 @@ class ArbAdapter {
           missingNamespace.add(entry.key);
           continue;
         }
-        if (!ns.contains(entryNs)) continue;
+        if (!ns.contains(entryNs)) {
+          excludedByNamespace.putIfAbsent(entryNs, () => []).add(entry.key);
+          continue;
+        }
       }
       entries.add(
         isSource ? entry : ArbEntry(key: entry.key, value: entry.value),
@@ -83,6 +90,7 @@ class ArbAdapter {
         sourcePath: arb.sourcePath,
       ),
       keysMissingNamespace: missingNamespace,
+      keysExcludedByNamespace: excludedByNamespace,
     );
   }
 
@@ -95,10 +103,14 @@ class ArbAdapter {
   static String filenameFor(String locale) => 'app_$locale.arb';
 }
 
-/// Output of [ArbAdapter.prepare]: the filtered ARB plus a list of keys
-/// dropped because they had no `@key.namespace` declaration to filter on.
+/// Output of [ArbAdapter.prepare]: the filtered ARB plus diagnostics
+/// about which keys were dropped and why.
 class PreparedArb {
-  PreparedArb({required this.arb, required this.keysMissingNamespace});
+  PreparedArb({
+    required this.arb,
+    required this.keysMissingNamespace,
+    required this.keysExcludedByNamespace,
+  });
 
   /// The filtered, metadata-handled ARB ready for [ArbWriter].
   final ArbFile arb;
@@ -108,4 +120,11 @@ class PreparedArb {
   /// key has a namespace. The source ARB likely needs `dialect check`
   /// to flag the missing metadata.
   final List<String> keysMissingNamespace;
+
+  /// Keys dropped because their (source-side) namespace was set but not
+  /// listed in [PlatformConfig.namespaces]. Grouped by namespace so sync
+  /// can summarize "skipped N keys in namespaces X, Y, Z" without dumping
+  /// every key. Empty when filtering is off or every key's namespace
+  /// passed the allowlist.
+  final Map<String, List<String>> keysExcludedByNamespace;
 }

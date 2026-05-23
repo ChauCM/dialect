@@ -4,6 +4,25 @@ All notable changes to the Dialect CLI are tracked here.
 
 ## [Unreleased]
 
+## 1.0.4
+
+Release-pipeline-only patch. Fixes the pub.dev publish step that hung
+on both 1.0.2 and 1.0.3 even after publisher OIDC trust was configured.
+
+Root cause: `dart pub publish --force` run via Flutter-bundled Dart
+did not auto-detect the GitHub Actions OIDC environment and silently
+fell back to the interactive Google OAuth device-flow ("In a web
+browser, go to https://accounts.google.com/o/oauth2/auth?…"). With no
+stdin in CI, the job hangs until cancelled.
+
+Fix: explicit OIDC mint + `dart pub token add https://pub.dev`
+ahead of `dart pub publish`. The token is requested with the
+`https://pub.dev` audience via `ACTIONS_ID_TOKEN_REQUEST_URL`, so
+pub.dev's publisher-side OIDC trust validates the source repo, tag
+pattern, and environment as expected.
+
+No CLI, convention, or wire-format changes.
+
 ## 1.0.3
 
 Three threads land together: an agent-pilot bug pass against the `init`

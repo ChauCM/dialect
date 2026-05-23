@@ -156,6 +156,27 @@ jobs:
           channel: stable
           cache: true
       - run: dart pub get
+      # Mint a GitHub Actions OIDC token addressed to https://pub.dev,
+      # then register it as a pub.dev credential. Without this, the
+      # Flutter-bundled `dart` sometimes fails to auto-detect the
+      # GitHub Actions environment and falls back to interactive
+      # browser OAuth — which hangs the CI job forever (no stdin).
+      # The publisher must have OIDC trust configured for this repo
+      # at https://pub.dev/packages/dialect/admin (repository pattern
+      # `ChauCM/dialect`, environment `pub.dev`, tag `v{{version}}`).
+      - name: Authenticate to pub.dev via OIDC
+        run: |
+          set -eu
+          OIDC_TOKEN="$(curl -fsSL \
+            -H "Accept: application/json; api-version=2.0" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=https://pub.dev" \
+            | python3 -c 'import json,sys; print(json.load(sys.stdin)["value"])')"
+          if [ -z "$OIDC_TOKEN" ]; then
+            echo "Failed to mint OIDC token for pub.dev"; exit 1
+          fi
+          echo "$OIDC_TOKEN" | dart pub token add https://pub.dev
       - name: Publish
         run: dart pub publish --force
 

@@ -10,6 +10,7 @@
     type StringEntry,
     type StringsPayload,
     type StatusPayload,
+    type StatusRow,
   } from './lib/api';
   import FilterPanel from './lib/FilterPanel.svelte';
   import TranslationTable from './lib/TranslationTable.svelte';
@@ -21,6 +22,8 @@
   let terms = $state<GlossaryTerm[]>([]);
   let activeLocale = $state<string | null>(null);
   let loadError = $state<string | null>(null);
+  let theme = $state<'light' | 'dark'>(initialTheme());
+  let tableRef = $state<TranslationTable | null>(null);
   let filters = $state({
     missing: false,
     locked: false,
@@ -29,7 +32,25 @@
     search: '',
   });
 
-  // Initial bootstrap.
+  $effect(() => {
+    document.documentElement.dataset.theme = theme;
+    try {
+      localStorage.setItem('dialect-theme', theme);
+    } catch {
+      /* storage may be unavailable */
+    }
+  });
+
+  function initialTheme(): 'light' | 'dark' {
+    try {
+      const saved = localStorage.getItem('dialect-theme');
+      if (saved === 'dark' || saved === 'light') return saved;
+    } catch {
+      /* ignore */
+    }
+    return matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+
   $effect(() => {
     void bootstrap();
   });
@@ -63,7 +84,30 @@
       });
   });
 
-  // Namespaces shown in the filter panel come from the loaded strings.
+  let allLocales = $derived.by(() => {
+    if (!config) return [] as string[];
+    return [config.source_locale, ...config.target_locales];
+  });
+
+  let statusByLocale = $derived.by(() => {
+    const map: Record<string, StatusRow> = {};
+    for (const row of status?.rows ?? []) {
+      map[row.locale] = row;
+    }
+    // Source locale is always 100% complete by definition.
+    if (config && !map[config.source_locale]) {
+      const total = strings?.entries.length ?? 0;
+      map[config.source_locale] = {
+        locale: config.source_locale,
+        coverage: 1,
+        missing: 0,
+        stale: 0,
+        locked: total,
+      };
+    }
+    return map;
+  });
+
   let namespaces = $derived.by(() => {
     if (!strings) return [] as string[];
     const set = new Set<string>();
@@ -90,8 +134,10 @@
   });
 
   let currentStatus = $derived(
-    status?.rows.find((r) => r.locale === activeLocale) ?? null,
+    activeLocale ? statusByLocale[activeLocale] ?? null : null,
   );
+
+  let totalCount = $derived(strings?.entries.length ?? 0);
 
   async function handleSave(
     entry: StringEntry,
@@ -103,8 +149,6 @@
       value: next.value,
       ...(next.locked !== undefined ? { locked: next.locked } : {}),
     });
-    // Re-fetch strings + status so coverage updates and stale/locked
-    // indicators refresh.
     const [s, st] = await Promise.all([
       fetchStrings(activeLocale),
       fetchStatus(),
@@ -112,34 +156,60 @@
     strings = s;
     status = st;
   }
+
+  function focusNext(filter: (e: StringEntry) => boolean) {
+    const target = visibleEntries.find(filter);
+    if (!target) return;
+    const el = document.querySelector(
+      `[data-row-key="${CSS.escape(target.key)}"]`,
+    );
+    el?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    (el?.querySelector('.target button') as HTMLButtonElement | null)?.click();
+  }
 </script>
 
 <header>
   <div class="brand">
-    <strong>Dialect Review</strong>
-    {#if config}<span class="project">{config.project_name}</span>{/if}
+    <span class="logo" aria-hidden="true">◆</span>
+    <div class="brand-text">
+      <strong>Dialect</strong>
+      {#if config}<span class="project">{config.project_name}</span>{/if}
+    </div>
   </div>
-  {#if config && activeLocale !== null}
-    <label class="locale">
-      <span>Locale</span>
-      <select
-        value={activeLocale}
-        onchange={(e) => (activeLocale = (e.currentTarget as HTMLSelectElement).value)}
-      >
-        {#each config.target_locales as locale}
-          <option value={locale}>{locale}</option>
-        {/each}
-      </select>
-    </label>
-  {/if}
+
+  <div class="header-actions">
+    {#if config && activeLocale}
+      <div class="active-locale">
+        <span class="label">Editing</span>
+        <code class="locale-code">{activeLocale}</code>
+        {#if activeLocale === config.source_locale}
+          <span class="pill pill-locked">Source</span>
+        {/if}
+      </div>
+    {/if}
+    <button
+      type="button"
+      class="btn btn-ghost theme"
+      title={theme === 'dark' ? 'Switch to light' : 'Switch to dark'}
+      onclick={() => (theme = theme === 'dark' ? 'light' : 'dark')}
+    >
+      {theme === 'dark' ? '☀' : '☾'}
+    </button>
+  </div>
 </header>
 
 <main>
-  <FilterPanel
-    {filters}
-    {namespaces}
-    onChange={(next) => (filters = next)}
-  />
+  {#if config}
+    <FilterPanel
+      {filters}
+      {namespaces}
+      locales={allLocales}
+      {statusByLocale}
+      {activeLocale}
+      onChange={(next) => (filters = next)}
+      onLocaleChange={(locale) => (activeLocale = locale)}
+    />
+  {/if}
   <section class="content">
     {#if loadError}
       <p class="err">Failed to load: {loadError}</p>
@@ -147,6 +217,7 @@
       <p class="loading">Loading…</p>
     {:else}
       <TranslationTable
+        bind:this={tableRef}
         entries={visibleEntries}
         sourceLocale={config.source_locale}
         targetLocale={activeLocale}
@@ -158,7 +229,14 @@
 </main>
 
 {#if activeLocale}
-  <CoverageFooter row={currentStatus} locale={activeLocale} />
+  <CoverageFooter
+    row={currentStatus}
+    locale={activeLocale}
+    visibleCount={visibleEntries.length}
+    {totalCount}
+    onJumpMissing={() => focusNext((e) => e.missing)}
+    onJumpStale={() => focusNext((e) => e.stale)}
+  />
 {/if}
 
 <style>
@@ -166,34 +244,65 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 10px 24px;
+    padding: 10px 20px;
     background: var(--bg-elev);
-    border-bottom: 1px solid var(--border-strong);
+    border-bottom: 1px solid var(--border);
   }
-  .brand strong {
-    color: var(--accent);
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .logo {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+    color: var(--accent-fg);
+    font-size: 14px;
+  }
+  .brand-text strong {
+    color: var(--fg);
     font-size: 15px;
     font-weight: 700;
+    letter-spacing: -0.01em;
   }
-  .brand .project {
-    margin-left: 12px;
+  .brand-text .project {
+    margin-left: 8px;
     color: var(--fg-muted);
     font-size: 13px;
   }
-  .locale {
+  .header-actions {
     display: flex;
     align-items: center;
+    gap: 12px;
+  }
+  .active-locale {
+    display: inline-flex;
+    align-items: center;
     gap: 8px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: var(--bg-sunken);
     font-size: 12px;
     color: var(--fg-muted);
   }
-  .locale select {
-    padding: 4px 8px;
-    border: 1px solid var(--border-strong);
-    border-radius: 4px;
-    background: var(--bg);
+  .active-locale .label {
+    color: var(--fg-subtle);
+  }
+  .active-locale .locale-code {
     font-family: var(--mono);
-    font-size: 13px;
+    font-size: 12px;
+    color: var(--fg);
+    font-weight: 600;
+  }
+  .theme {
+    padding: 5px 10px;
+    font-size: 16px;
+    line-height: 1;
   }
   main {
     flex: 1;
@@ -208,7 +317,7 @@
   }
   .loading, .err {
     text-align: center;
-    padding: 48px;
+    padding: 64px 24px;
     color: var(--fg-muted);
   }
   .err {

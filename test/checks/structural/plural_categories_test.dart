@@ -136,7 +136,9 @@ void main() {
         targetLocales: ['ar'],
         source: arb(
           locale: 'en',
-          entries: [ArbEntry(key: 'checkoutItemCount', value: _sourceItemCount)],
+          entries: [
+            ArbEntry(key: 'checkoutItemCount', value: _sourceItemCount),
+          ],
         ),
         translations: {
           'ar': arb(
@@ -147,10 +149,7 @@ void main() {
       );
       final issues = const PluralCategoriesRule().run(p);
       expect(issues, isNotEmpty);
-      expect(
-        issues.map((i) => i.key).toSet(),
-        contains('checkoutItemCount'),
-      );
+      expect(issues.map((i) => i.key).toSet(), contains('checkoutItemCount'));
     });
 
     test('regression: full 6-category Arabic plural passes', () {
@@ -165,7 +164,9 @@ void main() {
         targetLocales: ['ar'],
         source: arb(
           locale: 'en',
-          entries: [ArbEntry(key: 'checkoutItemCount', value: _sourceItemCount)],
+          entries: [
+            ArbEntry(key: 'checkoutItemCount', value: _sourceItemCount),
+          ],
         ),
         translations: {
           'ar': arb(

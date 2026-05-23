@@ -63,9 +63,10 @@ class KeyFormatRule extends Rule {
     final head = parts.first.isEmpty
         ? 'key'
         : parts.first[0].toLowerCase() + parts.first.substring(1);
-    final tail = parts.skip(1).where((p) => p.isNotEmpty).map(
-      (p) => p[0].toUpperCase() + p.substring(1),
-    );
+    final tail = parts
+        .skip(1)
+        .where((p) => p.isNotEmpty)
+        .map((p) => p[0].toUpperCase() + p.substring(1));
     return [head, ...tail].join();
   }
 }

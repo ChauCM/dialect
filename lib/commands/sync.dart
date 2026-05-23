@@ -137,7 +137,10 @@ class SyncCommand extends Command<int> {
       }
     }
 
-    return _PlatformOutcome(filesWritten: written, unnamespacedKeys: unnamespacedKeys);
+    return _PlatformOutcome(
+      filesWritten: written,
+      unnamespacedKeys: unnamespacedKeys,
+    );
   }
 
   /// Emit one summary warning per platform that filtered keys missing
@@ -181,7 +184,10 @@ class SyncCommand extends Command<int> {
 }
 
 class _PlatformOutcome {
-  _PlatformOutcome({required this.filesWritten, required this.unnamespacedKeys});
+  _PlatformOutcome({
+    required this.filesWritten,
+    required this.unnamespacedKeys,
+  });
   final int filesWritten;
   final Set<String> unnamespacedKeys;
 }

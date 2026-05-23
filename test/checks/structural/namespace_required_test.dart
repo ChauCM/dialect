@@ -28,9 +28,7 @@ void main() {
         targetLocales: const [],
         source: arb(
           locale: 'en',
-          entries: [
-            ArbEntry(key: 'unnamespacedKey', value: 'value'),
-          ],
+          entries: [ArbEntry(key: 'unnamespacedKey', value: 'value')],
         ),
       );
       final issues = const NamespaceRequiredRule().run(p);

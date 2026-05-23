@@ -33,9 +33,7 @@ void main() {
         targetLocales: const [],
         source: arb(
           locale: 'en',
-          entries: [
-            ArbEntry(key: 'checkout.bookNow', value: 'Book Now'),
-          ],
+          entries: [ArbEntry(key: 'checkout.bookNow', value: 'Book Now')],
         ),
       );
       final issues = const KeyFormatRule().run(p);
@@ -58,10 +56,7 @@ void main() {
         ),
       );
       final issues = const KeyFormatRule().run(p);
-      expect(issues.map((i) => i.key), [
-        'kebab-case-key',
-        '1startsWithDigit',
-      ]);
+      expect(issues.map((i) => i.key), ['kebab-case-key', '1startsWithDigit']);
     });
 
     test('underscore-only keys are allowed (valid Dart)', () {

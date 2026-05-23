@@ -220,9 +220,9 @@ class InitCommand extends Command<int> {
     }
     final pkg = File(p.join(targetDir.path, 'package.json'));
     if (pkg.existsSync()) return 'Node';
-    if (Directory(targetDir.path)
-        .listSync()
-        .any((e) => e.path.endsWith('.csproj'))) {
+    if (Directory(
+      targetDir.path,
+    ).listSync().any((e) => e.path.endsWith('.csproj'))) {
       return 'ASP.NET';
     }
     return 'Unknown';

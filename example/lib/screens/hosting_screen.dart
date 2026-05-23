@@ -99,9 +99,7 @@ class _HostDashboard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   // Distinct plural shape — singular/plural without =0.
-                  reviewCount == 1
-                      ? '1 review'
-                      : '$reviewCount reviews',
+                  reviewCount == 1 ? '1 review' : '$reviewCount reviews',
                 ),
                 const SizedBox(height: 4),
                 // Rating + maximum is a numeric format concern; only the

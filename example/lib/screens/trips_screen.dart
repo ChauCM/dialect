@@ -55,8 +55,7 @@ class _UpcomingTrips extends StatelessWidget {
     if (upcoming.isEmpty) {
       return _EmptyState(
         title: 'No upcoming trips yet',
-        body:
-            "Find a place you'll love and your next stay will appear here.",
+        body: "Find a place you'll love and your next stay will appear here.",
         cta: 'Find a place to stay',
         onTap: () {},
       );

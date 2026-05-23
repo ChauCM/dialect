@@ -129,9 +129,7 @@ void main() {
       () async {
         await runInit([]);
         // User has edited dialect.yaml; the second run must not clobber it.
-        final dialectYaml = File(
-          p.join(tmp.path, 'dialect', 'dialect.yaml'),
-        );
+        final dialectYaml = File(p.join(tmp.path, 'dialect', 'dialect.yaml'));
         const userEdit = '# user-edited content\nsource_locale: en\n';
         dialectYaml.writeAsStringSync(userEdit);
 
@@ -191,23 +189,25 @@ void main() {
       expect(body, contains('dialect/dialect.yaml'));
     });
 
-    test('appends to an existing AGENTS.md without clobbering content',
-        () async {
-      File(p.join(tmp.path, 'AGENTS.md')).writeAsStringSync(
-        '# Agent guidance\n\nSome existing rules.\n',
-      );
-      await runInit([]);
-      final body = File(p.join(tmp.path, 'AGENTS.md')).readAsStringSync();
-      expect(body, startsWith('# Agent guidance\n\nSome existing rules.'));
-      expect(body, contains('## Localization (Dialect)'));
-    });
+    test(
+      'appends to an existing AGENTS.md without clobbering content',
+      () async {
+        File(
+          p.join(tmp.path, 'AGENTS.md'),
+        ).writeAsStringSync('# Agent guidance\n\nSome existing rules.\n');
+        await runInit([]);
+        final body = File(p.join(tmp.path, 'AGENTS.md')).readAsStringSync();
+        expect(body, startsWith('# Agent guidance\n\nSome existing rules.'));
+        expect(body, contains('## Localization (Dialect)'));
+      },
+    );
 
     test(
       'appends to an existing CLAUDE.md when AGENTS.md does not exist',
       () async {
-        File(p.join(tmp.path, 'CLAUDE.md')).writeAsStringSync(
-          '# Claude guidance\n\nProject-specific rules.\n',
-        );
+        File(
+          p.join(tmp.path, 'CLAUDE.md'),
+        ).writeAsStringSync('# Claude guidance\n\nProject-specific rules.\n');
         await runInit([]);
         // Should append to CLAUDE.md, NOT create a new AGENTS.md.
         expect(File(p.join(tmp.path, 'AGENTS.md')).existsSync(), isFalse);

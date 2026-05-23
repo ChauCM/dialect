@@ -4,6 +4,24 @@ All notable changes to the Dialect CLI are tracked here.
 
 ## [Unreleased]
 
+## 1.0.1
+
+Documentation + tooling polish on top of 1.0.0. No CLI behavior
+or convention changes — the wire format and Dart APIs are
+identical to 1.0.0.
+
+- README rewritten to lead with the chat-first DX. New project:
+  one chat message (`run dialect init and follow the instructions`).
+  Ongoing work: plain English ("translate the new screen") backed
+  by the AGENTS.md the agent installer drops at the project root.
+  Manual CLI commands collapsed behind `<details>` blocks as
+  optional advanced touchpoints.
+- README teaser block (the elevator-pitch Dev/AI dialogue) updated
+  to the natural-language flow that lands after `dialect init`.
+- `dart format` applied to the nine M3.5 files I'd missed in the
+  1.0.0 commit. CI's `dart format --set-exit-if-changed` check is
+  now clean.
+
 ## 1.0.0
 
 First stable release.

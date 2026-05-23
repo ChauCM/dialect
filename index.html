@@ -1,164 +1,512 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Dialect — AI-native localization</title>
-    <meta name="description" content="Open-source localization toolkit for developers who code with AI. One canonical source, synced across Flutter, iOS, Android, and backend." />
-    <meta property="og:title" content="Dialect — AI-native localization" />
-    <meta property="og:description" content="One canonical source, every platform, driven by your AI editor." />
-    <meta property="og:url" content="https://dialect.tools" />
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%234f46e5'/%3E%3Ctext x='16' y='22' text-anchor='middle' font-family='ui-monospace,Menlo,monospace' font-size='18' fill='white' font-weight='600'%3ED%3C/text%3E%3C/svg%3E" />
-    <style>
-      :root {
-        --bg: #fafafa;
-        --fg: #18181b;
-        --fg-muted: #52525b;
-        --fg-subtle: #71717a;
-        --border: #e4e4e7;
-        --accent: #4f46e5;
-        --accent-soft: #eef2ff;
-        --code-bg: #18181b;
-        --code-fg: #e4e4e7;
-        --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-      }
-      * { box-sizing: border-box; }
-      body {
-        margin: 0;
-        background: var(--bg);
-        color: var(--fg);
-        font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-        -webkit-font-smoothing: antialiased;
-      }
-      .container {
-        max-width: 720px;
-        margin: 0 auto;
-        padding: 64px 24px;
-      }
-      .badge {
-        display: inline-block;
-        background: var(--accent-soft);
-        color: var(--accent);
-        padding: 4px 10px;
-        border-radius: 999px;
-        font-size: 12px;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-      }
-      h1 {
-        font-size: 40px;
-        line-height: 1.15;
-        font-weight: 700;
-        margin: 16px 0 8px;
-        letter-spacing: -0.02em;
-      }
-      .tagline {
-        font-size: 18px;
-        color: var(--fg-muted);
-        margin: 0 0 32px;
-      }
-      pre {
-        background: var(--code-bg);
-        color: var(--code-fg);
-        font-family: var(--mono);
-        font-size: 14px;
-        padding: 16px 20px;
-        border-radius: 8px;
-        overflow-x: auto;
-        line-height: 1.6;
-      }
-      pre code { background: transparent; padding: 0; color: inherit; }
-      code {
-        font-family: var(--mono);
-        font-size: 0.9em;
-        background: var(--accent-soft);
-        color: var(--accent);
-        padding: 1px 6px;
-        border-radius: 4px;
-      }
-      h2 {
-        font-size: 14px;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        color: var(--fg-subtle);
-        margin: 48px 0 12px;
-      }
-      ul.commands {
-        list-style: none;
-        padding: 0;
-        margin: 0;
-      }
-      ul.commands li {
-        display: flex;
-        align-items: baseline;
-        gap: 16px;
-        padding: 8px 0;
-        border-bottom: 1px solid var(--border);
-      }
-      ul.commands li:last-child { border-bottom: none; }
-      ul.commands code {
-        flex: 0 0 auto;
-        min-width: 140px;
-      }
-      ul.commands span {
-        color: var(--fg-muted);
-        font-size: 14px;
-      }
-      a { color: var(--accent); }
-      a:hover { text-decoration: underline; }
-      footer {
-        margin-top: 64px;
-        padding-top: 24px;
-        border-top: 1px solid var(--border);
-        color: var(--fg-subtle);
-        font-size: 13px;
-      }
-      footer a { color: var(--fg-muted); }
-    </style>
-  </head>
-  <body>
-    <div class="container">
-      <span class="badge">In active design · pre-1.0</span>
-      <h1>Dialect</h1>
-      <p class="tagline">
-        AI-native localization for developers who already code with AI.
-        One canonical source, every platform.
-      </p>
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Dialect</title>
+<meta name="description" content="AI-native localization toolkit for Flutter-led teams." />
+<meta property="og:title" content="Dialect" />
+<meta property="og:description" content="One canonical source, every platform, driven by your AI editor." />
+<meta property="og:url" content="https://dialect.tools" />
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%234f46e5'/%3E%3Ctext x='16' y='22' text-anchor='middle' font-family='ui-monospace,Menlo,monospace' font-size='18' fill='white' font-weight='600'%3ED%3C/text%3E%3C/svg%3E" />
+<style>:root {
+  --bg: #fafafa;
+  --fg: #18181b;
+  --fg-muted: #52525b;
+  --fg-subtle: #71717a;
+  --border: #e4e4e7;
+  --accent: #4f46e5;
+  --accent-soft: #eef2ff;
+  --code-bg: #18181b;
+  --code-fg: #e4e4e7;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+.container {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 64px 24px 96px;
+}
+h1 { font-size: 40px; line-height: 1.15; font-weight: 700; margin: 8px 0 16px; letter-spacing: -0.02em; }
+h2 { font-size: 22px; font-weight: 600; margin: 48px 0 12px; letter-spacing: -0.01em; }
+h3 { font-size: 17px; font-weight: 600; margin: 32px 0 8px; }
+h4 { font-size: 15px; font-weight: 600; margin: 24px 0 6px; color: var(--fg-muted); }
+p, li { color: var(--fg); }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+hr { border: 0; border-top: 1px solid var(--border); margin: 48px 0; }
+blockquote {
+  border-left: 3px solid var(--accent);
+  background: var(--accent-soft);
+  margin: 16px 0; padding: 12px 16px;
+  color: var(--fg-muted);
+}
+ul, ol { padding-left: 24px; }
+li { margin: 4px 0; }
+pre {
+  background: var(--code-bg);
+  color: var(--code-fg);
+  font-family: var(--mono);
+  font-size: 13.5px;
+  padding: 16px 20px;
+  border-radius: 8px;
+  overflow-x: auto;
+  line-height: 1.55;
+  margin: 12px 0 20px;
+}
+pre code { background: transparent; padding: 0; color: inherit; font-size: inherit; }
+code {
+  font-family: var(--mono);
+  font-size: 0.9em;
+  background: var(--accent-soft);
+  color: var(--accent);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+table { border-collapse: collapse; margin: 12px 0 20px; font-size: 14px; }
+th, td { border: 1px solid var(--border); padding: 6px 12px; text-align: left; }
+th { background: var(--accent-soft); }
+details {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 14px;
+  margin: 8px 0;
+  background: #fff;
+}
+details summary { cursor: pointer; font-weight: 600; }
+details[open] summary { margin-bottom: 8px; }
+img { max-width: 100%; border-radius: 6px; }
+footer {
+  margin-top: 64px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+  color: var(--fg-subtle);
+  font-size: 13px;
+}
+footer a { color: var(--fg-muted); }</style>
+</head>
+<body>
+<div class="container">
+<h1 id="dialect">Dialect</h1>
+<p><strong>AI-native localization for developers who already code with AI.</strong></p>
+<hr>
+<p>Developers who code with AI already have the perfect translator sitting right next to them. When you just built a checkout screen in Flutter, your AI co-pilot has full context — the widget tree, the button semantics, the user flow. You can just say <em>&ldquo;add the labels on this screen to translations and translate them into Spanish, Japanese, and Arabic&rdquo;</em> and it should just work.</p>
+<p><strong>Dialect</strong> is a convention-first, open-source localization toolkit. One canonical source syncs translations across mobile apps and backend services. No dashboard. No context switching. Just code.</p>
+<pre><code>Dev (typing in AI chat session):
+      &quot;I just built the checkout screen. Translate the new strings
+       into Spanish, Japanese, and Arabic.&quot;
 
-      <h2>Install</h2>
-      <pre><code>curl -fsSL https://dialect.tools/install.sh | sh</code></pre>
+AI:   *reads AGENTS.md → this project uses Dialect*
+      *reads dialect/dialect.yaml + dialect/glossary.yaml — convention,
+       target locales, glossary loaded*
+      *reads lib/screens/checkout_screen.dart for context*
+      *adds 12 keys to dialect/source/en.arb with @key.namespace and
+       contextual @descriptions*
+      *replaces hardcoded Text(...) with AppLocalizations.of(context)!*
+      *translates to es, ja, ar respecting the glossary*
+      *runs `dialect check --fix &amp;&amp; dialect sync &amp;&amp; dialect check`*
+      ✓ Flutter ARB updated
+      ✓ iOS .strings updated
+      ✓ Android strings.xml updated
+      ✓ Go backend JSON updated
+      ✓ All 3 locales complete, placeholders match
+</code></pre>
+<p>One chat message. One source. Every platform. 60 seconds.</p>
+<hr>
+<h2 id="install">Install</h2>
+<pre><code class="language-bash"># macOS / Linux — official installer
+curl -fsSL https://dialect.tools/install.sh | sh
 
-      <h2>Or pick your package manager</h2>
-      <pre><code>brew install ChauCM/tap/dialect       # macOS / Linux
-dart pub global activate dialect      # any platform with Dart</code></pre>
+# macOS / Linux — Homebrew
+brew install ChauCM/tap/dialect
 
-      <h2>GitHub Actions</h2>
-      <pre><code>- uses: ChauCM/dialect@v1
+# Any platform — Dart pub
+dart pub global activate dialect
+
+# GitHub Actions
+- uses: ChauCM/dialect@v1
   with:
-    args: check --strict</code></pre>
+    args: check --strict
+</code></pre>
+<p>Pre-built binaries for <code>macos-arm64</code>, <code>linux-x64</code>, and <code>windows-x64</code> are attached to every <a href="https://github.com/ChauCM/dialect/releases">release</a>. Verify the SHA-256 against the release&rsquo;s <code>SHA256SUMS</code> asset. Intel Macs and Linux ARM64 — <a href="#build-from-source">build from source</a>.</p>
+<h3 id="build-from-source">Build from source</h3>
+<p>If you&rsquo;re on Intel macOS or Linux ARM64, the Homebrew formula and <code>install.sh</code> will refuse to install — there are no prebuilt binaries for those targets. Build the binary yourself; the Dart toolchain ships with Flutter so any Flutter dev already has what they need.</p>
+<pre><code class="language-bash">git clone https://github.com/ChauCM/dialect.git
+cd dialect
+dart pub get
+cd dashboard &amp;&amp; pnpm install &amp;&amp; pnpm build &amp;&amp; cd ..
+dart run tool/build_dashboard.dart --no-pnpm
+dart compile exe bin/dialect.dart -o build/dialect
+sudo install -m 0755 build/dialect /usr/local/bin/dialect
+dialect --version
+</code></pre>
+<hr>
+<h2 id="usage">Usage</h2>
+<p>The dev never touches the terminal. Everything starts and ends in your AI agent (Claude Code, Cursor, Cline, Copilot…). The CLI is what your AI agent runs on your behalf.</p>
+<h3 id="new-project-one-chat-message">New project — one chat message</h3>
+<p>You have a Flutter app with hardcoded English strings. You want Spanish, Japanese, and Arabic in production. Open your AI agent in the project and paste:</p>
+<pre><code>Dev (typing in AI chat session):
+      &quot;run dialect init and follow the instructions.
+       Target Spanish, Japanese, and Arabic.&quot;
 
-      <h2>What it does</h2>
-      <ul class="commands">
-        <li><code>dialect init</code><span>Scaffold the convention</span></li>
-        <li><code>dialect import</code><span>Convert existing strings into the convention (AI-pointer)</span></li>
-        <li><code>dialect describe</code><span>Backfill @description from callsites (AI-pointer)</span></li>
-        <li><code>dialect sync</code><span>Generate Flutter / iOS / Android / backend files from canonical ARB</span></li>
-        <li><code>dialect check</code><span>Structural + semantic validation</span></li>
-        <li><code>dialect status</code><span>Per-locale coverage table</span></li>
-        <li><code>dialect serve</code><span>Local review dashboard at localhost:4077</span></li>
-      </ul>
+AI:   Running `dialect init`...
+      ✓ Scaffolded dialect/  → wrote dialect.yaml, glossary.yaml, en.arb
+      ✓ Wrote .dialect/init-plan.md  (two-phase playbook)
+      ✓ Created AGENTS.md  (so future sessions know about Dialect)
 
-      <footer>
-        <p>
-          <a href="https://github.com/ChauCM/dialect">GitHub</a> ·
-          <a href="https://github.com/ChauCM/dialect/blob/main/README.md">README</a> ·
-          <a href="https://github.com/ChauCM/dialect/blob/main/docs/architecture.md">Architecture</a> ·
-          <a href="https://github.com/ChauCM/dialect/blob/main/planning/mvp-plan.md">MVP plan</a>
-        </p>
-        <p>MIT licensed · built by <a href="https://github.com/ChauCM">Chau Cao</a></p>
-      </footer>
-    </div>
-  </body>
+      Reading .dialect/init-plan.md — Phase 1: Setup.
+
+      ✓ Added flutter_localizations + intl to pubspec.yaml
+      ✓ Created l10n.yaml
+      ✓ Wired MaterialApp.localizationsDelegates + supportedLocales
+      ✓ Added a locale picker in the Settings screen
+      ✓ Smoke test passed: commonLoading flows through AppLocalizations
+
+      27 user-facing strings found under lib/. Proceeding to Phase 2
+      (under the 50-string threshold — extract + translate in this same turn).
+
+      ✓ Extracted 27 keys into dialect/source/en.arb with @key.namespace
+        + @key.description for each
+      ✓ Replaced hardcoded strings in lib/ with AppLocalizations.of(context)!
+      ✓ Translated to {es, ja, ar} respecting dialect/glossary.yaml
+      ✓ Ran `dialect check --fix &amp;&amp; dialect sync &amp;&amp; dialect check` — clean
+
+      Done. Run `flutter pub get &amp;&amp; flutter run`, switch locale via
+      Settings → Language, and translated text renders immediately.
+</code></pre>
+<p>That&rsquo;s the whole adoption flow: <strong>one chat message</strong>. The AI runs <code>dialect init</code> itself, reads the plan Dialect emitted, and executes Phase 1 + Phase 2 end-to-end. You review the resulting diff and merge.</p>
+<p>The init plan is two-phased to scale gracefully:
+- <strong>≤ 50 candidate strings</strong> — the AI extracts + translates in one chat turn (the example above).
+- <strong>&gt; 50 strings</strong> — the AI does Phase 2 extraction only, summarizes the proposed key names, and asks you to confirm before translating. Saves you reviewing 500+ translation lines downstream of bad key names.</p>
+<h3 id="ongoing-work-natural-language">Ongoing work — natural language</h3>
+<p>Once <code>dialect init</code> has run, your project root has an <code>AGENTS.md</code> telling every future agent session about Dialect. From then on, every translation ask is plain English:</p>
+<pre><code>Dev: &quot;I just added a Profile screen. Translate the new strings.&quot;
+
+AI:  Reading AGENTS.md → I see this project uses Dialect.
+     Reading dialect/dialect.yaml + dialect/glossary.yaml...
+
+     ✓ Extracted 8 new keys from lib/screens/profile_screen.dart
+     ✓ Translated to {es, ja, ar} respecting glossary
+     ✓ Replaced hardcoded strings with AppLocalizations.of(context)!
+     ✓ Ran `dialect check --fix &amp;&amp; dialect sync &amp;&amp; dialect check` — clean
+</code></pre>
+<p>No re-onboarding. The convention file is the spec; the AGENTS.md is the pointer.</p>
+<h3 id="advanced-manual-touchpoints-optional">Advanced — manual touchpoints (optional)</h3>
+<p>The whole CLI surface is still there if you want to drive a specific step yourself rather than let the AI chain everything:</p>
+<details>
+<summary><code>dialect check</code> — validate without changing anything</summary>
+
+
+<pre><code class="language-bash">$ dialect check
+
+⚠ dialect/translations/ar.arb:14  glossary  Translation for `checkoutYourTripHeader` does not appear to use the glossary term &quot;Trip&quot; (expected &quot;رحلة&quot;).
+  hint: Glossary defines &quot;Trip&quot; → &quot;رحلة&quot; in `ar`. If this key uses &quot;Trip&quot;
+        in a non-literal sense, add `&quot;glossary_exempt&quot;: true` to the
+        @key block in the source ARB.
+
+! dialect check: 1 warning (warnings only — exit 0 in soft mode;
+  run with --strict in CI)
+</code></pre>
+
+
+Five structural rules + four semantic heuristics. Every issue has a `file:line` and a real remediation hint.
+</details>
+
+<details>
+<summary><code>dialect sync</code> — regenerate platform files</summary>
+
+
+<pre><code class="language-bash">$ dialect sync
+
+✓ Wrote lib/l10n/app_en.arb
+✓ Wrote lib/l10n/app_es.arb
+✓ Wrote lib/l10n/app_ja.arb
+✓ Wrote lib/l10n/app_ar.arb
+</code></pre>
+
+
+Flutter `gen_l10n` picks these up directly. iOS `.strings` / Android `strings.xml` / backend `flat-json` & `icu-json` adapters land in v1.1; the canonical spec contracts are already locked under [`dialect/spec/`](dialect/spec/).
+</details>
+
+<details>
+<summary><code>dialect serve</code> — local review UI for non-engineers</summary>
+
+
+<pre><code class="language-bash">$ dialect serve
+
+Dialect Review running at http://localhost:4077
+Reading from: ./dialect/
+</code></pre>
+
+
+![dialect serve — review UI](docs/dialect-serve.png)
+
+Every key, every locale, side by side with `@description` context and glossary highlighting. Per-locale coverage in the sidebar, status pills (missing / stale / locked), explicit Save / Revert in the editor, light + dark themes. Lock human-reviewed translations to skip them on the next AI re-translate.
+</details>
+
+<details>
+<summary><code>dialect status</code> — coverage snapshot</summary>
+
+
+<pre><code class="language-bash">$ dialect status
+
+┌────────┬──────────┬───────┬─────┬────────┐
+│ Locale │ Coverage │ Stale │ New │ Locked │
+├────────┼──────────┼───────┼─────┼────────┤
+│ es     │    100%  │     0 │   0 │      0 │
+│ ja     │    100%  │     0 │   0 │      0 │
+│ ar     │     95.8% │     0 │   1 │      0 │
+└────────┴──────────┴───────┴─────┴────────┘
+</code></pre>
+
+</details>
+
+<details>
+<summary>CI gate on every PR</summary>
+
+`.github/workflows/dialect.yml`:
+
+
+<pre><code class="language-yaml">name: Dialect
+on: [pull_request]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ChauCM/dialect@v1
+        with:
+          args: check --strict
+</code></pre>
+
+
+`--strict` promotes warnings to errors, so a missing placeholder, an orphan `@key` block, or a glossary violation fails the build.
+</details>
+
+<hr>
+<h2 id="backend-support">Backend support</h2>
+<p>Dialect emits JSON for backends in two flavors — pick one per platform in <code>dialect.yaml</code>:</p>
+<ul>
+<li><strong><a href="dialect/spec/icu-json.md"><code>icu-json</code></a></strong> — preserves <code>{count, plural, …}</code> for stacks with an ICU runtime.</li>
+<li><strong><a href="dialect/spec/flat-json.md"><code>flat-json</code></a></strong> — plain <code>{ "key": "value" }</code> for stacks without ICU.</li>
+</ul>
+<pre><code class="language-yaml">platforms:
+  backend:
+    output: api/locales/
+    format: icu-json        # or flat-json
+    namespaces: [common, backend]
+</code></pre>
+<p>Then point your stack&rsquo;s existing localization library at the output directory — callsites don&rsquo;t change:</p>
+<table>
+<thead>
+<tr>
+<th>Stack</th>
+<th>Integration</th>
+<th>Surface</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>ASP.NET (C#)</strong></td>
+<td><code>dotnet add package Dialect.AspNetCore</code> — implements <code>IStringLocalizer&lt;T&gt;</code> over Dialect&rsquo;s <code>icu-json</code>. Keeps <code>_localizer["checkoutBookNow"]</code> everywhere.</td>
+<td>First-class NuGet (v1.1)</td>
+</tr>
+<tr>
+<td><strong>Node / Express / Fastify</strong></td>
+<td><code>i18next-fs-backend</code> reads flat-key JSON natively. ICU plurals via <code>intl-messageformat</code>.</td>
+<td>~10-line snippet</td>
+</tr>
+<tr>
+<td><strong>Django</strong></td>
+<td>Drop-in JSON catalog adapter; keep <code>_("checkoutBookNow")</code> callsites.</td>
+<td>~15-line snippet</td>
+</tr>
+<tr>
+<td><strong>Flask / FastAPI</strong></td>
+<td>Tiny middleware loads <code>&lt;locale&gt;.json</code> from <code>Accept-Language</code>; standard template-helper interface.</td>
+<td>~15-line snippet</td>
+</tr>
+<tr>
+<td><strong>Go</strong></td>
+<td><code>go-i18n</code> consumes flat-key JSON natively and parses ICU plurals out of the box.</td>
+<td>One-line config</td>
+</tr>
+</tbody>
+</table>
+<p>For each stack, <a href="docs/platforms-backend.md"><code>docs/platforms-backend.md</code></a> carries the full snippet — registration, ICU plural wiring, fallback behavior, and (for ASP.NET) the hand-rolled <code>JsonStringLocalizer</code> template if you can&rsquo;t add a dependency. The principle is <strong>Backend Humility</strong>: your backend keeps its native localization interface (<code>IStringLocalizer&lt;T&gt;</code>, <code>_()</code>, <code>i18n.Localize</code>), Dialect just swaps the backing store.</p>
+<hr>
+<h2 id="layout-command-reference">Layout &amp; command reference</h2>
+<pre><code>your-project/
+├── dialect/
+│   ├── dialect.yaml           # Config + AI-readable convention
+│   ├── source/
+│   │   └── en.arb             # Canonical source strings (ARB format)
+│   ├── translations/
+│   │   ├── es.arb
+│   │   ├── ja.arb
+│   │   └── ...
+│   └── glossary.yaml          # Project-specific terms for consistent AI translation
+├── .dialect/                  # Gitignored. AI-pointer plan files land here.
+└── lib/l10n/                  # `dialect sync` output (Flutter convention)
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Description</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>dialect init</code></td>
+<td>Scaffold the <code>dialect/</code> directory</td>
+<td>v1.0</td>
+</tr>
+<tr>
+<td><code>dialect import</code></td>
+<td>AI-pointer flow: import existing ARBs into the convention</td>
+<td>v1.0</td>
+</tr>
+<tr>
+<td><code>dialect describe</code></td>
+<td>AI-pointer flow: backfill <code>@description</code> from callsites</td>
+<td>v1.0</td>
+</tr>
+<tr>
+<td><code>dialect sync</code></td>
+<td>Generate platform-specific files from canonical ARBs</td>
+<td>v1.0</td>
+</tr>
+<tr>
+<td><code>dialect check</code></td>
+<td>Validate completeness, correctness, and translation quality heuristics</td>
+<td>v1.0</td>
+</tr>
+<tr>
+<td><code>dialect status</code></td>
+<td>Coverage overview across locales</td>
+<td>v1.0</td>
+</tr>
+<tr>
+<td><code>dialect serve</code></td>
+<td>Local web UI for reviewing translations</td>
+<td>v1.0</td>
+</tr>
+<tr>
+<td><code>dialect translate</code></td>
+<td>AI-pointer flow for translation (<code>--auto</code> for direct LLM call)</td>
+<td>v1.2</td>
+</tr>
+<tr>
+<td><code>dialect publish</code></td>
+<td>Push translations for OTA delivery</td>
+<td>v1.2</td>
+</tr>
+<tr>
+<td><code>dialect merge</code></td>
+<td>Key-aware ARB merge driver (opt-in via <code>dialect init --enable-merge-driver</code>)</td>
+<td>v1.2</td>
+</tr>
+<tr>
+<td><code>dialect diff</code></td>
+<td>Show translation changes for PR review</td>
+<td>v1.5</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="documentation">Documentation</h2>
+<table>
+<thead>
+<tr>
+<th>Document</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="docs/thesis.md">Why Dialect</a></td>
+<td>The problem with localization today and the insight behind Dialect</td>
+</tr>
+<tr>
+<td><a href="docs/architecture.md">Architecture</a></td>
+<td>File convention, CLI reference, config format, CI integration</td>
+</tr>
+<tr>
+<td><a href="docs/platforms-frontend.md">Mobile Platforms</a></td>
+<td>Flutter, iOS, Android — format adapters and OTA. React/RN as secondary.</td>
+</tr>
+<tr>
+<td><a href="docs/platforms-backend.md">Backend Platforms</a></td>
+<td>Node.js, ASP.NET, FastAPI — format adapters, integration patterns</td>
+</tr>
+<tr>
+<td><a href="docs/ota.md">OTA Updates</a></td>
+<td>Over-the-air protocol, publish adapters, and the <code>dialect_ota</code> Flutter package</td>
+</tr>
+</tbody>
+</table>
+<h3 id="stable-on-disk-contracts-dialectspec">Stable on-disk contracts (<code>dialect/spec/</code>)</h3>
+<p>These specify Dialect&rsquo;s versioned file formats. Backend localizer libraries (<code>Dialect.AspNetCore</code>, third-party adapters) target this contract; breaking changes require a major-version bump.</p>
+<table>
+<thead>
+<tr>
+<th>Spec</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="dialect/spec/icu-json.md"><code>icu-json</code></a></td>
+<td>Backend JSON output that preserves ICU plural/select expressions byte-identically</td>
+</tr>
+<tr>
+<td><a href="dialect/spec/flat-json.md"><code>flat-json</code></a></td>
+<td>Backend JSON output that strips ICU plural/select to a plain string (takes the <code>other</code> branch)</td>
+</tr>
+<tr>
+<td><a href="dialect/spec/source_hash.md"><code>@key.source_hash</code></a></td>
+<td>Source-value fingerprint that powers <code>dialect status</code> &ldquo;stale&rdquo; and the dashboard lock indicator</td>
+</tr>
+<tr>
+<td><a href="dialect/spec/state.md"><code>.dialect/state.json</code></a></td>
+<td>Soft-mode acknowledgement store for the <code>dialect check</code> rules</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="what-dialect-is">What Dialect is</h2>
+<p>Five things, in order of &ldquo;what you touch&rdquo;:</p>
+<ol>
+<li><strong>A convention.</strong> An opinionated way to organize ARB files with rich <code>@description</code> / <code>@placeholders</code> / glossary metadata, plus a YAML config that doubles as an AI-readable instruction sheet. Any modern AI editor produces correct output by reading it.</li>
+<li><strong>A CLI.</strong> <code>init</code> scaffolds, <code>import</code> / <code>describe</code> write structured plan files the AI follows, <code>check</code> validates structurally and semantically, <code>sync</code> generates platform files, <code>status</code> reports coverage.</li>
+<li><strong>A local review UI</strong> (<code>dialect serve</code>). A Svelte SPA embedded in the binary; no <code>node_modules</code> at runtime. Side-by-side source + target, glossary highlighting, inline edit, pin/lock.</li>
+<li><strong>Versioned on-disk contracts</strong> (<a href="dialect/spec/"><code>dialect/spec/</code></a>). Backend localizer libraries target the spec, not the CLI version — breaking changes require a major bump.</li>
+<li><strong>OTA support</strong> (v1.3+). Optional over-the-air translation updates via a simple protocol that works with any backend.</li>
+</ol>
+<h2 id="who-dialect-is-for">Who Dialect is for</h2>
+<p>Small and medium teams who code with AI and want a localization workflow that lives in code, not a dashboard.</p>
+<ul>
+<li>You ship <strong>Flutter + a backend</strong> (ASP.NET, Node, Python, Go) and need cross-platform sync.</li>
+<li>You <strong>already code with AI</strong> — Claude Code, Cursor, Cline, Copilot — and want the same workflow for translation.</li>
+<li>You&rsquo;re <strong>looking to move away</strong> from a dashboard-centric TMS like Lokalise / Crowdin / Phrase, and don&rsquo;t need the enterprise pieces (translation memory, multi-step review, RBAC, audit trails).</li>
+<li>You&rsquo;d rather own your translation files in git than rent a dashboard.</li>
+</ul>
+<h2 id="license">License</h2>
+<p><a href="LICENSE">MIT</a></p>
+<footer>
+  <a href="https://github.com/ChauCM/dialect">github.com/ChauCM/dialect</a> ·
+  <a href="https://pub.dev/packages/dialect">pub.dev/packages/dialect</a> ·
+  <a href="https://dialect.tools/install.sh">install.sh</a>
+</footer>
+</div>
+</body>
 </html>

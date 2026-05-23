@@ -6,6 +6,35 @@ work-in-progress milestones from `planning/mvp-plan.md`.
 ## [Unreleased]
 
 ### Added
+- **M9.** Stable on-disk-contract spec docs under `dialect/spec/`.
+  - **`icu-json.md`** — backend JSON output that preserves ICU
+    plural/select expressions byte-identically. Flat keys (not nested
+    objects), one file per locale, UTF-8 NFC, 2-space LF, sorted.
+    Aligned with `Dialect.AspNetCore` (v1.1) and the third-party
+    backend libraries documented in `docs/platforms-backend.md`.
+  - **`flat-json.md`** — sibling format that strips ICU
+    plural/select/selectordinal to a single plain string by taking
+    the `other` branch and recursively stripping nested expressions.
+    Documents the loss-of-information trade-off and the `info` hint
+    `dialect sync` emits when a project's source uses plurals and
+    `flat-json` is selected.
+  - **`state.md`** — `.dialect/state.json` shape for soft-mode
+    `dialect check` acknowledgements (decision 9 in the plan).
+    Per-issue acks keyed by `<rule>:<locale>:<key>`, fingerprinted
+    with the source/translation hash at ack-time so edits resurface
+    the warning. Structural rules are explicitly NOT ack-able (those
+    are correctness failures, not heuristics).
+  - All three carry the same status header as `source_hash.md`:
+    v1.0 stable contract, breaking changes require a major bump.
+  - README.md gains a "Stable on-disk contracts" sub-section linking
+    every spec — backend integrators land on the contract before they
+    write a single line of glue code.
+  - **Blocks the v1.0.0 tag per the plan.** The
+    `Dialect.AspNetCore` NuGet (v1.1) depends on a stable `icu-json`
+    contract; shipping v1.0 without versioned specs would cost us
+    users at the first breaking change.
+
+### Added
 - **M8.** `dialect check` semantic heuristics — four new rules layered on
   the M4 `Rule` interface, runner, and report.
   - **`source_equality`** (warning) — flags translations identical to

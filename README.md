@@ -101,6 +101,17 @@ your-project/
 | [Backend Platforms](docs/platforms-backend.md) | Node.js, ASP.NET, FastAPI — format adapters, integration patterns |
 | [OTA Updates](docs/ota.md) | Over-the-air protocol, publish adapters, and the `dialect_ota` Flutter package |
 
+### Stable on-disk contracts (`dialect/spec/`)
+
+These specify Dialect's versioned file formats. Backend localizer libraries (`Dialect.AspNetCore`, third-party adapters) target this contract; breaking changes require a major-version bump.
+
+| Spec | Description |
+|---|---|
+| [`icu-json`](dialect/spec/icu-json.md) | Backend JSON output that preserves ICU plural/select expressions byte-identically |
+| [`flat-json`](dialect/spec/flat-json.md) | Backend JSON output that strips ICU plural/select to a plain string (takes the `other` branch) |
+| [`@key.source_hash`](dialect/spec/source_hash.md) | Source-value fingerprint that powers `dialect status` "stale" and the dashboard lock indicator |
+| [`.dialect/state.json`](dialect/spec/state.md) | Soft-mode acknowledgement store for the `dialect check` rules |
+
 ## Internal Planning
 
 Design decisions, business analysis, and build roadmap are in [`planning/`](planning/):

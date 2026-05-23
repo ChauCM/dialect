@@ -46,57 +46,54 @@ void main() {
       );
     });
 
-    test(
-      'translation filter joins on source namespaces (regression: B3)',
-      () {
-        // Translation files carry no `@key` metadata by convention. Sync
-        // used to read `entry.namespace` directly on translation entries,
-        // get null for everything, and drop every key into the
-        // "missing namespace" bucket. The fix: look up each key's
-        // namespace via the source ARB.
-        final source = ArbFile(
-          locale: 'en',
-          entries: [
-            ArbEntry(
-              key: 'commonGreet',
-              value: 'Hello',
-              metadata: ArbMetadata(namespace: 'common'),
-            ),
-            ArbEntry(
-              key: 'checkoutBookNow',
-              value: 'Book Now',
-              metadata: ArbMetadata(namespace: 'checkout'),
-            ),
-          ],
-        );
-        final translation = ArbFile(
-          locale: 'es',
-          entries: [
-            ArbEntry(key: 'commonGreet', value: 'Hola'),
-            ArbEntry(key: 'checkoutBookNow', value: 'Reservar ahora'),
-          ],
-        );
-        final platform = PlatformConfig(
-          name: 'flutter',
-          output: 'lib/l10n',
-          format: 'arb',
-          namespaces: ['common', 'checkout'],
-        );
+    test('translation filter joins on source namespaces (regression: B3)', () {
+      // Translation files carry no `@key` metadata by convention. Sync
+      // used to read `entry.namespace` directly on translation entries,
+      // get null for everything, and drop every key into the
+      // "missing namespace" bucket. The fix: look up each key's
+      // namespace via the source ARB.
+      final source = ArbFile(
+        locale: 'en',
+        entries: [
+          ArbEntry(
+            key: 'commonGreet',
+            value: 'Hello',
+            metadata: ArbMetadata(namespace: 'common'),
+          ),
+          ArbEntry(
+            key: 'checkoutBookNow',
+            value: 'Book Now',
+            metadata: ArbMetadata(namespace: 'checkout'),
+          ),
+        ],
+      );
+      final translation = ArbFile(
+        locale: 'es',
+        entries: [
+          ArbEntry(key: 'commonGreet', value: 'Hola'),
+          ArbEntry(key: 'checkoutBookNow', value: 'Reservar ahora'),
+        ],
+      );
+      final platform = PlatformConfig(
+        name: 'flutter',
+        output: 'lib/l10n',
+        format: 'arb',
+        namespaces: ['common', 'checkout'],
+      );
 
-        final out = ArbAdapter.prepare(
-          translation,
-          platform: platform,
-          isSource: false,
-          source: source,
-        );
-        expect(
-          out.arb.entries.map((e) => e.key),
-          ['commonGreet', 'checkoutBookNow'],
-          reason: 'both keys must pass; namespace comes from source ARB',
-        );
-        expect(out.keysMissingNamespace, isEmpty);
-      },
-    );
+      final out = ArbAdapter.prepare(
+        translation,
+        platform: platform,
+        isSource: false,
+        source: source,
+      );
+      expect(
+        out.arb.entries.map((e) => e.key),
+        ['commonGreet', 'checkoutBookNow'],
+        reason: 'both keys must pass; namespace comes from source ARB',
+      );
+      expect(out.keysMissingNamespace, isEmpty);
+    });
 
     test(
       'translation key absent from source surfaces as missing namespace',

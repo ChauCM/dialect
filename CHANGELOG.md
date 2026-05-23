@@ -4,6 +4,86 @@ All notable changes to the Dialect CLI are tracked here.
 
 ## [Unreleased]
 
+## 1.0.3
+
+Three threads land together: an agent-pilot bug pass against the `init`
+flow (B1–B4), the dashboard UX overhaul, and the example-project split.
+Also the second pub.dev publishing attempt now that publisher OIDC trust
+is configured, and a CI scoping fix that surfaced after the v1.0.2 push.
+
+### Fixed — init plan bugs from Opus 4.7's pilot run
+
+These four blockers turned `dialect init` from "AI follows the plan and
+the app builds" into "AI follows the plan and `flutter pub get` errors"
+or "translations silently drop". Full pilot feedback under
+`docs/feedback/`.
+
+- **B1 — modern AppLocalizations import path.** The init plan was
+  writing the legacy synthetic-package import
+  (`package:flutter_gen/gen_l10n/app_localizations.dart`). Modern Flutter
+  defaults to `synthetic-package: false`, where the import is
+  `package:<pubspec_name>/l10n/app_localizations.dart`. The plan now
+  reads the example's pubspec name and renders the correct import; a
+  new `PUBSPEC_NAME` token threads through plan rendering.
+- **B2 — `intl` pin conflict on modern Flutter.** The init plan pinned
+  `intl: ^0.19.0`, which fought `flutter_localizations`' own `intl`
+  constraint on Flutter 3.41+ SDKs and broke `flutter pub get`. Now
+  `intl: any`, with a short note in the plan explaining why.
+- **B3 — `dialect sync` dropping every translated key under a
+  namespace filter.** The adapter read namespace metadata from
+  *translation* entries, but by convention only the source ARB carries
+  `@key` blocks. With a namespace filter set in `platforms.flutter`,
+  the filter rejected everything. Now the filter joins translation
+  keys against source-ARB metadata. The adapter API gains a required
+  `source: ArbFile?` param when `isSource: false`.
+- **B4 — `dialect sync --force`.** Added as an explicit escape hatch
+  for rewriting outputs regardless of content match. (The original
+  B4 repro was a downstream symptom of B3 and is resolved by the B3
+  fix; `--force` handles the remaining "rewrite anyway" cases.)
+
+Seven follow-ups (B5 + F1–F6) filed as issues #1–#7.
+
+### Changed — example project layout
+
+- `example/` → `examples/{before,after}/` — two sister Flutter apps.
+  `before/` is bare with hardcoded English; `after/` is a pure clone
+  used as the target for end-to-end `dialect init` testing. The user's
+  AI agent populates `after/dialect/`, `l10n.yaml`, and AppLocalizations
+  callsites when run against the cloned starting state.
+- Canonical Dialect fixture (used by `check` / `status` / roundtrip
+  tests) moved to `test/fixtures/canonical/dialect/`. Tests now point
+  there instead of `example/dialect/`, decoupling them from the demo
+  apps.
+- Multi-model validation harness moved to `examples/_validation/`,
+  reading from `examples/before/lib/`. `INSTRUCTIONS.md` and the
+  chat-only fallback updated for the new paths.
+
+### Changed — dashboard
+
+- **Editor UX**: replaced blur-to-save with an `EntryEditor` panel that
+  has explicit Save / Cancel / Revert, plus Copy-from-source, Clear,
+  and lock-to-source. Placeholder + character-count hints inline.
+- **Visual refresh**: dark-mode support, status pills
+  (missing / stale / locked), per-locale coverage bars in the sidebar.
+- **Navigation**: keyboard shortcuts for next-missing / next-stale
+  jumps, multi-locale sidebar selection.
+
+### Fixed — release-pipeline / CI
+
+- **CI** — `dart format --set-exit-if-changed` now scopes to
+  `bin lib test tool` instead of `.`. The `examples/*/` subpackages
+  have their own pubspec + Flutter version and are verified
+  independently — formatting them from the root crosses Flutter-SDK
+  boundaries and trips version-sensitive formatter rules (the
+  Flutter-3.41 vs Flutter-3.44 formatter delta surfaced on the v1.0.2
+  push).
+- **Format** — ran `dart format` against the dialect package itself
+  to pick up two pending whitespace adjustments in
+  `lib/commands/sync.dart` and `test/adapters/arb_adapter_test.dart`.
+- **pub.dev** — the v1.0.2 publish hung because the publisher had not
+  enabled OIDC trust for `ChauCM/dialect`. That's now configured;
+  v1.0.3 re-attempts the publish through the same workflow path.
+
 ## 1.0.2
 
 Release-pipeline-only patch. The 1.0.0 and 1.0.1 tags never produced a

@@ -12,7 +12,8 @@ class SyncCommand extends Command<int> {
     argParser.addFlag(
       'force',
       negatable: false,
-      help: 'Rewrite every output file even if its contents already match. '
+      help:
+          'Rewrite every output file even if its contents already match. '
           'Use when an external process has touched lib/l10n/ or you want '
           'to refresh mtimes for a downstream watcher.',
     );
@@ -196,9 +197,7 @@ class SyncCommand extends Command<int> {
   }) {
     final path = p.join(dir, filename);
     final file = File(path);
-    if (!force &&
-        file.existsSync() &&
-        file.readAsStringSync() == content) {
+    if (!force && file.existsSync() && file.readAsStringSync() == content) {
       return false;
     }
     file.writeAsStringSync(content);

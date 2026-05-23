@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:after/l10n/app_localizations.dart';
 
 import '../widgets/loading_indicator.dart';
 
@@ -29,18 +28,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     await Future<void>.delayed(const Duration(seconds: 1));
     if (!mounted) return;
     setState(() => _confirming = false);
-    final l = AppLocalizations.of(context)!;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(l.checkoutBookingConfirmedSnack)),
+      const SnackBar(
+        content: Text('Booking confirmed. Check your trips for details.'),
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context)!;
     final total = widget.nights * widget.pricePerNight;
     return Scaffold(
-      appBar: AppBar(title: Text(l.checkoutAppBarTitle)),
+      appBar: AppBar(title: const Text('Confirm and pay')),
       body: _confirming
           ? const LoadingIndicator()
           : ListView(
@@ -51,29 +50,33 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
                 const SizedBox(height: 4),
-                Text(l.checkoutHostedBy(widget.hostName)),
+                Text('Hosted by ${widget.hostName}'),
                 const Divider(height: 32),
-                Text(l.checkoutYourTrip),
+                const Text('Your trip'),
                 const SizedBox(height: 8),
-                Text(l.checkoutNights(widget.nights)),
+                Text(
+                  widget.nights == 1 ? '1 night' : '${widget.nights} nights',
+                ),
                 const SizedBox(height: 4),
-                Text(l.checkoutPricePerNight(widget.pricePerNight)),
+                Text('\$${widget.pricePerNight} per night'),
                 const Divider(height: 32),
-                Text(l.checkoutTotal(total)),
+                Text('Total: \$$total'),
                 const SizedBox(height: 4),
-                Text(l.checkoutFreeCancellation),
+                const Text('Free cancellation for 48 hours'),
                 const SizedBox(height: 24),
                 FilledButton(
                   onPressed: _confirm,
-                  child: Text(l.checkoutBookNow),
+                  child: const Text('Book Now'),
                 ),
                 const SizedBox(height: 8),
                 OutlinedButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  child: Text(l.commonCancel),
+                  child: const Text('Cancel'),
                 ),
                 const SizedBox(height: 24),
-                Text(l.checkoutAgreementNotice),
+                const Text(
+                  'By booking you agree to the House Rules and Cancellation Policy.',
+                ),
               ],
             ),
     );

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:after/l10n/app_localizations.dart';
 
 import 'screens/checkout_screen.dart';
 import 'screens/settings_screen.dart';
@@ -8,49 +7,26 @@ void main() {
   runApp(const ExampleApp());
 }
 
-class ExampleApp extends StatefulWidget {
+class ExampleApp extends StatelessWidget {
   const ExampleApp({super.key});
-
-  @override
-  State<ExampleApp> createState() => _ExampleAppState();
-}
-
-class _ExampleAppState extends State<ExampleApp> {
-  Locale? _locale;
-
-  void _setLocale(Locale? locale) => setState(() => _locale = locale);
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Stay Booking Demo',
       theme: ThemeData(useMaterial3: true, colorSchemeSeed: Colors.teal),
-      locale: _locale,
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: HomeScreen(
-        locale: _locale,
-        onLocaleChanged: _setLocale,
-      ),
+      home: const HomeScreen(),
     );
   }
 }
 
 class HomeScreen extends StatelessWidget {
-  const HomeScreen({
-    super.key,
-    required this.locale,
-    required this.onLocaleChanged,
-  });
-
-  final Locale? locale;
-  final ValueChanged<Locale?> onLocaleChanged;
+  const HomeScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context)!;
     return Scaffold(
-      appBar: AppBar(title: Text(l.homeYourTrips)),
+      appBar: AppBar(title: const Text('Your trips')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -73,15 +49,10 @@ class HomeScreen extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           OutlinedButton(
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => SettingsScreen(
-                  locale: locale,
-                  onLocaleChanged: onLocaleChanged,
-                ),
-              ),
-            ),
-            child: Text(l.homeOpenSettings),
+            onPressed: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const SettingsScreen())),
+            child: const Text('Open settings'),
           ),
         ],
       ),

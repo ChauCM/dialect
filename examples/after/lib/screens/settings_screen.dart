@@ -1,124 +1,85 @@
 import 'package:flutter/material.dart';
-import 'package:after/l10n/app_localizations.dart';
 
 class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({
-    super.key,
-    required this.locale,
-    required this.onLocaleChanged,
-  });
-
-  final Locale? locale;
-  final ValueChanged<Locale?> onLocaleChanged;
+  const SettingsScreen({super.key});
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-// Self-names — intentionally NOT translated. The Spanish UI still
-// shows "Español" in its picker so users can find their language.
-const _languageSelfNames = <String, String>{
-  'en': 'English',
-  'es': 'Español',
-  'de': 'Deutsch',
-  'ja': '日本語',
-  'vi': 'Tiếng Việt',
-  'ar': 'العربية',
-};
-
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _darkMode = false;
   bool _notifications = true;
-
-  String _currentLanguageLabel() {
-    final code = widget.locale?.languageCode ?? 'en';
-    return _languageSelfNames[code] ?? code;
-  }
-
-  Future<void> _pickLanguage() async {
-    final selected = await showDialog<String?>(
-      context: context,
-      builder: (ctx) => SimpleDialog(
-        title: Text(AppLocalizations.of(ctx)!.settingsLanguage),
-        children: [
-          for (final entry in _languageSelfNames.entries)
-            SimpleDialogOption(
-              onPressed: () => Navigator.of(ctx).pop(entry.key),
-              child: Text(entry.value),
-            ),
-        ],
-      ),
-    );
-    if (selected != null) {
-      widget.onLocaleChanged(Locale(selected));
-    }
-  }
+  final String _language = 'English';
 
   @override
   Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context)!;
     return Scaffold(
-      appBar: AppBar(title: Text(l.settingsAppBarTitle)),
+      appBar: AppBar(title: const Text('Settings')),
       body: ListView(
         children: [
-          _SectionHeader(l.settingsAccount),
-          ListTile(
-            leading: const Icon(Icons.person_outline),
-            title: const Text('Linh Nguyen'),
-            subtitle: Text(l.settingsEditProfile),
+          const _SectionHeader('Account'),
+          const ListTile(
+            leading: Icon(Icons.person_outline),
+            title: Text('Linh Nguyen'),
+            subtitle: Text('Tap to edit your profile'),
           ),
-          ListTile(
-            leading: const Icon(Icons.email_outlined),
-            title: Text(l.settingsEmail),
-            subtitle: const Text('linh@example.com'),
+          const ListTile(
+            leading: Icon(Icons.email_outlined),
+            title: Text('Email'),
+            subtitle: Text('linh@example.com'),
           ),
           const Divider(),
-          _SectionHeader(l.settingsPreferences),
+          const _SectionHeader('Preferences'),
           SwitchListTile(
             secondary: const Icon(Icons.dark_mode_outlined),
-            title: Text(l.settingsDarkMode),
+            title: const Text('Dark mode'),
             value: _darkMode,
             onChanged: (v) => setState(() => _darkMode = v),
           ),
           SwitchListTile(
             secondary: const Icon(Icons.notifications_outlined),
-            title: Text(l.settingsNotifications),
-            subtitle: Text(l.settingsNotificationsDescription),
+            title: const Text('Notifications'),
+            subtitle: const Text(
+              'Trip updates, host messages, and booking reminders.',
+            ),
             value: _notifications,
             onChanged: (v) => setState(() => _notifications = v),
           ),
           ListTile(
             leading: const Icon(Icons.language),
-            title: Text(l.settingsLanguage),
-            subtitle: Text(_currentLanguageLabel()),
-            onTap: _pickLanguage,
+            title: const Text('Language'),
+            subtitle: Text(_language),
+            onTap: () {},
           ),
           const Divider(),
-          _SectionHeader(l.settingsAccountActions),
+          const _SectionHeader('Account actions'),
           ListTile(
             leading: const Icon(Icons.logout),
-            title: Text(l.settingsSignOut),
+            title: const Text('Sign out'),
             onTap: () {},
           ),
           ListTile(
             leading: const Icon(Icons.delete_outline, color: Colors.red),
-            title: Text(
-              l.settingsDeleteAccount,
-              style: const TextStyle(color: Colors.red),
+            title: const Text(
+              'Delete account',
+              style: TextStyle(color: Colors.red),
             ),
             onTap: () => showDialog<void>(
               context: context,
               builder: (ctx) => AlertDialog(
-                title: Text(l.settingsDeleteAccountDialogTitle),
-                content: Text(l.settingsDeleteAccountDialogBody),
+                title: const Text('Delete account?'),
+                content: const Text(
+                  'This permanently removes your bookings, trips, and host listings. This cannot be undone.',
+                ),
                 actions: [
                   TextButton(
                     onPressed: () => Navigator.of(ctx).pop(),
-                    child: Text(l.commonCancel),
+                    child: const Text('Cancel'),
                   ),
                   FilledButton(
                     onPressed: () => Navigator.of(ctx).pop(),
-                    child: Text(l.commonDelete),
+                    child: const Text('Delete'),
                   ),
                 ],
               ),

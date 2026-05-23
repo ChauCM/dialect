@@ -39,8 +39,14 @@ jobs:
       - name: Verify lib/templates/ is in sync with templates/
         run: dart run tool/sync_templates.dart --check
 
+      # Scope format check to the root package's own code. Each
+      # examples/*/ subpackage has its own pubspec + Flutter version
+      # and is verified by its own `flutter analyze` (see the per-example
+      # tests / dev-loop in CLAUDE.md), so walking into them from the
+      # root would cross Flutter-SDK boundaries and trip
+      # version-sensitive formatter rules.
       - name: dart format (check only)
-        run: dart format --output=none --set-exit-if-changed .
+        run: dart format --output=none --set-exit-if-changed bin lib test tool
 
       - name: dart analyze
         run: dart analyze --fatal-infos --fatal-warnings

@@ -12,9 +12,9 @@ import 'arb_file.dart';
 /// - Each `@key` metadata block appears immediately after its key, no blank
 ///   line between them.
 /// - A blank line separates each (key, @key) group from the next.
-/// - Metadata fields appear in this order if present: description, context,
-///   placeholders, locked, glossary_exempt, source_hash, then any extras
-///   in alphabetical order.
+/// - Metadata fields appear in this order if present: namespace, description,
+///   context, placeholders, locked, glossary_exempt, source_hash, then any
+///   extras in alphabetical order.
 /// - Trailing newline.
 ///
 /// Same input → same byte-identical output: that's the round-trip property
@@ -87,6 +87,9 @@ class ArbWriter {
   static void _writeMetadata(StringBuffer buf, ArbMetadata meta) {
     final lines = <String>[];
 
+    if (meta.namespace != null) {
+      lines.add('    "namespace": ${jsonEncode(meta.namespace)}');
+    }
     if (meta.description != null) {
       lines.add('    "description": ${jsonEncode(meta.description)}');
     }

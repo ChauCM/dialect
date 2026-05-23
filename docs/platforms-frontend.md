@@ -10,12 +10,18 @@ How Dialect integrates with each mobile framework — format conversion, OTA sup
 
 ### Format
 
-Dialect's canonical ARB is Flutter's native format. `dialect sync` copies the file as-is.
+Dialect's canonical ARB is Flutter's native format. `dialect sync` filters by `@key.namespace` and writes the result to the Flutter output directory.
 
 ```
 dialect/source/en.arb → lib/l10n/app_en.arb
 dialect/translations/es.arb → lib/l10n/app_es.arb
 ```
+
+### `flutter gen-l10n` compatibility
+
+Dialect's keys are flat camelCase Dart identifiers (`checkoutBookNow`) by design — exactly what `flutter gen-l10n` expects. Run `flutter pub get` after `dialect sync` and `gen-l10n` regenerates `AppLocalizations` automatically. Callsites read `AppLocalizations.of(context)!.checkoutBookNow`. No mangling, no name-clash workarounds.
+
+If a project already has a `lib/l10n/` populated by a prior `gen-l10n` setup, run `dialect import --from arb --path lib/l10n/` instead of `init` — it generates an import plan that maps existing keys into the Dialect convention without clobbering work.
 
 ### OTA
 
@@ -46,9 +52,9 @@ You:  "Extract all strings from checkout_screen.dart into
        dialect/source/en.arb and translate to Spanish."
 
 AI:   *reads checkout_screen.dart*
-      *adds keys with @descriptions to en.arb (e.g. checkout.bookNow)*
+      *adds keys with @key.namespace + @description to en.arb (e.g. checkoutBookNow)*
       *translates to es.arb*
-      *rewrites widget to use AppLocalizations.of(context).checkout_bookNow*
+      *rewrites widget to use AppLocalizations.of(context)!.checkoutBookNow*
 ```
 
 ---
@@ -115,7 +121,7 @@ The `@description` from ARB becomes a comment in `.strings`, preserving context 
 
 ### Key Conversion
 
-Canonical ARB keys use `namespace.camelCase` (e.g., `checkout.bookNow`). The iOS adapter converts to `snake_case` with underscore separators: `checkout_book_now`. This matches Apple's conventions.
+Canonical ARB keys are flat camelCase (`checkoutBookNow`) and group via `@key.namespace` metadata. The iOS adapter prefixes the namespace and converts to `snake_case`: `checkout_book_now`. This matches Apple's conventions.
 
 ### ICU to .stringsdict Mapping
 
@@ -185,7 +191,7 @@ The `@description` from ARB becomes an XML comment, preserving context.
 
 ### Key Conversion
 
-Same as iOS: `namespace.camelCase` → `snake_case` with underscores. `checkout.bookNow` → `checkout_book_now`.
+Same as iOS: the flat camelCase ARB key is namespace-prefixed (from `@key.namespace`) and converted to `snake_case`. `checkoutBookNow` (namespace `checkout`) → `checkout_book_now`.
 
 ### ICU to Android Plurals Mapping
 

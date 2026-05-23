@@ -102,7 +102,7 @@ When you want to drive a specific step yourself rather than let the AI chain eve
 ```bash
 $ dialect check
 
-⚠ dialect/translations/ar.arb:14  glossary  Translation for `checkout.yourTripHeader` does not appear to use the glossary term "Trip" (expected "رحلة").
+⚠ dialect/translations/ar.arb:14  glossary  Translation for `checkoutYourTripHeader` does not appear to use the glossary term "Trip" (expected "رحلة").
   hint: Glossary defines "Trip" → "رحلة" in `ar`. If this key uses "Trip"
         in a non-literal sense, add `"glossary_exempt": true` to the
         @key block in the source ARB.
@@ -200,13 +200,13 @@ Then point your stack's existing localization library at the output directory �
 
 | Stack | Integration | Surface |
 |---|---|---|
-| **ASP.NET (C#)** | `dotnet add package Dialect.AspNetCore` — implements `IStringLocalizer<T>` over Dialect's `icu-json`. Keeps `_localizer["checkout.bookNow"]` everywhere. | First-class NuGet (v1.1) |
+| **ASP.NET (C#)** | `dotnet add package Dialect.AspNetCore` — implements `IStringLocalizer<T>` over Dialect's `icu-json`. Keeps `_localizer["checkoutBookNow"]` everywhere. | First-class NuGet (v1.1) |
 | **Node / Express / Fastify** | `i18next-fs-backend` reads flat-key JSON natively. ICU plurals via `intl-messageformat`. | ~10-line snippet |
-| **Django** | Drop-in JSON catalog adapter; keep `_("checkout.bookNow")` callsites. | ~15-line snippet |
+| **Django** | Drop-in JSON catalog adapter; keep `_("checkoutBookNow")` callsites. | ~15-line snippet |
 | **Flask / FastAPI** | Tiny middleware loads `<locale>.json` from `Accept-Language`; standard template-helper interface. | ~15-line snippet |
 | **Go** | `go-i18n` consumes flat-key JSON natively and parses ICU plurals out of the box. | One-line config |
 
-For each stack, [`docs/platforms-backend.md`](docs/platforms-backend.md) carries the full snippet — registration, ICU plural wiring, fallback behavior, and (for ASP.NET) the hand-rolled `JsonStringLocalizer` template if you can't add a dependency. The principle is **[Backend Humility](planning/competitive-strategy.md#backend-humility)**: your backend keeps its native localization interface, Dialect just swaps the backing store.
+For each stack, [`docs/platforms-backend.md`](docs/platforms-backend.md) carries the full snippet — registration, ICU plural wiring, fallback behavior, and (for ASP.NET) the hand-rolled `JsonStringLocalizer` template if you can't add a dependency. The principle is **Backend Humility**: your backend keeps its native localization interface (`IStringLocalizer<T>`, `_()`, `i18n.Localize`), Dialect just swaps the backing store.
 
 ---
 
@@ -263,30 +263,6 @@ These specify Dialect's versioned file formats. Backend localizer libraries (`Di
 | [`flat-json`](dialect/spec/flat-json.md) | Backend JSON output that strips ICU plural/select to a plain string (takes the `other` branch) |
 | [`@key.source_hash`](dialect/spec/source_hash.md) | Source-value fingerprint that powers `dialect status` "stale" and the dashboard lock indicator |
 | [`.dialect/state.json`](dialect/spec/state.md) | Soft-mode acknowledgement store for the `dialect check` rules |
-
----
-
-## Internal Planning
-
-Design decisions, business analysis, and build roadmap are in [`planning/`](planning/):
-
-| Document | Description |
-|---|---|
-| [Original Brainstorm](planning/original-brainstorm.md) | The full brainstorm that started this project |
-| [Naming Research](planning/naming-research.md) | How we chose "Dialect" — name collision research, alternatives considered |
-| [Business Analysis](planning/business-analysis.md) | Viability assessment, monetization paths, competitive landscape |
-| [MVP Plan](planning/mvp-plan.md) | v1 tooling roadmap, v2 business layer, effort estimates, success metrics |
-| [Dashboard Design](planning/dashboard-design.md) | Review UI mockups, local vs hosted architecture, what to skip |
-| [Competitive Strategy](planning/competitive-strategy.md) | Target audience, i18next relationship, cross-platform sync as the moat |
-
-## Research
-
-AI-generated analysis and market deep-dives are in [`research/`](research/).
-
-## References & Spikes
-
-- [`references/repos.md`](references/repos.md) — External repos to study for architecture decisions
-- [`spikes/`](spikes/) — Quick technical experiments to validate assumptions
 
 ---
 

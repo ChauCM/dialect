@@ -150,6 +150,7 @@ class ArbParser {
   }
 
   static ArbMetadata _parseMetadata(Map<dynamic, dynamic> raw) {
+    String? namespace;
     String? description;
     String? context;
     Map<String, ArbPlaceholder>? placeholders;
@@ -161,6 +162,8 @@ class ArbParser {
     raw.forEach((rawK, v) {
       final k = rawK as String;
       switch (k) {
+        case 'namespace':
+          namespace = v is String ? v : null;
         case 'description':
           description = v is String ? _nfc(v) : null;
         case 'context':
@@ -186,6 +189,7 @@ class ArbParser {
     });
 
     return ArbMetadata(
+      namespace: namespace,
       description: description,
       context: context,
       placeholders: placeholders,

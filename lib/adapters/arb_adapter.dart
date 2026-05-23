@@ -8,26 +8,23 @@ import '../config/dialect_config.dart';
 ///
 /// Two transforms happen during sync:
 ///
-/// 1. **Namespace filter.** Only keys whose namespace prefix (before the
-///    first `.`) appears in [PlatformConfig.namespaces] are included. An
-///    empty namespaces list disables the filter — every key passes.
+/// 1. **Namespace filter.** Only keys whose `@key.namespace` metadata
+///    appears in [PlatformConfig.namespaces] are included. An empty
+///    namespaces list disables the filter — every key passes. Keys
+///    without a `namespace` field (which the convention requires on
+///    source ARBs) are dropped when filtering is active, and flow back
+///    through [PreparedArb.keysMissingNamespace] so sync can surface them.
 /// 2. **Metadata stripping.** Source ARBs keep their `@key` blocks
 ///    intact (Flutter's `gen_l10n` reads them). Translation ARBs are
 ///    key/value-only by convention; if a translation accidentally
-///    accumulated `@key` blocks, the adapter strips them. (Dialect
-///    parses these into [ArbFile.entries[].metadata] regardless; the
-///    adapter decides whether to emit them based on whether this is the
-///    source or a translation.)
+///    accumulated `@key` blocks, the adapter strips them.
 ///
 /// Output is always [ArbWriter] canonical form — that's the idempotency
 /// contract (`sync` twice = same bytes). `dialect check --fix` reuses
-/// the same writer, so a synced ARB run back through `--fix` is a
-/// no-op.
+/// the same writer, so a synced ARB run back through `--fix` is a no-op.
 ///
 /// **The adapter does not modify input ARBs.** No "auto-fix" during
-/// sync; that's `dialect check --fix`'s job. If the user's source ARB
-/// isn't canonical, sync output is still canonical (writer-driven), but
-/// the input file is untouched.
+/// sync; that's `dialect check --fix`'s job.
 class ArbAdapter {
   const ArbAdapter._();
 
@@ -35,13 +32,6 @@ class ArbAdapter {
   /// a [PreparedArb] ready to hand to [ArbWriter] (plus diagnostics).
   ///
   /// [isSource] preserves `@key` metadata when true; false strips it.
-  ///
-  /// Bare-namespace keys (no `.` prefix) are valid per the convention
-  /// but "discouraged"; they get filtered out when [platform.namespaces]
-  /// is non-empty (since they don't match any namespace). The list of
-  /// dropped keys flows back through [PreparedArb.bareKeysSkipped] so
-  /// the sync command can surface them — silent drops are worse than
-  /// verbose discipline.
   static PreparedArb prepare(
     ArbFile arb, {
     required PlatformConfig platform,
@@ -52,15 +42,15 @@ class ArbAdapter {
     final ns = namespaces.toSet();
 
     final entries = <ArbEntry>[];
-    final bareSkipped = <String>[];
+    final missingNamespace = <String>[];
     for (final entry in arb.entries) {
       if (!keepAll) {
-        final nsPrefix = entry.namespace;
-        if (nsPrefix == null) {
-          bareSkipped.add(entry.key);
+        final entryNs = entry.namespace;
+        if (entryNs == null) {
+          missingNamespace.add(entry.key);
           continue;
         }
-        if (!ns.contains(nsPrefix)) continue;
+        if (!ns.contains(entryNs)) continue;
       }
       entries.add(
         isSource ? entry : ArbEntry(key: entry.key, value: entry.value),
@@ -79,7 +69,7 @@ class ArbAdapter {
         entryLines: const {},
         sourcePath: arb.sourcePath,
       ),
-      bareKeysSkipped: bareSkipped,
+      keysMissingNamespace: missingNamespace,
     );
   }
 
@@ -88,22 +78,21 @@ class ArbAdapter {
 
   /// Filename convention for v1.0: `app_<locale>.arb`. Matches Flutter's
   /// `gen_l10n` default. **v1.1** will spec a configurable pattern under
-  /// `platforms.<p>.filename_pattern` (e.g. `app_{locale}.arb` vs
-  /// `{locale}.arb` vs `intl_{locale}.arb`). Hard-coded for now keeps
-  /// v1.0 ergonomic for the dominant case.
+  /// `platforms.<p>.filename_pattern`.
   static String filenameFor(String locale) => 'app_$locale.arb';
 }
 
-/// Output of [ArbAdapter.prepare]: the filtered ARB plus a list of
-/// bare-namespace keys that were dropped (so sync can surface them).
+/// Output of [ArbAdapter.prepare]: the filtered ARB plus a list of keys
+/// dropped because they had no `@key.namespace` declaration to filter on.
 class PreparedArb {
-  PreparedArb({required this.arb, required this.bareKeysSkipped});
+  PreparedArb({required this.arb, required this.keysMissingNamespace});
 
   /// The filtered, metadata-handled ARB ready for [ArbWriter].
   final ArbFile arb;
 
-  /// Bare-namespace keys (no `.` prefix) that were dropped because the
-  /// platform has a non-empty `namespaces:` list. Empty when filtering
-  /// is off or when the source has no bare keys.
-  final List<String> bareKeysSkipped;
+  /// Keys dropped from the output because the source ARB didn't declare
+  /// `@key.namespace`. Empty when filtering is off or when every source
+  /// key has a namespace. The source ARB likely needs `dialect check`
+  /// to flag the missing metadata.
+  final List<String> keysMissingNamespace;
 }

@@ -28,7 +28,7 @@ void main() {
         .then((code) => code ?? 0);
   }
 
-  group('dialect init', () {
+  group('dialect init — scaffold', () {
     test('creates the dialect/ tree in an empty directory', () async {
       final code = await runInit([]);
       expect(code, 0);
@@ -105,41 +105,6 @@ void main() {
       },
     );
 
-    test('refuses to overwrite an existing dialect/ without --force', () async {
-      Directory(p.join(tmp.path, 'dialect')).createSync();
-      File(
-        p.join(tmp.path, 'dialect', 'sentinel'),
-      ).writeAsStringSync('do not delete');
-
-      final code = await runInit([]);
-      expect(code, isNot(0));
-      // Sentinel must still exist after the refused init.
-      expect(
-        File(p.join(tmp.path, 'dialect', 'sentinel')).existsSync(),
-        isTrue,
-      );
-    });
-
-    test('--force overwrites an existing dialect/', () async {
-      Directory(p.join(tmp.path, 'dialect')).createSync();
-      File(
-        p.join(tmp.path, 'dialect', 'stale.yaml'),
-      ).writeAsStringSync('stale');
-
-      final code = await runInit(['--force']);
-      expect(code, 0);
-      expect(
-        File(p.join(tmp.path, 'dialect', 'dialect.yaml')).existsSync(),
-        isTrue,
-      );
-      // The stale unrelated file inside dialect/ is left alone — init only
-      // writes the canonical files, it doesn't wipe the directory.
-      expect(
-        File(p.join(tmp.path, 'dialect', 'stale.yaml')).existsSync(),
-        isTrue,
-      );
-    });
-
     test('rejects more than one positional path argument', () async {
       final code = await DialectCommandRunner()
           .run(<String>['init', tmp.path, '/another/path'])
@@ -155,6 +120,109 @@ void main() {
           ])
           .then((c) => c ?? 0);
       expect(code, 66);
+    });
+  });
+
+  group('dialect init — re-run idempotency', () {
+    test(
+      're-running without --force preserves the scaffold and refreshes plan',
+      () async {
+        await runInit([]);
+        // User has edited dialect.yaml; the second run must not clobber it.
+        final dialectYaml = File(
+          p.join(tmp.path, 'dialect', 'dialect.yaml'),
+        );
+        const userEdit = '# user-edited content\nsource_locale: en\n';
+        dialectYaml.writeAsStringSync(userEdit);
+
+        final code = await runInit([]);
+        expect(code, 0);
+        expect(
+          dialectYaml.readAsStringSync(),
+          userEdit,
+          reason: 'idempotent re-run must not overwrite user edits',
+        );
+        expect(
+          File(p.join(tmp.path, '.dialect', 'init-plan.md')).existsSync(),
+          isTrue,
+          reason: 'plan file is always (re-)written',
+        );
+      },
+    );
+
+    test('--force re-writes the canonical scaffold files', () async {
+      await runInit([]);
+      File(
+        p.join(tmp.path, 'dialect', 'dialect.yaml'),
+      ).writeAsStringSync('# stale');
+
+      final code = await runInit(['--force']);
+      expect(code, 0);
+      expect(
+        File(p.join(tmp.path, 'dialect', 'dialect.yaml')).readAsStringSync(),
+        dialectYamlTemplate,
+      );
+    });
+  });
+
+  group('dialect init — agent playbook', () {
+    test('writes .dialect/init-plan.md with substituted tokens', () async {
+      await runInit([]);
+      final plan = File(p.join(tmp.path, '.dialect', 'init-plan.md'));
+      expect(plan.existsSync(), isTrue);
+      final body = plan.readAsStringSync();
+      expect(body, isNot(contains('{{PROJECT_TYPE}}')));
+      expect(body, isNot(contains('{{SOURCE_LOCALE}}')));
+      expect(body, isNot(contains('{{TARGET_LOCALES}}')));
+      expect(body, isNot(contains('{{GENERATED_AT}}')));
+      // Two-phase shape is the design contract.
+      expect(body, contains('## Phase 1 — Setup'));
+      expect(body, contains('## Phase 2 — Extract + translate'));
+      // 50-key threshold is the locked Phase-2 sizing rule.
+      expect(body, contains('50 strings'));
+    });
+
+    test('creates AGENTS.md by default with the Dialect section', () async {
+      await runInit([]);
+      final agents = File(p.join(tmp.path, 'AGENTS.md'));
+      expect(agents.existsSync(), isTrue);
+      final body = agents.readAsStringSync();
+      expect(body, contains('## Localization (Dialect)'));
+      expect(body, contains('dialect/dialect.yaml'));
+    });
+
+    test('appends to an existing AGENTS.md without clobbering content',
+        () async {
+      File(p.join(tmp.path, 'AGENTS.md')).writeAsStringSync(
+        '# Agent guidance\n\nSome existing rules.\n',
+      );
+      await runInit([]);
+      final body = File(p.join(tmp.path, 'AGENTS.md')).readAsStringSync();
+      expect(body, startsWith('# Agent guidance\n\nSome existing rules.'));
+      expect(body, contains('## Localization (Dialect)'));
+    });
+
+    test(
+      'appends to an existing CLAUDE.md when AGENTS.md does not exist',
+      () async {
+        File(p.join(tmp.path, 'CLAUDE.md')).writeAsStringSync(
+          '# Claude guidance\n\nProject-specific rules.\n',
+        );
+        await runInit([]);
+        // Should append to CLAUDE.md, NOT create a new AGENTS.md.
+        expect(File(p.join(tmp.path, 'AGENTS.md')).existsSync(), isFalse);
+        final body = File(p.join(tmp.path, 'CLAUDE.md')).readAsStringSync();
+        expect(body, startsWith('# Claude guidance'));
+        expect(body, contains('## Localization (Dialect)'));
+      },
+    );
+
+    test('does not duplicate the section on re-run', () async {
+      await runInit([]);
+      await runInit([]);
+      final body = File(p.join(tmp.path, 'AGENTS.md')).readAsStringSync();
+      final occurrences = '## Localization (Dialect)'.allMatches(body).length;
+      expect(occurrences, 1);
     });
   });
 }

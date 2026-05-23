@@ -41,8 +41,8 @@ Dialect offers two JSON-based formats for backends. The choice depends on whethe
 
 ```json
 {
-  "checkout.bookNow": "Book Now",
-  "checkout.itemCount": "{count} items",
+  "checkoutBookNow": "Book Now",
+  "checkoutItemCount": "{count} items",
   "error.paymentFailed": "Payment failed. Please try again."
 }
 ```
@@ -51,8 +51,8 @@ Dialect offers two JSON-based formats for backends. The choice depends on whethe
 
 ```json
 {
-  "checkout.bookNow": "Book Now",
-  "checkout.itemCount": "{count, plural, =1{1 item} other{{count} items}}",
+  "checkoutBookNow": "Book Now",
+  "checkoutItemCount": "{count, plural, =1{1 item} other{{count} items}}",
   "error.paymentFailed": "Payment failed. Please try again."
 }
 ```
@@ -139,8 +139,8 @@ public class CheckoutController : Controller
 
     public IActionResult Checkout()
     {
-        ViewData["BookNow"] = _localizer["checkout.bookNow"];
-        ViewData["ItemCount"] = _localizer["checkout.itemCount", 3];
+        ViewData["BookNow"] = _localizer["checkoutBookNow"];
+        ViewData["ItemCount"] = _localizer["checkoutItemCount", 3];
         return View();
     }
 }
@@ -220,7 +220,7 @@ public class CheckoutController : Controller
 
     public IActionResult Checkout()
     {
-        ViewData["BookNow"] = _localizer["checkout.bookNow"];
+        ViewData["BookNow"] = _localizer["checkoutBookNow"];
         return View();
     }
 }
@@ -292,8 +292,8 @@ from myapp.i18n import t
 
 def checkout_view(request):
     return render(request, "checkout.html", {
-        "book_now": t("checkout.bookNow"),
-        "items": t("checkout.itemCount", count=3),
+        "book_now": t("checkoutBookNow"),
+        "items": t("checkoutItemCount", count=3),
     })
 ```
 
@@ -372,7 +372,7 @@ def t(key: str, locale: str = "en", **kwargs) -> str:
 @app.get("/checkout")
 async def checkout(request: Request):
     locale = request.headers.get("Accept-Language", "en")[:2]
-    return {"label": t("checkout.bookNow", locale=locale)}
+    return {"label": t("checkoutBookNow", locale=locale)}
 ```
 
 ### Config
@@ -408,8 +408,8 @@ await i18next.use(Backend).init({
   backend: { loadPath: './api/locales/{{lng}}.json' },
 });
 
-i18next.t('checkout.bookNow');
-i18next.t('checkout.itemCount', { count: 3 });
+i18next.t('checkoutBookNow');
+i18next.t('checkoutItemCount', { count: 3 });
 ```
 
 ### Drop-in (vanilla, flat-json)
@@ -436,7 +436,7 @@ function t(key, params = {}) {
   return msg.format(params);
 }
 
-t('checkout.itemCount', { count: 3 });
+t('checkoutItemCount', { count: 3 });
 // English: "3 items"  |  Arabic: "٣ عناصر" (correct plural form)
 ```
 
@@ -477,7 +477,7 @@ bundle.LoadMessageFile("locales/en.json")
 bundle.LoadMessageFile("locales/es.json")
 
 localizer := i18n.NewLocalizer(bundle, "es")
-msg, _ := localizer.Localize(&i18n.LocalizeConfig{MessageID: "checkout.bookNow"})
+msg, _ := localizer.Localize(&i18n.LocalizeConfig{MessageID: "checkoutBookNow"})
 ```
 
 ### Config

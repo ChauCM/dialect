@@ -68,7 +68,8 @@ void main() {
         source: '''
 {
   "@@locale": "en",
-  "items": "{count, plural, =0{none} other{{count} items}}"
+  "items": "{count, plural, =0{none} other{{count} items}}",
+  "@items": { "namespace": "common", "description": "Item count." }
 }
 ''',
         translations: {
@@ -107,8 +108,10 @@ void main() {
         source: '''
 {
   "@@locale": "en",
-  "z.last": "Last",
-  "a.first": "First",
+  "zLast": "Last",
+  "@zLast": { "namespace": "common", "description": "Last item." },
+  "aFirst": "First",
+  "@aFirst": { "namespace": "common", "description": "First item." },
   "@orphan": { "description": "should be stripped" }
 }
 ''',
@@ -117,9 +120,9 @@ void main() {
           'es': '''
 {
   "@@locale": "es",
-  "a.first": "Primero",
-  "@a.first": { "description": "should be stripped" },
-  "z.last": "Último"
+  "aFirst": "Primero",
+  "@aFirst": { "description": "should be stripped" },
+  "zLast": "Último"
 }
 ''',
         },
@@ -146,14 +149,14 @@ void main() {
         isFalse,
         reason: 'orphan @key block must be stripped',
       );
-      // a.first sorts before z.last.
-      expect(src.indexOf('"a.first"'), lessThan(src.indexOf('"z.last"')));
+      // aFirst sorts before zLast.
+      expect(src.indexOf('"aFirst"'), lessThan(src.indexOf('"zLast"')));
 
       final esBody = File(
         p.join(tmp.path, 'dialect', 'translations', 'es.arb'),
       ).readAsStringSync();
       expect(
-        esBody.contains('@a.first'),
+        esBody.contains('@aFirst'),
         isFalse,
         reason: 'translation @key metadata must be stripped',
       );
@@ -173,12 +176,16 @@ void main() {
           source: '''
 {
   "@@locale": "en",
-  "checkout.confirmationMessage": "Your booking has been confirmed."
+  "checkoutConfirmationMessage": "Your booking has been confirmed.",
+  "@checkoutConfirmationMessage": {
+    "namespace": "checkout",
+    "description": "Booking-confirmation message."
+  }
 }
 ''',
           translations: {
             // 1 char vs 33 → way below default 0.3 floor.
-            'ja': '{ "@@locale": "ja", "checkout.confirmationMessage": "完" }',
+            'ja': '{ "@@locale": "ja", "checkoutConfirmationMessage": "完" }',
           },
         );
 

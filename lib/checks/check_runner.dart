@@ -5,7 +5,9 @@ import 'semantic/length_ratio.dart';
 import 'semantic/source_equality.dart';
 import 'semantic/untranslated_english.dart';
 import 'structural/empty_values.dart';
+import 'structural/key_format.dart';
 import 'structural/missing_keys.dart';
+import 'structural/namespace_required.dart';
 import 'structural/orphan_metadata.dart';
 import 'structural/placeholder_match.dart';
 import 'structural/plural_categories.dart';
@@ -16,6 +18,8 @@ import 'structural/plural_categories.dart';
 /// [semanticRules] in `lib/checks/semantic/`. The runner walks both
 /// lists indistinguishably — the split is for readability, not behavior.
 const List<Rule> structuralRules = [
+  KeyFormatRule(),
+  NamespaceRequiredRule(),
   MissingKeysRule(),
   PlaceholderMatchRule(),
   PluralCategoriesRule(),

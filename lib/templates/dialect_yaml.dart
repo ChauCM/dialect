@@ -10,7 +10,7 @@ const String dialectYamlTemplate = r'''# =======================================
 # to work with this project's translations.
 #
 # If you are an AI assistant: read this entire file before
-# extracting or translating any strings.
+# extracting or translating any strings. It is the spec.
 #
 # === The project ===
 #   See the `project:` block at the bottom of this file.
@@ -19,30 +19,38 @@ const String dialectYamlTemplate = r'''# =======================================
 #   travel stay, not a corporate business trip).
 #
 # === Where strings live ===
-#   - Canonical source strings live in dialect/source/*.arb
-#   - Translated strings live in dialect/translations/<locale>.arb
-#     (one file per target locale)
-#   - You write to these files only. Do not modify the source code.
+#   - Canonical source strings live in dialect/source/en.arb
+#     (and any other `dialect/source/<source_locale>.arb` if you
+#     change `source_locale` below).
+#   - Translated strings live in dialect/translations/<locale>.arb,
+#     one file per target locale.
+#   - The CLI syncs filtered output to each platform's directory
+#     (e.g. Flutter's `lib/l10n/`) on `dialect sync`.
 #
 # === Key naming ===
-#   - Keys follow the pattern:  namespace.camelCaseKey
-#     e.g.  checkout.bookNow, common.cancel, settings.darkMode
-#   - The namespace prefix indicates scope. Common ones:
-#       common.*    — shared across every screen
-#       checkout.*  — booking / payment flows
-#       settings.*  — preferences screen
-#     Use existing namespaces when they fit. You MAY introduce
-#     a new namespace if no existing one makes sense; the
-#     `platforms.<platform>.namespaces` list below is the set
-#     of namespaces that currently sync to each platform, not
-#     a restriction on what you can create in source. The
-#     developer will add new namespaces to that list before
-#     running `dialect sync`.
+#   - Keys are flat camelCase identifiers that are valid Dart
+#     method names:
+#       checkoutBookNow, commonCancel, settingsDarkMode
+#     No dots, no dashes, no leading digit, no underscores in
+#     normal use. This shape is required by Flutter's
+#     `flutter gen-l10n` and matches Dart method-name rules,
+#     so every key in en.arb becomes
+#     `AppLocalizations.of(context)!.<key>` after sync.
+#   - Logical grouping lives in metadata, NOT in the key:
+#       "checkoutBookNow": "Book Now",
+#       "@checkoutBookNow": {
+#         "namespace": "checkout",
+#         "description": "..."
+#       }
+#     The `namespace` controls which keys sync to which platform
+#     (see `platforms.<p>.namespaces` below). Cross-platform
+#     adapters use it to group output (e.g. one .strings file
+#     per namespace on iOS).
 #   - Two screens that currently render the same English string
-#     should get separate keys (e.g. `home.hostedBy` and
-#     `checkout.hostedBy`). Identical-today is a coincidence,
-#     not a guarantee. Only put strings under `common.*` when
-#     they are *logically* shared (Cancel/Save/Loading/Delete).
+#     get separate keys (e.g. `homeHostedBy` and
+#     `checkoutHostedBy`). Identical-today is a coincidence,
+#     not a guarantee. Only use the `common` namespace when a
+#     key is *logically* shared (cancel / save / loading / delete).
 #
 # === After editing, normalize with the CLI ===
 #   You do not need to remember sort order, formatting, or
@@ -50,6 +58,7 @@ const String dialectYamlTemplate = r'''# =======================================
 #   shape, then run:
 #       dialect check --fix     # normalizes + flags issues
 #       dialect sync            # generates platform outputs
+#       dialect check           # confirms clean pass
 #   `dialect check --fix` deterministically sorts keys, moves
 #   `@@locale` to the top, places each `@key` block after its
 #   own key, strips any `@key` blocks accidentally added to
@@ -59,14 +68,15 @@ const String dialectYamlTemplate = r'''# =======================================
 #   the rest.
 #
 # === @key metadata (semantic part — your responsibility) ===
-#   - Every key in the SOURCE ARB MUST have a "description"
-#     field in its matching `@key` entry. The description
-#     tells future translators (human or AI) what the string
-#     means *in context* — not just what it literally says.
-#       Bad:   "description": "Book now button"
-#       Good:  "description": "CTA on the checkout screen.
-#               'Book' is a verb meaning 'make a reservation',
-#               NOT a physical book."
+#   - Every key in the SOURCE ARB MUST have a "namespace" and a
+#     "description" field in its matching `@key` entry.
+#       "namespace": which group it belongs to (see platforms below).
+#       "description": what the string means *in context*, not
+#         just what it literally says.
+#           Bad:   "description": "Book now button"
+#           Good:  "description": "CTA on the checkout screen.
+#                   'Book' is a verb meaning 'make a reservation',
+#                   NOT a physical book."
 #   - Add "context": "<screen_or_feature>" when the same word
 #     might mean different things in different places.
 #   - For strings with variables, add "placeholders" describing
@@ -159,26 +169,32 @@ const String dialectYamlTemplate = r'''# =======================================
 #   1. Read dialect/dialect.yaml (this file) and dialect/glossary.yaml.
 #   2. Read dialect/source/en.arb to see what keys already exist
 #      and the style/length of existing descriptions.
-#   3. For extraction tasks: find user-facing strings in the source
-#      code that are not in the "What NOT to extract" list, propose
-#      a namespace.camelCaseKey for each, and add them to
-#      dialect/source/en.arb with full @key metadata.
-#      Do NOT overwrite keys that already exist — they are the
-#      product of earlier decisions.
+#   3. For extraction tasks: find user-facing strings in the
+#      source code that are not in the "What NOT to extract"
+#      list. For each, propose a flat camelCase key, assign a
+#      `namespace`, and add the key + `@key` block to
+#      dialect/source/en.arb. Replace the hardcoded string in
+#      source code with `AppLocalizations.of(context)!.<key>`
+#      (Flutter) or the platform's equivalent. Do NOT overwrite
+#      keys that already exist — they are the product of
+#      earlier decisions.
 #   4. For translation tasks: for every key in dialect/source/en.arb,
 #      ensure a corresponding entry exists in each
 #      dialect/translations/<locale>.arb. Keep the same key name;
 #      translate only the value. Preserve placeholders and ICU
 #      plural structure exactly. Respect the glossary.
-#   5. Sort all keys per the sort-order rule above before saving.
+#   5. Run `dialect check --fix && dialect sync && dialect check`
+#      to normalize, generate platform output, and validate.
 #
 # === Things you must NOT do ===
 #   - Do not rename existing keys without being asked.
-#   - Do not change source code to reference different keys.
+#   - Do not change source code to reference keys that don't exist.
 #   - Do not invent new @key fields outside this convention.
 #   - Do not translate the source locale itself.
 #   - Do not delete keys you don't recognize.
 #   - Do not mirror @key metadata into translation ARB files.
+#   - Do not use dotted keys (`checkout.bookNow`). They break
+#     `flutter gen-l10n`. Use `@key.namespace` metadata instead.
 #
 # ============================================================
 

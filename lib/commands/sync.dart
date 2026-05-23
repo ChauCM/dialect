@@ -56,7 +56,7 @@ class SyncCommand extends Command<int> {
 
     var totalWritten = 0;
     var totalSkipped = 0;
-    final bareKeysPerPlatform = <String, Set<String>>{};
+    final unnamespacedPerPlatform = <String, Set<String>>{};
 
     for (final platform in project.config.platforms.values) {
       if (platform.format != 'arb') {
@@ -70,12 +70,12 @@ class SyncCommand extends Command<int> {
       }
       final outcome = _syncPlatform(project, platform);
       totalWritten += outcome.filesWritten;
-      if (outcome.bareKeys.isNotEmpty) {
-        bareKeysPerPlatform[platform.name] = outcome.bareKeys;
+      if (outcome.unnamespacedKeys.isNotEmpty) {
+        unnamespacedPerPlatform[platform.name] = outcome.unnamespacedKeys;
       }
     }
 
-    _maybeWarnBareKeys(bareKeysPerPlatform);
+    _maybeWarnUnnamespaced(unnamespacedPerPlatform);
 
     if (totalWritten == 0 && totalSkipped == 0) {
       stdout.writeln(
@@ -92,8 +92,8 @@ class SyncCommand extends Command<int> {
   }
 
   /// Sync one platform. Returns ([_PlatformOutcome.filesWritten] +
-  /// [_PlatformOutcome.bareKeys]) — files whose on-disk bytes already
-  /// match are touched not at all, preserving mtime.
+  /// [_PlatformOutcome.unnamespacedKeys]) — files whose on-disk bytes
+  /// already match are touched not at all, preserving mtime.
   _PlatformOutcome _syncPlatform(
     DialectProject project,
     PlatformConfig platform,
@@ -102,7 +102,7 @@ class SyncCommand extends Command<int> {
     outDir.createSync(recursive: true);
 
     var written = 0;
-    final bareKeys = <String>{};
+    final unnamespacedKeys = <String>{};
 
     // Source ARB — keep metadata.
     final preparedSource = ArbAdapter.prepare(
@@ -110,7 +110,7 @@ class SyncCommand extends Command<int> {
       platform: platform,
       isSource: true,
     );
-    bareKeys.addAll(preparedSource.bareKeysSkipped);
+    unnamespacedKeys.addAll(preparedSource.keysMissingNamespace);
     if (_maybeWrite(
       outDir.path,
       ArbAdapter.filenameFor(project.config.sourceLocale),
@@ -127,7 +127,7 @@ class SyncCommand extends Command<int> {
         platform: platform,
         isSource: false,
       );
-      bareKeys.addAll(prepared.bareKeysSkipped);
+      unnamespacedKeys.addAll(prepared.keysMissingNamespace);
       if (_maybeWrite(
         outDir.path,
         ArbAdapter.filenameFor(locale),
@@ -137,27 +137,30 @@ class SyncCommand extends Command<int> {
       }
     }
 
-    return _PlatformOutcome(filesWritten: written, bareKeys: bareKeys);
+    return _PlatformOutcome(filesWritten: written, unnamespacedKeys: unnamespacedKeys);
   }
 
-  /// Emit one summary warning per platform that filtered bare-namespace
-  /// keys. Bare keys are valid per the convention but "discouraged" —
-  /// the user picked them deliberately, so we don't suppress entirely.
-  void _maybeWarnBareKeys(Map<String, Set<String>> bareKeysPerPlatform) {
-    if (bareKeysPerPlatform.isEmpty) return;
+  /// Emit one summary warning per platform that filtered keys missing
+  /// `@key.namespace` metadata. The convention requires source keys to
+  /// declare a namespace; without one, the key gets dropped from any
+  /// platform that filters.
+  void _maybeWarnUnnamespaced(
+    Map<String, Set<String>> unnamespacedPerPlatform,
+  ) {
+    if (unnamespacedPerPlatform.isEmpty) return;
     stdout.writeln('');
-    for (final entry in bareKeysPerPlatform.entries) {
+    for (final entry in unnamespacedPerPlatform.entries) {
       final keys = entry.value.toList()..sort();
       final preview = keys.length > 5
           ? '${keys.take(5).join(", ")}, … (${keys.length - 5} more)'
           : keys.join(', ');
       stdout.writeln(
-        '⚠ ${entry.key}: skipped ${keys.length} bare-namespace '
-        'key(s) (no `.` prefix): $preview',
+        '⚠ ${entry.key}: skipped ${keys.length} key(s) without '
+        '`@key.namespace`: $preview',
       );
     }
     stdout.writeln(
-      '  hint: add a namespace prefix per convention (e.g. `common.key`), '
+      '  hint: add `"namespace": "<group>"` to each key\'s `@key` block, '
       'or set `namespaces: []` on this platform to disable filtering.',
     );
   }
@@ -178,7 +181,7 @@ class SyncCommand extends Command<int> {
 }
 
 class _PlatformOutcome {
-  _PlatformOutcome({required this.filesWritten, required this.bareKeys});
+  _PlatformOutcome({required this.filesWritten, required this.unnamespacedKeys});
   final int filesWritten;
-  final Set<String> bareKeys;
+  final Set<String> unnamespacedKeys;
 }

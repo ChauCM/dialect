@@ -43,12 +43,15 @@ For every string at `{{PATH}}`:
    data, not copy (names, emails, URLs, currency amounts, dates,
    language self-names, brand names, placeholder/demo content). See the
    "What NOT to extract" section of `dialect/dialect.yaml`.
-2. Rename the key to `namespace.camelCaseKey`. Pick an existing
-   namespace when it fits (see `Current namespaces` above and
-   `platforms.<p>.namespaces` in `dialect.yaml`). Introduce a new
-   namespace only when no existing one applies — the developer will
-   add it to `platforms.<p>.namespaces` before the next sync.
+2. Rename the key to flat `camelCaseKey` (a valid Dart identifier).
+   No dots, dashes, or leading digits — `flutter gen-l10n` won't accept
+   them. Group keys via `@key.namespace` metadata (see step 3), not via
+   key prefixes.
 3. Add full `@key` metadata to the SOURCE ARB:
+   - `namespace` — which logical group this key belongs to (e.g.
+     `checkout`, `common`). Pick an existing namespace when it fits
+     (see `Current namespaces` above and `platforms.<p>.namespaces`).
+     Introduce a new one only when no existing one applies.
    - `description` — what the string means **in context** (not just
      what it literally says).
    - `context` — when the same word can mean different things in

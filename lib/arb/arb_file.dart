@@ -72,13 +72,10 @@ class ArbEntry {
   /// found there.
   final ArbMetadata? metadata;
 
-  /// Namespace prefix derived from the key, or null if the key is bare.
-  /// E.g. `checkout.bookNow` → `checkout`; `loose_key` → null.
-  String? get namespace {
-    final dot = key.indexOf('.');
-    if (dot <= 0) return null;
-    return key.substring(0, dot);
-  }
+  /// Namespace this key belongs to, read from `@key.namespace` metadata.
+  /// `null` if the source ARB didn't declare one — `dialect check` flags
+  /// that as an error in source ARBs (the convention requires it).
+  String? get namespace => metadata?.namespace;
 
   ArbEntry copyWith({String? key, String? value, ArbMetadata? metadata}) {
     return ArbEntry(
@@ -91,6 +88,7 @@ class ArbEntry {
 
 class ArbMetadata {
   ArbMetadata({
+    this.namespace,
     this.description,
     this.context,
     this.placeholders,
@@ -99,6 +97,12 @@ class ArbMetadata {
     this.sourceHash,
     this.extras = const {},
   });
+
+  /// Required by convention for source ARBs: which logical group this key
+  /// belongs to (e.g. `checkout`, `common`, `settings`). Drives the
+  /// per-platform `namespaces:` filter on `dialect sync`. Absent on
+  /// translation ARBs — the CLI strips metadata from translations.
+  final String? namespace;
 
   /// Required by convention for source ARBs: what this string means in context.
   final String? description;
@@ -125,6 +129,7 @@ class ArbMetadata {
   final Map<String, Object?> extras;
 
   ArbMetadata copyWith({
+    String? namespace,
     String? description,
     String? context,
     Map<String, ArbPlaceholder>? placeholders,
@@ -134,6 +139,7 @@ class ArbMetadata {
     Map<String, Object?>? extras,
   }) {
     return ArbMetadata(
+      namespace: namespace ?? this.namespace,
       description: description ?? this.description,
       context: context ?? this.context,
       placeholders: placeholders ?? this.placeholders,

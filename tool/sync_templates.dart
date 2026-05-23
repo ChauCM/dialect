@@ -76,6 +76,16 @@ const List<_Mapping> _mappings = [
     target: ['lib', 'templates', 'describe_plan_md.dart'],
     constName: 'describePlanMdTemplate',
   ),
+  _Mapping(
+    source: ['templates', 'init_plan.md'],
+    target: ['lib', 'templates', 'init_plan_md.dart'],
+    constName: 'initPlanMdTemplate',
+  ),
+  _Mapping(
+    source: ['templates', 'agents_md_section.md'],
+    target: ['lib', 'templates', 'agents_md_section.dart'],
+    constName: 'agentsMdSection',
+  ),
 ];
 
 void main(List<String> arguments) {

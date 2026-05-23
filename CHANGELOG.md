@@ -1,9 +1,56 @@
 # Changelog
 
-All notable changes to the Dialect CLI are tracked here. Pre-1.0 entries are
-work-in-progress milestones from `planning/mvp-plan.md`.
+All notable changes to the Dialect CLI are tracked here.
 
 ## [Unreleased]
+
+## 1.0.0
+
+First stable release.
+
+The shipping convention: **flat camelCase keys** (`checkoutBookNow`)
+with logical grouping in `@key.namespace` metadata. This is what
+`flutter gen-l10n` requires — every source key becomes a method
+on `AppLocalizations` after sync. No mangling, no impedance
+mismatch with Flutter's default localization tool.
+
+Onboarding collapses to **one CLI command + one chat message**:
+
+  $ dialect init
+  (then in your AI agent:)
+  > run dialect init and follow the instructions
+
+`dialect init` scaffolds, detects the project type, writes a
+two-phase `.dialect/init-plan.md` (the AI's playbook), and
+writes/updates `AGENTS.md` (or appends to `CLAUDE.md` if that's
+what the project already has). Re-running `dialect init` is
+idempotent — refreshes the plan without clobbering the scaffold.
+
+Phase 2 of the init plan has a single sizing rule: ≤ 50
+candidate strings → AI extracts + translates in one chat turn;
+> 50 → AI extracts only, then stops for the developer to
+sanity-check key names before the long translation step.
+
+Convention + check rules:
+- `ArbMetadata.namespace` is a first-class field on every
+  source key. The parser reads it, the writer emits it first
+  in the metadata block, the ARB adapter filters by it.
+- Two new structural check rules: `key_format` (rejects
+  non-Dart-identifier keys with a specific hint for the
+  pre-1.0 dotted shape) and `namespace_required` (source
+  keys must declare `@key.namespace`).
+- All in-repo ARBs (live `example/`, validation seed) re-keyed
+  to the new shape; `example/_validation/INSTRUCTIONS.md`
+  refreshed for the new chat-message default.
+
+Distribution: Pub + Homebrew + curl + GitHub Action, all wired
+in the 1.0.0-rc.* series and now tagged as 1.0.0.
+
+The brainstorm-phase planning docs, research, references, and
+spikes moved out of this repo and into the archived brainstorm
+repo at `/Users/chaucao/Documents/github/brainstorm/dialect`.
+The shipping repo carries only the user-facing docs, the CLI,
+the example app, and the validation harness.
 
 ## 1.0.0-rc.3
 

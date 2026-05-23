@@ -26,15 +26,15 @@ ARB (Application Resource Bundle) is the canonical format. It's JSON with metada
 
 ## Key Naming Convention
 
-Canonical keys follow the pattern **`namespace.camelCaseKey`**:
+Canonical keys are **flat camelCase Dart identifiers** with logical grouping carried in metadata:
 
-- The **namespace** is a dot-separated scope prefix (`checkout`, `settings`, `common`, `mobile`, `web`, `backend`).
-- The **key segment** after the namespace is `camelCase`.
+- Keys are valid Dart method names — letters, digits, underscores; no dots, no dashes, no leading digit. This is required by Flutter's `flutter gen-l10n`, which generates one `AppLocalizations` method per key.
+- The logical group lives in **`@key.namespace`** metadata (`checkout`, `settings`, `common`, `mobile`, `web`, `backend`). The namespace controls per-platform sync filtering and how cross-platform adapters group output (e.g. one `.strings` file per namespace on iOS).
 - Keys are always **sorted alphabetically** in ARB files. `dialect sync` enforces this ordering to produce deterministic output and minimize git diff noise.
 
-Examples: `checkout.bookNow`, `checkout.itemCount`, `common.loading`, `settings.darkMode`.
+Examples: `checkoutBookNow`, `checkoutItemCount`, `commonLoading`, `settingsDarkMode`.
 
-Keys without a namespace prefix are valid but discouraged — namespaces enable per-platform filtering and reduce merge conflicts.
+Source keys without `@key.namespace` are flagged by `dialect check` — the namespace drives platform filtering, so it's mandatory in the source ARB.
 
 ---
 
@@ -43,28 +43,31 @@ Keys without a namespace prefix are valid but discouraged — namespaces enable 
 ```json
 {
   "@@locale": "en",
-  "checkout.bookNow": "Book Now",
-  "@checkout.bookNow": {
+  "checkoutBookNow": "Book Now",
+  "@checkoutBookNow": {
+    "namespace": "checkout",
     "description": "CTA button on checkout screen, verb meaning 'make a reservation'",
     "context": "checkout_screen"
   },
-  "checkout.itemCount": "{count, plural, =1{1 item} other{{count} items}}",
-  "@checkout.itemCount": {
+  "checkoutItemCount": "{count, plural, =1{1 item} other{{count} items}}",
+  "@checkoutItemCount": {
+    "namespace": "checkout",
     "description": "Item count display on checkout screen",
     "placeholders": {
       "count": { "type": "int" }
     }
   },
-  "common.loading": "Loading...",
-  "@common.loading": {
+  "commonLoading": "Loading...",
+  "@commonLoading": {
+    "namespace": "common",
     "description": "Generic loading indicator, shared across all platforms"
   }
 }
 ```
 
-The `@key` metadata provides context for translation. When an AI extracts strings, it fills descriptions automatically. When translating, it reads them to produce accurate results.
+The `@key` metadata provides context for translation. When an AI extracts strings, it fills `namespace` + `description` automatically. When translating, it reads them to produce accurate results.
 
-Keys are sorted alphabetically — `checkout.*` before `common.*`. This ordering is enforced by `dialect sync` and expected by `dialect check`.
+Keys are sorted alphabetically — `checkoutBookNow` before `commonLoading`. This ordering is enforced by `dialect sync` and expected by `dialect check`.
 
 ---
 
@@ -90,14 +93,35 @@ dialect diff                    # Show translation changes (for PR comments)
 
 ### `dialect init`
 
-Creates the `dialect/` directory with a convention-documented `dialect.yaml` (including AI instruction comments), a starter source ARB, and glossary.
+The agent-executable entry point. Scaffolds the `dialect/` directory *and* writes `.dialect/init-plan.md` — a two-phase playbook the user's AI agent executes end-to-end. Also writes (or appends to) `AGENTS.md` (or `CLAUDE.md` if that's the only one present) so future agent sessions on the same project pick up Dialect's conventions automatically.
+
+```
+$ dialect init
+✓ Scaffolded dialect/
+  dialect/dialect.yaml
+  dialect/glossary.yaml
+  dialect/source/en.arb
+  dialect/translations/  (empty)
+  .dialect/init-plan.md
+  AGENTS.md (created)
+  .gitignore (added .dialect/)
+
+Detected project type: Flutter
+Init plan written to: .dialect/init-plan.md
+
+Next: paste this in your AI agent (Claude Code, Cursor, …):
+
+  run dialect init and follow the instructions
+```
+
+The plan splits into **Phase 1 (Setup)** — deps, `l10n.yaml`, `MaterialApp` wiring, locale switcher, smoke test — and **Phase 2 (Extract + translate)**. Phase 2 has one sizing rule: ≤50 candidate strings → AI does it end-to-end in one chat turn; >50 → AI does extraction only, then stops for the developer to glance at key names before the long translation step. Re-running `dialect init` is idempotent — it refreshes the plan but leaves the scaffold alone unless `--force` is passed.
 
 ### `dialect import`
 
-Writes `.dialect/import-plan.md` — a structured instruction file telling the user's AI agent how to convert existing ARB files into Dialect's convention. The agent:
+For projects that already have localization files. Writes `.dialect/import-plan.md` — a structured instruction file telling the user's AI agent how to convert existing ARB / `.strings` / etc. into Dialect's convention. The agent:
 
-- Reads source ARB(s) from the path the user supplied (e.g. `lib/l10n/`).
-- Renames keys to `namespace.camelCase`.
+- Reads source files from the path the user supplied (e.g. `lib/l10n/`).
+- Renames keys to flat camelCase Dart identifiers (`checkoutBookNow`) and adds `@key.namespace` metadata.
 - Backfills `@description` by reading the callsites that reference each key.
 - Applies `glossary.yaml` rules.
 - Writes the result to `dialect/source/en.arb`.
@@ -242,17 +266,19 @@ A developer points their AI at this file: *"read dialect/dialect.yaml and then e
 #
 # AI Instructions:
 #   - Canonical source strings live in dialect/source/*.arb
-#   - Keys follow the pattern: namespace.camelCaseKey
-#     e.g. checkout.bookNow, common.cancel, settings.darkMode
-#   - Every key MUST have a matching @key with at least a
-#     "description" explaining what the string means in context
+#   - Keys are flat camelCase Dart identifiers
+#     e.g. checkoutBookNow, commonCancel, settingsDarkMode
+#   - Every key MUST have a matching @key with:
+#       "namespace" — the logical group (checkout, common, settings…)
+#       "description" — what the string means in context
 #   - Placeholders use ICU MessageFormat: "Hello {userName}"
 #     with @key.placeholders describing each variable
 #   - Plurals use ICU select: "{count, plural, one{...} other{...}}"
 #   - Keys are always sorted alphabetically within each ARB file
 #   - Check dialect/glossary.yaml for project-specific terms
 #     and required translations before translating
-#   - After editing ARB files, run: dialect sync && dialect check
+#   - After editing ARB files, run:
+#       dialect check --fix && dialect sync && dialect check
 # ============================================================
 
 source_locale: en
@@ -290,13 +316,13 @@ For highly complex projects that outgrow YAML comments (e.g., detailed style gui
 
 | Format | Key Style | Pluralization | Used By |
 |---|---|---|---|
-| `arb` | `namespace.camelCase` | ICU MessageFormat | Flutter |
-| `apple-strings` | `snake_case` | `.stringsdict` plist | iOS (Swift) |
-| `android-xml` | `snake_case` | `plurals.xml` | Android (Kotlin) |
-| `flat-json` | `namespace.camelCase` | None (stripped) | Backend APIs (simple strings) |
-| `icu-json` | `namespace.camelCase` | ICU MessageFormat (preserved) | Backend APIs (full ICU support) |
+| `arb` | `camelCase` (flat) | ICU MessageFormat | Flutter (`flutter gen-l10n`-compatible by design) |
+| `apple-strings` | `snake_case` (per namespace) | `.stringsdict` plist | iOS (Swift) |
+| `android-xml` | `snake_case` (per namespace) | `plurals.xml` | Android (Kotlin) |
+| `flat-json` | `camelCase` (flat) | None (stripped) | Backend APIs (simple strings) |
+| `icu-json` | `camelCase` (flat) | ICU MessageFormat (preserved) | Backend APIs (full ICU support) |
 
-`flat-json` strips ICU pluralization and outputs plain interpolation strings — use it for backends that only need simple key-value lookups. `icu-json` preserves the full ICU MessageFormat expressions — use it for backends that parse ICU strings at runtime with a library like `intl-messageformat` (Node), `icu4c` (Python), or `MessageFormat` (C#). See [Backend Platforms](platforms-backend.md) for details.
+`flat-json` strips ICU pluralization and outputs plain interpolation strings — use it for backends that only need simple key-value lookups. `icu-json` preserves the full ICU MessageFormat expressions — use it for backends that parse ICU strings at runtime with a library like `intl-messageformat` (Node), `icu4c` (Python), or `MessageFormat` (C#). Cross-platform adapters group keys by `@key.namespace` when the backing format supports nesting; see [Backend Platforms](platforms-backend.md) for details.
 
 **Stable JSON contract.** The `icu-json` and `flat-json` output shapes are versioned and specified in `dialect/spec/icu-json.md` / `dialect/spec/flat-json.md`. Backend localizer libraries (the `Dialect.AspNetCore` NuGet package, community PyPI packages, hand-written snippets) target this contract. Breaking changes to the JSON shape require a major version bump and a migration note — snippets in user repos won't silently break across Dialect upgrades.
 
@@ -304,11 +330,11 @@ For highly complex projects that outgrow YAML comments (e.g., detailed style gui
 
 | Format | Key Style | Pluralization | Used By |
 |---|---|---|---|
-| `i18next-json` | `nested.dot.keys` | i18next plural syntax | React, React Native |
+| `i18next-json` | `nested.dot.keys` (built from `@key.namespace` + key) | i18next plural syntax | React, React Native |
 
 ### Not on the roadmap as adapters
 
-`.resx` (ASP.NET) and `.po` (gettext) are **not** planned adapters. Both would require silently degrading ARB features — `.resx` has no native ICU plurals and uses positional `{0}` placeholders; `.po` has the 2-form / 6-form `ngettext` awkwardness. Instead, Dialect ships **lossless drop-in localizer templates** for each stack: a `JsonStringLocalizer` for ASP.NET, a JSON catalog swap for Django, equivalent loaders for Flask/FastAPI/Node/Go. Callsites stay unchanged; only the backing store swaps to Dialect's `icu-json`. See [Backend Platforms](platforms-backend.md) for the per-stack snippets and [Backend Humility](../planning/competitive-strategy.md#backend-humility) for the strategic framing.
+`.resx` (ASP.NET) and `.po` (gettext) are **not** planned adapters. Both would require silently degrading ARB features — `.resx` has no native ICU plurals and uses positional `{0}` placeholders; `.po` has the 2-form / 6-form `ngettext` awkwardness. Instead, Dialect ships **lossless drop-in localizer templates** for each stack: a `JsonStringLocalizer` for ASP.NET, a JSON catalog swap for Django, equivalent loaders for Flask/FastAPI/Node/Go. Callsites stay unchanged; only the backing store swaps to Dialect's `icu-json`. See [Backend Platforms](platforms-backend.md) for the per-stack snippets — the principle is *Backend Humility*: your backend keeps its native localization interface, Dialect just swaps the backing store.
 
 ---
 
@@ -343,22 +369,22 @@ style:
 
 ## Namespaces
 
-Not every string is shared across platforms. The namespace prefix in key names controls which strings sync to which platform:
+Not every string is shared across platforms. The `@key.namespace` metadata controls which strings sync to which platform:
 
 ```json
 {
   "@@locale": "en",
-  "common.loading": "Loading...",
-  "@common.loading": { "description": "Shared across all platforms" },
+  "commonLoading": "Loading...",
+  "@commonLoading": { "namespace": "common", "description": "Shared across all platforms" },
 
-  "mobile.pullToRefresh": "Pull to refresh",
-  "@mobile.pullToRefresh": { "description": "Mobile only — Flutter and React Native" },
+  "mobilePullToRefresh": "Pull to refresh",
+  "@mobilePullToRefresh": { "namespace": "mobile", "description": "Mobile only — Flutter and React Native" },
 
-  "web.cookieConsent": "We use cookies to improve your experience",
-  "@web.cookieConsent": { "description": "Web only — React" },
+  "webCookieConsent": "We use cookies to improve your experience",
+  "@webCookieConsent": { "namespace": "web", "description": "Web only — React" },
 
-  "backend.errorRateLimit": "Too many requests. Try again in {seconds} seconds.",
-  "@backend.errorRateLimit": { "description": "API rate limit response" }
+  "backendErrorRateLimit": "Too many requests. Try again in {seconds} seconds.",
+  "@backendErrorRateLimit": { "namespace": "backend", "description": "API rate limit response" }
 }
 ```
 

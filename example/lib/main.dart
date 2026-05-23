@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 import 'screens/checkout_screen.dart';
+import 'screens/hosting_screen.dart';
 import 'screens/settings_screen.dart';
+import 'screens/trips_screen.dart';
 
 void main() {
   runApp(const ExampleApp());
@@ -48,6 +50,20 @@ class HomeScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
+          FilledButton.tonal(
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const TripsScreen()),
+            ),
+            child: const Text('See all my trips'),
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton(
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const HostingScreen()),
+            ),
+            child: const Text('Switch to hosting'),
+          ),
+          const SizedBox(height: 8),
           OutlinedButton(
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const SettingsScreen()),

@@ -1,37 +1,63 @@
 {
   "@@locale": "de",
 
-  "checkout.bookNow": "Jetzt buchen",
-  "checkout.bookingConfirmedMessage": "Buchung bestätigt. Details findest du unter deinen Reisen.",
-  "checkout.freeCancellation": "48 Stunden kostenlos stornierbar",
-  "checkout.hostedBy": "Gastgeber: {hostName}",
-  "checkout.itemCount": "{count, plural, =0{Keine Artikel} =1{1 Artikel} one{{count} Artikel} other{{count} Artikel}}",
-  "checkout.nightsCount": "{count, plural, one{{count} Nacht} other{{count} Nächte}}",
-  "checkout.pricePerNight": "${price} pro Nacht",
-  "checkout.termsNotice": "Mit der Buchung akzeptierst du die Hausregeln und die Stornierungsbedingungen.",
-  "checkout.title": "Bestätigen und bezahlen",
-  "checkout.total": "Gesamt: ${amount}",
-  "checkout.yourTripHeader": "Deine Reise",
+  "checkoutBookNow": "Jetzt buchen",
 
-  "common.cancel": "Abbrechen",
-  "common.delete": "Löschen",
-  "common.loading": "Wird geladen...",
+  "checkoutBookingConfirmedMessage": "Buchung bestätigt. Details findest du unter deinen Reisen.",
 
-  "home.openSettings": "Einstellungen öffnen",
-  "home.title": "Deine Reisen",
+  "checkoutFreeCancellation": "48 Stunden kostenlos stornierbar",
 
-  "settings.accountActionsSection": "Kontoaktionen",
-  "settings.accountSection": "Konto",
-  "settings.darkMode": "Dunkler Modus",
-  "settings.deleteAccount": "Konto löschen",
-  "settings.deleteAccountConfirmBody": "Damit werden deine Buchungen, Reisen und Inserate als Gastgeber dauerhaft entfernt. Das lässt sich nicht rückgängig machen.",
-  "settings.deleteAccountConfirmTitle": "Konto löschen?",
-  "settings.editProfileHint": "Tippe, um dein Profil zu bearbeiten",
-  "settings.emailLabel": "E-Mail",
-  "settings.language": "Sprache",
-  "settings.notifications": "Benachrichtigungen",
-  "settings.notificationsDescription": "Reiseupdates, Nachrichten von Gastgebern und Buchungserinnerungen.",
-  "settings.preferencesSection": "Einstellungen",
-  "settings.signOut": "Abmelden",
-  "settings.title": "Einstellungen"
+  "checkoutHostedBy": "Gastgeber: {hostName}",
+
+  "checkoutItemCount": "{count, plural, =0{Keine Artikel} =1{1 Artikel} one{{count} Artikel} other{{count} Artikel}}",
+
+  "checkoutNightsCount": "{count, plural, one{{count} Nacht} other{{count} Nächte}}",
+
+  "checkoutPricePerNight": "${price} pro Nacht",
+
+  "checkoutTermsNotice": "Mit der Buchung akzeptierst du die Hausregeln und die Stornierungsbedingungen.",
+
+  "checkoutTitle": "Bestätigen und bezahlen",
+
+  "checkoutTotal": "Gesamt: ${amount}",
+
+  "checkoutYourTripHeader": "Deine Reise",
+
+  "commonCancel": "Abbrechen",
+
+  "commonDelete": "Löschen",
+
+  "commonLoading": "Wird geladen...",
+
+  "homeOpenSettings": "Einstellungen öffnen",
+
+  "homeTitle": "Deine Reisen",
+
+  "settingsAccountActionsSection": "Kontoaktionen",
+
+  "settingsAccountSection": "Konto",
+
+  "settingsDarkMode": "Dunkler Modus",
+
+  "settingsDeleteAccount": "Konto löschen",
+
+  "settingsDeleteAccountConfirmBody": "Damit werden deine Buchungen, Reisen und Inserate als Gastgeber dauerhaft entfernt. Das lässt sich nicht rückgängig machen.",
+
+  "settingsDeleteAccountConfirmTitle": "Konto löschen?",
+
+  "settingsEditProfileHint": "Tippe, um dein Profil zu bearbeiten",
+
+  "settingsEmailLabel": "E-Mail",
+
+  "settingsLanguage": "Sprache",
+
+  "settingsNotifications": "Benachrichtigungen",
+
+  "settingsNotificationsDescription": "Reiseupdates, Nachrichten von Gastgebern und Buchungserinnerungen.",
+
+  "settingsPreferencesSection": "Einstellungen",
+
+  "settingsSignOut": "Abmelden",
+
+  "settingsTitle": "Einstellungen"
 }

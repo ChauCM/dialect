@@ -44,16 +44,16 @@ A UTF-8 encoded JSON object with **flat string keys** and **plain string values*
 
 ```json
 {
-  "checkout.bookNow": "Book Now",
-  "checkout.itemCount": "{count} items",
-  "common.cancel": "Cancel"
+  "checkoutBookNow": "Book Now",
+  "checkoutItemCount": "{count} items",
+  "commonCancel": "Cancel"
 }
 ```
 
 | Decision | Value |
 |---|---|
 | Top-level | JSON object. Never an array, never a primitive. |
-| Keys | The ARB key verbatim (e.g. `checkout.bookNow`). Flat dotted keys, never nested. |
+| Keys | The ARB key verbatim (e.g. `checkoutBookNow`). Flat camelCase Dart-identifier keys, never nested. |
 | Values | Plain strings. ICU expressions are stripped per the rules below; no `{count, plural, …}` ever appears. Simple `{placeholder}` substitution survives. |
 | Encoding | UTF-8, NFC-normalized. No BOM. |
 | Indentation | 2 spaces, LF line endings, trailing newline at EOF. |
@@ -71,7 +71,7 @@ Simple `{placeholder}` substitution survives:
 
 ```json
 {
-  "common.welcome": "Welcome, {userName}"
+  "commonWelcome": "Welcome, {userName}"
 }
 ```
 
@@ -90,33 +90,33 @@ The defining behaviour of `flat-json`: ICU plural/select/selectordinal expressio
 Source ARB:
 
 ```json
-"checkout.itemCount":
+"checkoutItemCount":
   "{count, plural, =0{No items} =1{1 item} other{{count} items}}"
 ```
 
 `flat-json` output:
 
 ```json
-"checkout.itemCount": "{count} items"
+"checkoutItemCount": "{count} items"
 ```
 
 Rule: take the body of the `other` branch verbatim, recursively strip any inner ICU expressions, leave plain `{placeholder}` tokens intact.
 
-The `=N` exact-match branches and the locale-specific CLDR categories (`one`/`two`/`few`/`many`) are discarded. The reviewer sees this in the M4 `placeholder_match` check, and the sync log emits an info-level note ("`checkout.itemCount` plural → `other` branch").
+The `=N` exact-match branches and the locale-specific CLDR categories (`one`/`two`/`few`/`many`) are discarded. The reviewer sees this in the M4 `placeholder_match` check, and the sync log emits an info-level note ("`checkoutItemCount` plural → `other` branch").
 
 ### Select
 
 Source ARB:
 
 ```json
-"profile.greeting":
+"profileGreeting":
   "{gender, select, female{She booked your stay} male{He booked your stay} other{They booked your stay}}"
 ```
 
 `flat-json` output:
 
 ```json
-"profile.greeting": "They booked your stay"
+"profileGreeting": "They booked your stay"
 ```
 
 Rule: same as plural — take the `other` branch, recursively strip.
@@ -152,7 +152,7 @@ ICU requires plurals to have an `other` branch; `flat-json` requires it for plur
 
 ## Namespace handling
 
-Identical to [`icu-json`](./icu-json.md): keys are filtered by `platforms.<p>.namespaces` before serialisation; namespaces are key prefixes, not nested objects.
+Identical to [`icu-json`](./icu-json.md): keys are filtered by `platforms.<p>.namespaces` against each source key's `@key.namespace` metadata. The emitted file uses flat camelCase keys, not nested objects.
 
 ---
 
@@ -169,10 +169,10 @@ Running `dialect sync` twice with no source changes produces byte-identical file
 ```json
 {
   "@@locale": "en",
-  "checkout.bookNow": "Book Now",
-  "checkout.itemCount": "{count, plural, =1{1 item} other{{count} items}}",
-  "profile.greeting": "{gender, select, female{Welcome back} male{Welcome back} other{Welcome}}",
-  "common.cancel": "Cancel"
+  "checkoutBookNow": "Book Now",
+  "checkoutItemCount": "{count, plural, =1{1 item} other{{count} items}}",
+  "profileGreeting": "{gender, select, female{Welcome back} male{Welcome back} other{Welcome}}",
+  "commonCancel": "Cancel"
 }
 ```
 
@@ -192,10 +192,10 @@ platforms:
 
 ```json
 {
-  "checkout.bookNow": "Book Now",
-  "checkout.itemCount": "{count} items",
-  "common.cancel": "Cancel",
-  "profile.greeting": "Welcome"
+  "checkoutBookNow": "Book Now",
+  "checkoutItemCount": "{count} items",
+  "commonCancel": "Cancel",
+  "profileGreeting": "Welcome"
 }
 ```
 
@@ -205,10 +205,10 @@ Note: the plural collapsed to `{count} items`; the select collapsed to `Welcome`
 
 ```json
 {
-  "checkout.bookNow": "Reservar ahora",
-  "checkout.itemCount": "{count} elementos",
-  "common.cancel": "Cancelar",
-  "profile.greeting": "Bienvenido"
+  "checkoutBookNow": "Reservar ahora",
+  "checkoutItemCount": "{count} elementos",
+  "commonCancel": "Cancelar",
+  "profileGreeting": "Bienvenido"
 }
 ```
 
@@ -228,7 +228,7 @@ Dialect's `dialect sync` does **not** reverse-engineer plural rules from a `flat
 The CLI surfaces this trade-off when a project's source uses plural / select expressions and a `flat-json` platform is configured — a single line per affected key, at sync time, level `info`, suppressible:
 
 ```
-info: gateway/locales/  flat-json strips plurals for: checkout.itemCount, profile.greeting
+info: gateway/locales/  flat-json strips plurals for: checkoutItemCount, profileGreeting
   hint: switch this platform to `format: icu-json` if those keys need locale-correct plurals.
 ```
 

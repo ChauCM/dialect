@@ -6,9 +6,10 @@
 const String sourceArbTemplate = r'''{
   "@@locale": "en",
 
-  "common.example": "Example string — replace with your first real key",
-  "@common.example": {
-    "description": "Example seed entry illustrating the @key shape. Delete this once you've added your first real string.",
+  "commonExample": "Example string — replace with your first real key",
+  "@commonExample": {
+    "namespace": "common",
+    "description": "Example seed entry illustrating the @key shape (flat camelCase key + @key.namespace metadata). Delete this once you've added your first real string.",
     "context": "shared"
   }
 }

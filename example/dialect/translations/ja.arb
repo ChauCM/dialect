@@ -1,37 +1,63 @@
 {
   "@@locale": "ja",
 
-  "checkout.bookNow": "今すぐ予約する",
-  "checkout.bookingConfirmedMessage": "予約が確定しました。詳細は旅行一覧をご確認ください。",
-  "checkout.freeCancellation": "48時間以内は無料でキャンセルできます",
-  "checkout.hostedBy": "ホスト: {hostName}",
-  "checkout.itemCount": "{count, plural, =0{アイテムはありません} =1{1個のアイテム} other{{count}個のアイテム}}",
-  "checkout.nightsCount": "{count, plural, other{{count}泊}}",
-  "checkout.pricePerNight": "1泊あたり${price}",
-  "checkout.termsNotice": "予約することで、ハウスルールおよびキャンセルポリシーに同意したものとみなされます。",
-  "checkout.title": "確認してお支払い",
-  "checkout.total": "合計: ${amount}",
-  "checkout.yourTripHeader": "ご旅行の内容",
+  "checkoutBookNow": "今すぐ予約する",
 
-  "common.cancel": "キャンセル",
-  "common.delete": "削除",
-  "common.loading": "読み込み中...",
+  "checkoutBookingConfirmedMessage": "予約が確定しました。詳細は旅行一覧をご確認ください。",
 
-  "home.openSettings": "設定を開く",
-  "home.title": "あなたの旅行",
+  "checkoutFreeCancellation": "48時間以内は無料でキャンセルできます",
 
-  "settings.accountActionsSection": "アカウントの操作",
-  "settings.accountSection": "アカウント",
-  "settings.darkMode": "ダークモード",
-  "settings.deleteAccount": "アカウントを削除",
-  "settings.deleteAccountConfirmBody": "予約、旅行、ホストとしての掲載がすべて完全に削除されます。この操作は元に戻せません。",
-  "settings.deleteAccountConfirmTitle": "アカウントを削除しますか?",
-  "settings.editProfileHint": "タップしてプロフィールを編集",
-  "settings.emailLabel": "メールアドレス",
-  "settings.language": "言語",
-  "settings.notifications": "通知",
-  "settings.notificationsDescription": "旅行の最新情報、ホストからのメッセージ、予約のリマインダーをお届けします。",
-  "settings.preferencesSection": "環境設定",
-  "settings.signOut": "サインアウト",
-  "settings.title": "設定"
+  "checkoutHostedBy": "ホスト: {hostName}",
+
+  "checkoutItemCount": "{count, plural, =0{アイテムはありません} =1{1個のアイテム} other{{count}個のアイテム}}",
+
+  "checkoutNightsCount": "{count, plural, other{{count}泊}}",
+
+  "checkoutPricePerNight": "1泊あたり${price}",
+
+  "checkoutTermsNotice": "予約することで、ハウスルールおよびキャンセルポリシーに同意したものとみなされます。",
+
+  "checkoutTitle": "確認してお支払い",
+
+  "checkoutTotal": "合計: ${amount}",
+
+  "checkoutYourTripHeader": "ご旅行の内容",
+
+  "commonCancel": "キャンセル",
+
+  "commonDelete": "削除",
+
+  "commonLoading": "読み込み中...",
+
+  "homeOpenSettings": "設定を開く",
+
+  "homeTitle": "あなたの旅行",
+
+  "settingsAccountActionsSection": "アカウントの操作",
+
+  "settingsAccountSection": "アカウント",
+
+  "settingsDarkMode": "ダークモード",
+
+  "settingsDeleteAccount": "アカウントを削除",
+
+  "settingsDeleteAccountConfirmBody": "予約、旅行、ホストとしての掲載がすべて完全に削除されます。この操作は元に戻せません。",
+
+  "settingsDeleteAccountConfirmTitle": "アカウントを削除しますか?",
+
+  "settingsEditProfileHint": "タップしてプロフィールを編集",
+
+  "settingsEmailLabel": "メールアドレス",
+
+  "settingsLanguage": "言語",
+
+  "settingsNotifications": "通知",
+
+  "settingsNotificationsDescription": "旅行の最新情報、ホストからのメッセージ、予約のリマインダーをお届けします。",
+
+  "settingsPreferencesSection": "環境設定",
+
+  "settingsSignOut": "サインアウト",
+
+  "settingsTitle": "設定"
 }

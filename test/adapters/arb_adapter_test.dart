@@ -6,16 +6,16 @@ import 'package:test/test.dart';
 void main() {
   group('ArbAdapter.prepare', () {
     final greet = ArbEntry(
-      key: 'common.greet',
+      key: 'commonGreet',
       value: 'Hello',
-      metadata: ArbMetadata(description: 'A greeting.'),
+      metadata: ArbMetadata(namespace: 'common', description: 'A greeting.'),
     );
     final book = ArbEntry(
-      key: 'checkout.bookNow',
+      key: 'checkoutBookNow',
       value: 'Book Now',
-      metadata: ArbMetadata(description: 'CTA.'),
+      metadata: ArbMetadata(namespace: 'checkout', description: 'CTA.'),
     );
-    final loose = ArbEntry(key: 'bare', value: 'no namespace');
+    final unnamespaced = ArbEntry(key: 'loose', value: 'no namespace');
 
     test('keeps source metadata, strips translation metadata', () {
       final source = ArbFile(locale: 'en', entries: [greet, book]);
@@ -46,7 +46,10 @@ void main() {
     });
 
     test('namespace filter drops keys outside the allowlist', () {
-      final source = ArbFile(locale: 'en', entries: [greet, book, loose]);
+      final source = ArbFile(
+        locale: 'en',
+        entries: [greet, book, unnamespaced],
+      );
       final platform = PlatformConfig(
         name: 'flutter',
         output: 'lib/l10n',
@@ -58,11 +61,14 @@ void main() {
         platform: platform,
         isSource: true,
       );
-      expect(out.arb.entries.map((e) => e.key), ['common.greet']);
+      expect(out.arb.entries.map((e) => e.key), ['commonGreet']);
     });
 
     test('empty namespaces list means no filtering', () {
-      final source = ArbFile(locale: 'en', entries: [greet, book, loose]);
+      final source = ArbFile(
+        locale: 'en',
+        entries: [greet, book, unnamespaced],
+      );
       final platform = PlatformConfig(
         name: 'flutter',
         output: 'lib/l10n',
@@ -74,21 +80,33 @@ void main() {
         isSource: true,
       );
       expect(out.arb.entries.map((e) => e.key), [
-        'common.greet',
-        'checkout.bookNow',
-        'bare',
+        'commonGreet',
+        'checkoutBookNow',
+        'loose',
       ]);
     });
 
-    test('namespace-prefixed keys are filtered by their prefix only', () {
-      // checkout.foo, checkout.bar both have prefix `checkout`; both
-      // match `namespaces: [checkout]`.
+    test('filter matches the metadata namespace, not the key prefix', () {
+      // Two keys with namespace=checkout (regardless of their camelCase
+      // shape) both pass when `namespaces: [checkout]`.
       final source = ArbFile(
         locale: 'en',
         entries: [
-          ArbEntry(key: 'checkout.a', value: 'A'),
-          ArbEntry(key: 'checkout.b', value: 'B'),
-          ArbEntry(key: 'common.c', value: 'C'),
+          ArbEntry(
+            key: 'checkoutA',
+            value: 'A',
+            metadata: ArbMetadata(namespace: 'checkout'),
+          ),
+          ArbEntry(
+            key: 'somethingElse',
+            value: 'B',
+            metadata: ArbMetadata(namespace: 'checkout'),
+          ),
+          ArbEntry(
+            key: 'commonC',
+            value: 'C',
+            metadata: ArbMetadata(namespace: 'common'),
+          ),
         ],
       );
       final platform = PlatformConfig(
@@ -102,16 +120,20 @@ void main() {
         platform: platform,
         isSource: true,
       );
-      expect(out.arb.entries.map((e) => e.key), ['checkout.a', 'checkout.b']);
+      expect(out.arb.entries.map((e) => e.key), ['checkoutA', 'somethingElse']);
     });
 
-    test('reports bare-namespace keys via bareKeysSkipped', () {
+    test('reports keys missing @key.namespace metadata', () {
       final source = ArbFile(
         locale: 'en',
         entries: [
-          ArbEntry(key: 'common.ok', value: 'OK'),
-          ArbEntry(key: 'loose_key', value: 'no prefix'),
-          ArbEntry(key: 'another_bare', value: 'still bare'),
+          ArbEntry(
+            key: 'commonOk',
+            value: 'OK',
+            metadata: ArbMetadata(namespace: 'common'),
+          ),
+          ArbEntry(key: 'looseKey', value: 'no namespace'),
+          ArbEntry(key: 'anotherLoose', value: 'still none'),
         ],
       );
       final platform = PlatformConfig(
@@ -125,15 +147,15 @@ void main() {
         platform: platform,
         isSource: true,
       );
-      expect(out.arb.entries.map((e) => e.key), ['common.ok']);
-      expect(out.bareKeysSkipped, ['loose_key', 'another_bare']);
+      expect(out.arb.entries.map((e) => e.key), ['commonOk']);
+      expect(out.keysMissingNamespace, ['looseKey', 'anotherLoose']);
     });
 
-    test('empty namespaces list does not flag bare keys', () {
-      // When filtering is off, bare keys flow through, so we don't warn.
+    test('empty namespaces list does not flag missing namespace', () {
+      // When filtering is off, everything passes; no warning needed.
       final source = ArbFile(
         locale: 'en',
-        entries: [ArbEntry(key: 'loose_key', value: 'kept')],
+        entries: [ArbEntry(key: 'looseKey', value: 'kept')],
       );
       final platform = PlatformConfig(
         name: 'flutter',
@@ -145,8 +167,8 @@ void main() {
         platform: platform,
         isSource: true,
       );
-      expect(out.bareKeysSkipped, isEmpty);
-      expect(out.arb.entries.map((e) => e.key), ['loose_key']);
+      expect(out.keysMissingNamespace, isEmpty);
+      expect(out.arb.entries.map((e) => e.key), ['looseKey']);
     });
 
     test('orphan metadata is dropped on output', () {

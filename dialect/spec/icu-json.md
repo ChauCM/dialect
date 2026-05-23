@@ -107,11 +107,11 @@ This is the format every ICU MessageFormat library accepts. No flattening, no tr
 
 ## Namespace handling
 
-Namespaces are the prefix before the first dot in a key (e.g. `checkout` in `checkout.bookNow`). The CLI uses `platforms.<p>.namespaces` to decide which keys sync to which platform. The emitted JSON is platform-scoped: a backend platform with `namespaces: [common, backend]` only sees keys with those prefixes.
+Each source key carries its namespace in `@key.namespace` metadata (e.g. `"namespace": "checkout"` for `checkoutBookNow`). The CLI uses `platforms.<p>.namespaces` to decide which keys sync to which platform — a backend platform with `namespaces: [common, backend]` only emits keys whose `@key.namespace` is in that list.
 
 `namespaces: []` means "every key syncs" — useful for a single-platform project.
 
-Namespaces are **not** encoded as nested objects in the JSON output. They're just key prefixes.
+In the emitted `icu-json`, namespaces are **not** encoded as nested objects — keys appear flat at the top level, identical to the source key shape (`checkoutBookNow`, not `checkout.bookNow` or `checkout: { bookNow }`). Backend localizer libraries look strings up by flat key.
 
 ---
 
@@ -128,17 +128,19 @@ Running `dialect sync` twice with no source changes produces byte-identical file
 ```json
 {
   "@@locale": "en",
-  "checkout.bookNow": "Book Now",
-  "@checkout.bookNow": {
-    "description": "CTA on the checkout screen.",
-    "placeholders": {}
+  "checkoutBookNow": "Book Now",
+  "@checkoutBookNow": {
+    "namespace": "checkout",
+    "description": "CTA on the checkout screen."
   },
-  "checkout.itemCount": "{count, plural, =1{1 item} other{{count} items}}",
-  "@checkout.itemCount": {
+  "checkoutItemCount": "{count, plural, =1{1 item} other{{count} items}}",
+  "@checkoutItemCount": {
+    "namespace": "checkout",
     "description": "Cart summary line.",
     "placeholders": { "count": { "type": "int" } }
   },
-  "common.cancel": "Cancel"
+  "commonCancel": "Cancel",
+  "@commonCancel": { "namespace": "common", "description": "Cancel label." }
 }
 ```
 
@@ -158,9 +160,9 @@ platforms:
 
 ```json
 {
-  "checkout.bookNow": "Book Now",
-  "checkout.itemCount": "{count, plural, =1{1 item} other{{count} items}}",
-  "common.cancel": "Cancel"
+  "checkoutBookNow": "Book Now",
+  "checkoutItemCount": "{count, plural, =1{1 item} other{{count} items}}",
+  "commonCancel": "Cancel"
 }
 ```
 
@@ -168,14 +170,14 @@ platforms:
 
 ```json
 {
-  "checkout.bookNow": "احجز الآن",
-  "checkout.itemCount":
+  "checkoutBookNow": "احجز الآن",
+  "checkoutItemCount":
     "{count, plural, =1{عنصر واحد} zero{لا توجد عناصر} one{عنصر واحد} two{عنصران} few{{count} عناصر} many{{count} عنصرًا} other{{count} عنصر}}",
-  "common.cancel": "إلغاء"
+  "commonCancel": "إلغاء"
 }
 ```
 
-Note what's gone: the `@@locale`, the `@key` metadata, and the `@checkout.itemCount` placeholders block. Those are ARB-side concerns. The backend just needs the string contract.
+Note what's gone: the `@@locale`, the `@key` metadata (including `namespace`, `description`, and `placeholders` blocks). Those are ARB-side concerns. The backend just needs the string contract.
 
 ---
 
@@ -183,7 +185,7 @@ Note what's gone: the `@@locale`, the `@key` metadata, and the `@checkout.itemCo
 
 Dialect commits to this contract; the implementer of any consuming library can rely on the shape above. Some pointers for common stacks:
 
-- **ASP.NET (C#)**: `Dialect.AspNetCore` (v1.1) implements `IStringLocalizer<T>` over `icu-json` and pulls in `Jeffijoe/messageformat.net` for ICU evaluation. Callsites use the standard `_localizer["checkout.bookNow"]` API.
+- **ASP.NET (C#)**: `Dialect.AspNetCore` (v1.1) implements `IStringLocalizer<T>` over `icu-json` and pulls in `Jeffijoe/messageformat.net` for ICU evaluation. Callsites use the standard `_localizer["checkoutBookNow"]` API.
 - **Node**: `i18next-fs-backend` reads flat-key JSON directly. Wrap lookups in `intl-messageformat` for ICU rendering.
 - **Python / Django / Flask**: `babel.support.Translations.fromfile` for the JSON, then `babel.messages.mofile` or a small ICU wrapper for plurals.
 - **Go**: `go-i18n` consumes flat-key JSON natively and parses ICU plurals out of the box.

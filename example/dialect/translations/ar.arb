@@ -1,37 +1,63 @@
 {
   "@@locale": "ar",
 
-  "checkout.bookNow": "احجز الآن",
-  "checkout.bookingConfirmedMessage": "تم تأكيد الحجز. تحقق من رحلاتك للاطلاع على التفاصيل.",
-  "checkout.freeCancellation": "إلغاء مجاني خلال 48 ساعة",
-  "checkout.hostedBy": "المضيف: {hostName}",
-  "checkout.itemCount": "{count, plural, =0{لا توجد عناصر} =1{عنصر واحد} zero{لا توجد عناصر} one{عنصر واحد} two{عنصران} few{{count} عناصر} many{{count} عنصرًا} other{{count} عنصر}}",
-  "checkout.nightsCount": "{count, plural, zero{لا توجد ليالٍ} one{ليلة واحدة} two{ليلتان} few{{count} ليالٍ} many{{count} ليلة} other{{count} ليلة}}",
-  "checkout.pricePerNight": "${price} لكل ليلة",
-  "checkout.termsNotice": "بإتمام الحجز فإنك توافق على قواعد المنزل وسياسة الإلغاء.",
-  "checkout.title": "التأكيد والدفع",
-  "checkout.total": "الإجمالي: ${amount}",
-  "checkout.yourTripHeader": "رحلتك",
+  "checkoutBookNow": "احجز الآن",
 
-  "common.cancel": "إلغاء",
-  "common.delete": "حذف",
-  "common.loading": "جارٍ التحميل...",
+  "checkoutBookingConfirmedMessage": "تم تأكيد الحجز. تحقق من رحلاتك للاطلاع على التفاصيل.",
 
-  "home.openSettings": "فتح الإعدادات",
-  "home.title": "رحلاتك",
+  "checkoutFreeCancellation": "إلغاء مجاني خلال 48 ساعة",
 
-  "settings.accountActionsSection": "إجراءات الحساب",
-  "settings.accountSection": "الحساب",
-  "settings.darkMode": "الوضع الداكن",
-  "settings.deleteAccount": "حذف الحساب",
-  "settings.deleteAccountConfirmBody": "سيؤدي ذلك إلى حذف حجوزاتك ورحلاتك وقوائمك كمضيف بشكل دائم. لا يمكن التراجع عن هذا الإجراء.",
-  "settings.deleteAccountConfirmTitle": "هل تريد حذف الحساب؟",
-  "settings.editProfileHint": "اضغط لتعديل ملفك الشخصي",
-  "settings.emailLabel": "البريد الإلكتروني",
-  "settings.language": "اللغة",
-  "settings.notifications": "الإشعارات",
-  "settings.notificationsDescription": "تحديثات الرحلات ورسائل المضيف وتذكيرات الحجز.",
-  "settings.preferencesSection": "التفضيلات",
-  "settings.signOut": "تسجيل الخروج",
-  "settings.title": "الإعدادات"
+  "checkoutHostedBy": "المضيف: {hostName}",
+
+  "checkoutItemCount": "{count, plural, =0{لا توجد عناصر} =1{عنصر واحد} zero{لا توجد عناصر} one{عنصر واحد} two{عنصران} few{{count} عناصر} many{{count} عنصرًا} other{{count} عنصر}}",
+
+  "checkoutNightsCount": "{count, plural, zero{لا توجد ليالٍ} one{ليلة واحدة} two{ليلتان} few{{count} ليالٍ} many{{count} ليلة} other{{count} ليلة}}",
+
+  "checkoutPricePerNight": "${price} لكل ليلة",
+
+  "checkoutTermsNotice": "بإتمام الحجز فإنك توافق على قواعد المنزل وسياسة الإلغاء.",
+
+  "checkoutTitle": "التأكيد والدفع",
+
+  "checkoutTotal": "الإجمالي: ${amount}",
+
+  "checkoutYourTripHeader": "رحلتك",
+
+  "commonCancel": "إلغاء",
+
+  "commonDelete": "حذف",
+
+  "commonLoading": "جارٍ التحميل...",
+
+  "homeOpenSettings": "فتح الإعدادات",
+
+  "homeTitle": "رحلاتك",
+
+  "settingsAccountActionsSection": "إجراءات الحساب",
+
+  "settingsAccountSection": "الحساب",
+
+  "settingsDarkMode": "الوضع الداكن",
+
+  "settingsDeleteAccount": "حذف الحساب",
+
+  "settingsDeleteAccountConfirmBody": "سيؤدي ذلك إلى حذف حجوزاتك ورحلاتك وقوائمك كمضيف بشكل دائم. لا يمكن التراجع عن هذا الإجراء.",
+
+  "settingsDeleteAccountConfirmTitle": "هل تريد حذف الحساب؟",
+
+  "settingsEditProfileHint": "اضغط لتعديل ملفك الشخصي",
+
+  "settingsEmailLabel": "البريد الإلكتروني",
+
+  "settingsLanguage": "اللغة",
+
+  "settingsNotifications": "الإشعارات",
+
+  "settingsNotificationsDescription": "تحديثات الرحلات ورسائل المضيف وتذكيرات الحجز.",
+
+  "settingsPreferencesSection": "التفضيلات",
+
+  "settingsSignOut": "تسجيل الخروج",
+
+  "settingsTitle": "الإعدادات"
 }

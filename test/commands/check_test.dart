@@ -159,6 +159,59 @@ void main() {
       );
     });
 
+    test(
+      '--strict does not promote length_ratio (needs --strict-length)',
+      () async {
+        final tmp = Directory.systemTemp.createTempSync('dialect_check_lr_');
+        addTearDown(() {
+          if (tmp.existsSync()) tmp.deleteSync(recursive: true);
+        });
+        _writeProject(
+          tmp.path,
+          sourceLocale: 'en',
+          targetLocales: ['ja'],
+          source: '''
+{
+  "@@locale": "en",
+  "checkout.confirmationMessage": "Your booking has been confirmed."
+}
+''',
+          translations: {
+            // 1 char vs 33 → way below default 0.3 floor.
+            'ja': '{ "@@locale": "ja", "checkout.confirmationMessage": "完" }',
+          },
+        );
+
+        // Soft: exits 0 (warning only).
+        expect(
+          await DialectCommandRunner().run(<String>['check', tmp.path]),
+          0,
+        );
+        // --strict alone: still exits 0 because length_ratio is exempt
+        // from blanket strict promotion.
+        expect(
+          await DialectCommandRunner().run(<String>[
+            'check',
+            '--strict',
+            tmp.path,
+          ]),
+          0,
+          reason: 'length_ratio stays a warning under bare --strict',
+        );
+        // --strict + --strict-length: exits 1.
+        expect(
+          await DialectCommandRunner().run(<String>[
+            'check',
+            '--strict',
+            '--strict-length',
+            tmp.path,
+          ]),
+          1,
+          reason: '--strict-length opts into length_ratio promotion',
+        );
+      },
+    );
+
     test('errors gracefully when run outside a project', () async {
       final tmp = Directory.systemTemp.createTempSync('dialect_no_proj_');
       addTearDown(() {

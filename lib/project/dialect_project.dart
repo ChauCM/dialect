@@ -5,6 +5,7 @@ import 'package:path/path.dart' as p;
 import '../arb/arb_file.dart';
 import '../arb/arb_parser.dart';
 import '../config/dialect_config.dart';
+import '../glossary/glossary_loader.dart';
 
 /// A loaded Dialect project: parsed `dialect.yaml` plus the source ARB
 /// and every translation ARB.
@@ -20,7 +21,8 @@ class DialectProject {
     required this.config,
     required this.source,
     required this.translations,
-  });
+    Glossary? glossary,
+  }) : glossary = glossary ?? Glossary.empty();
 
   /// Repo-relative or absolute path to the directory containing
   /// `dialect/`. `path.join(root, 'dialect', …)` is the rule.
@@ -36,6 +38,10 @@ class DialectProject {
   /// target locale. Keys may be missing if a translation file doesn't
   /// exist yet — the check rule [`missing_keys`] surfaces that.
   final Map<String, ArbFile> translations;
+
+  /// Parsed `dialect/glossary.yaml`. Empty (but non-null) when the file
+  /// is missing — the glossary check rule no-ops in that case.
+  final Glossary glossary;
 
   /// Load the project rooted at [root] (the directory that contains
   /// `dialect/`). Throws [FileSystemException] if the directory layout
@@ -93,11 +99,14 @@ class DialectProject {
       );
     }
 
+    final glossary = Glossary.loadFromProjectRoot(root);
+
     return DialectProject(
       root: root,
       config: config,
       source: source,
       translations: translations,
+      glossary: glossary,
     );
   }
 }

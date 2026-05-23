@@ -22,11 +22,21 @@ class CheckReport {
   /// - Soft mode (`strict: false`): warnings printed, errors printed,
   ///   exit code reflects errors only.
   /// - Strict mode (`strict: true`): warnings get promoted to errors,
-  ///   exit code reflects both.
-  static int write(CheckResult result, {required bool strict, IOSink? out}) {
+  ///   exit code reflects both. `length_ratio` warnings stay warnings
+  ///   unless `strictLength: true` is also passed — length ratios are
+  ///   noisy enough that a blanket CI gate produces too many false
+  ///   positives.
+  static int write(
+    CheckResult result, {
+    required bool strict,
+    bool strictLength = false,
+    IOSink? out,
+  }) {
     final sink = out ?? stdout;
 
-    final failing = result.failing(strict: strict).toList();
+    final failing = result
+        .failing(strict: strict, strictLength: strictLength)
+        .toList();
 
     if (result.issues.isEmpty) {
       sink.writeln('✓ dialect check: no issues');
@@ -45,11 +55,11 @@ class CheckReport {
 
     for (final file in byFile.keys.toList()..sort()) {
       for (final issue in byFile[file]!) {
-        _writeIssue(sink, issue, strict: strict);
+        _writeIssue(sink, issue, strict: strict, strictLength: strictLength);
       }
     }
     for (final issue in noFile) {
-      _writeIssue(sink, issue, strict: strict);
+      _writeIssue(sink, issue, strict: strict, strictLength: strictLength);
     }
 
     final errorCount = failing.length;
@@ -82,11 +92,22 @@ class CheckReport {
     return errorCount > 0 ? 1 : 0;
   }
 
-  static void _writeIssue(IOSink sink, Issue issue, {required bool strict}) {
+  static void _writeIssue(
+    IOSink sink,
+    Issue issue, {
+    required bool strict,
+    required bool strictLength,
+  }) {
     final loc = issue.line != null
         ? '${issue.file}:${issue.line}'
         : issue.file ?? '<project>';
-    final effective = strict ? IssueSeverity.error : issue.severity;
+    final promoted =
+        strict &&
+        issue.severity == IssueSeverity.warning &&
+        (issue.ruleName != 'length_ratio' || strictLength);
+    final effective = (issue.severity == IssueSeverity.error || promoted)
+        ? IssueSeverity.error
+        : IssueSeverity.warning;
     final tag = effective == IssueSeverity.error ? '✗' : '⚠';
     sink.writeln('$tag $loc  ${issue.ruleName}  ${issue.message}');
     if (issue.hint != null) {

@@ -1,5 +1,6 @@
 import 'package:dialect/arb/arb_file.dart';
 import 'package:dialect/config/dialect_config.dart';
+import 'package:dialect/glossary/glossary_loader.dart';
 import 'package:dialect/project/dialect_project.dart';
 
 /// Build an in-memory [DialectProject] for unit testing rules without
@@ -10,6 +11,8 @@ DialectProject project({
   required List<String> targetLocales,
   required ArbFile source,
   Map<String, ArbFile> translations = const {},
+  Glossary? glossary,
+  Map<String, Object?> extras = const {},
   String root = '<test>',
 }) {
   return DialectProject(
@@ -17,9 +20,11 @@ DialectProject project({
     config: DialectConfig(
       sourceLocale: sourceLocale,
       targetLocales: targetLocales,
+      extras: extras,
     ),
     source: source,
     translations: translations,
+    glossary: glossary,
   );
 }
 

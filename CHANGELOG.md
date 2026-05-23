@@ -6,6 +6,48 @@ work-in-progress milestones from `planning/mvp-plan.md`.
 ## [Unreleased]
 
 ### Added
+- **M8.** `dialect check` semantic heuristics — four new rules layered on
+  the M4 `Rule` interface, runner, and report.
+  - **`source_equality`** (warning) — flags translations identical to
+    the source. Filters short / symbol-only values; honors
+    `@key.locked: true` as the explicit dismissal.
+  - **`length_ratio`** (warning) — flags translations whose char count
+    is outside `[min, max] * source.length`. Default band
+    `[0.3, 2.5]`. Per-locale overrides via `length_ratio:` in
+    `dialect.yaml`. Source values shorter than 8 chars skip the
+    check (too noisy on "OK"/"Hi"-class strings). Reports the actual
+    ratio in the message.
+  - **`untranslated_english`** (warning) — flags translation values
+    containing a conservative whole-word English function word
+    (`the/and/with/this/that/you`) that isn't carried over from the
+    source. Bias: under-flag rather than wrongly flag.
+  - **`glossary`** (warning) — for every source value containing a
+    glossary `term:` (whole-word, case-insensitive), each target
+    translation must contain a recognizable prefix of the canonical
+    `translations.<locale>`. Suffix-inflection tolerance baked in
+    (drops last 2 chars when len > 4, so "Reservar" matches
+    "Reserva"/"Reservamos"). Honors `@key.glossary_exempt: true` on
+    the source entry — the documented escape hatch for non-literal
+    uses.
+- **`lib/glossary/glossary_loader.dart`** — typed loader for
+  `dialect/glossary.yaml`. Empty when file absent (no error); throws
+  `FormatException` on malformed YAML. Loaded once at
+  `DialectProject.load` and exposed as `project.glossary` so every
+  rule reads from the same in-memory snapshot.
+- **`--strict-length` plumbing.** `report.dart` learned to honor the
+  flag independently of `--strict`: under bare `--strict`, every
+  warning promotes to error except `length_ratio` (length ratios are
+  noisy enough that a blanket CI gate produces too many false
+  positives). `--strict-length` is the explicit opt-in.
+- **CHANGELOG note for example/ polish.** Running `dialect check` on
+  the canonical `example/` now surfaces 7 real semantic warnings
+  (source-equality on `Total` / `Email` carryovers; glossary misses
+  in ar; length-ratio edge cases for ja/ar). Soft mode exits 0, so
+  the integration test stays green — but these are real signals the
+  demo polish should address (lock the legit carryovers, widen the
+  per-locale length bands).
+
+### Added
 - **M7.** `dialect import` + `dialect describe` — AI-pointer flow.
   - `dialect import --from <fmt> --path <path>` writes
     `.dialect/import-plan.md`. `dialect describe [--path <path>]`

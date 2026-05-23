@@ -1,5 +1,9 @@
 import '../project/dialect_project.dart';
 import 'rule.dart';
+import 'semantic/glossary.dart';
+import 'semantic/length_ratio.dart';
+import 'semantic/source_equality.dart';
+import 'semantic/untranslated_english.dart';
 import 'structural/empty_values.dart';
 import 'structural/missing_keys.dart';
 import 'structural/orphan_metadata.dart';
@@ -19,9 +23,16 @@ const List<Rule> structuralRules = [
   OrphanMetadataRule(),
 ];
 
-/// M8 will populate this list. Empty in M4 so M4's check command has
-/// the same shape as M8's.
-const List<Rule> semanticRules = <Rule>[];
+/// Semantic rules (M8). Order shapes report grouping when two rules
+/// hit the same entry — structural-first, then semantic, so the user
+/// sees "your placeholder is broken" before "your translation looks
+/// untranslated."
+const List<Rule> semanticRules = <Rule>[
+  SourceEqualityRule(),
+  LengthRatioRule(),
+  UntranslatedEnglishRule(),
+  GlossaryRule(),
+];
 
 class CheckResult {
   CheckResult({required this.issues});
@@ -31,14 +42,28 @@ class CheckResult {
   final List<Issue> issues;
 
   /// Issues that map to a non-zero exit code under [strict].
-  Iterable<Issue> failing({required bool strict}) sync* {
+  ///
+  /// `length_ratio` warnings are special: `--strict` alone doesn't
+  /// promote them (length ratios are heuristic and noisy in CI).
+  /// `--strict-length` is the explicit opt-in. The check command
+  /// passes the flags through; the report formatter mirrors this so
+  /// the display tag matches the exit-code logic.
+  Iterable<Issue> failing({
+    required bool strict,
+    required bool strictLength,
+  }) sync* {
     for (final issue in issues) {
       if (issue.severity == IssueSeverity.error) {
         yield issue;
-      } else if (strict) {
+      } else if (strict && _promotedUnderStrict(issue, strictLength)) {
         yield issue;
       }
     }
+  }
+
+  static bool _promotedUnderStrict(Issue issue, bool strictLength) {
+    if (issue.ruleName == 'length_ratio') return strictLength;
+    return true;
   }
 }
 

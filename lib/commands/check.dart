@@ -18,7 +18,9 @@ class CheckCommand extends Command<int> {
       ..addFlag(
         'strict-length',
         negatable: false,
-        help: 'Also promote length-ratio warnings to errors (M8).',
+        help:
+            'Also promote length-ratio warnings to errors. Independent of '
+            '--strict because length-ratio is noisier than other heuristics.',
       )
       ..addFlag(
         'fix',
@@ -83,10 +85,18 @@ class CheckCommand extends Command<int> {
       // resolve (missing keys, placeholder mismatches, etc.).
       final reloaded = DialectProject.load(root);
       final result = runChecks(reloaded);
-      return CheckReport.write(result, strict: results.flag('strict'));
+      return CheckReport.write(
+        result,
+        strict: results.flag('strict'),
+        strictLength: results.flag('strict-length'),
+      );
     }
 
     final result = runChecks(project);
-    return CheckReport.write(result, strict: results.flag('strict'));
+    return CheckReport.write(
+      result,
+      strict: results.flag('strict'),
+      strictLength: results.flag('strict-length'),
+    );
   }
 }

@@ -10,14 +10,18 @@ Developers who code with AI already have the perfect translator sitting right ne
 
 ```
 Dev (typing in AI chat session):
-      "I just built the checkout screen. Please do translation with @dialect.yaml"
+      "I just built the checkout screen. Translate the new strings
+       into Spanish, Japanese, and Arabic."
 
-AI:   *reads @dialect.yaml — picks up target locales, platforms,
-       glossary, and the full convention*
-      *reads checkout_screen.dart*
-      *adds 12 keys to en.arb with contextual @descriptions*
-      *translates to every configured target locale*
-      *runs `dialect check --fix` and `dialect sync`*
+AI:   *reads AGENTS.md → this project uses Dialect*
+      *reads dialect/dialect.yaml + dialect/glossary.yaml — convention,
+       target locales, glossary loaded*
+      *reads lib/screens/checkout_screen.dart for context*
+      *adds 12 keys to dialect/source/en.arb with @key.namespace and
+       contextual @descriptions*
+      *replaces hardcoded Text(...) with AppLocalizations.of(context)!*
+      *translates to es, ja, ar respecting the glossary*
+      *runs `dialect check --fix && dialect sync && dialect check`*
       ✓ Flutter ARB updated
       ✓ iOS .strings updated
       ✓ Android strings.xml updated
@@ -25,7 +29,7 @@ AI:   *reads @dialect.yaml — picks up target locales, platforms,
       ✓ All 3 locales complete, placeholders match
 ```
 
-One source. Every platform. 60 seconds.
+One chat message. One source. Every platform. 60 seconds.
 
 ---
 

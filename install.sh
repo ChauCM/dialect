@@ -12,8 +12,9 @@
 #   DIALECT_VERSION=v1.0.0 curl -fsSL https://dialect.tools/install.sh | sh
 #   DIALECT_INSTALL_DIR=/usr/local/bin curl -fsSL https://dialect.tools/install.sh | sudo sh
 #
-# Supported targets: macos-arm64, macos-x64, linux-x64, linux-arm64.
-# Windows users: see the README for the .exe download or `scoop install`.
+# Supported targets: macos-arm64, linux-x64.
+# Intel-Mac, Linux-arm64, Windows users: see the README — build from source
+# or grab the .exe / .tar.gz from the GitHub release page.
 
 set -eu
 
@@ -46,6 +47,17 @@ case "$uname_m" in
 esac
 
 target="${os}-${arch}"
+
+# Only macos-arm64 and linux-x64 are published. Others build from source.
+case "$target" in
+  macos-arm64|linux-x64) ;;
+  *)
+    echo "dialect: no prebuilt binary published for $target." >&2
+    echo "         Build from source:" >&2
+    echo "           https://github.com/$REPO#build-from-source" >&2
+    exit 1
+    ;;
+esac
 
 # ---------------------------------------------------------------------------
 # Resolve version

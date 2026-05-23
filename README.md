@@ -51,7 +51,22 @@ dart pub global activate dialect
     args: check --strict
 ```
 
-Pre-built binaries for `macos-arm64`, `macos-x64`, `linux-x64`, `linux-arm64`, and `windows-x64` are attached to every [release](https://github.com/ChauCM/dialect/releases). Verify the SHA-256 against the release's `SHA256SUMS` asset.
+Pre-built binaries for `macos-arm64`, `linux-x64`, and `windows-x64` are attached to every [release](https://github.com/ChauCM/dialect/releases). Verify the SHA-256 against the release's `SHA256SUMS` asset. Intel Macs and Linux ARM64 — [build from source](#build-from-source).
+
+### Build from source
+
+If you're on Intel macOS or Linux ARM64, the Homebrew formula and `install.sh` will refuse to install — there are no prebuilt binaries for those targets. Build the binary yourself; the Dart toolchain ships with Flutter so any Flutter dev already has what they need.
+
+```bash
+git clone https://github.com/ChauCM/dialect.git
+cd dialect
+dart pub get
+cd dashboard && pnpm install && pnpm build && cd ..
+dart run tool/build_dashboard.dart --no-pnpm
+dart compile exe bin/dialect.dart -o build/dialect
+sudo install -m 0755 build/dialect /usr/local/bin/dialect
+dialect --version
+```
 
 ---
 

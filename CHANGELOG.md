@@ -4,6 +4,24 @@ All notable changes to the Dialect CLI are tracked here.
 
 ## [Unreleased]
 
+## 1.0.2
+
+Release-pipeline-only patch. The 1.0.0 and 1.0.1 tags never produced a
+GitHub release: `linux-arm64` builds failed because Flutter doesn't
+ship an arm64 Linux SDK that `subosito/flutter-action` can resolve, and
+`macos-13` (Intel) runners stayed queued for 30–45 minutes. This release
+drops both platforms from the matrix.
+
+- **Pre-built binaries** now ship for `macos-arm64`, `linux-x64`, and
+  `windows-x64` only. Intel macOS and Linux ARM64 users build from
+  source — see the new "Build from source" section in the README.
+- **Homebrew formula** errors clearly (`brew install` → `odie`) on
+  Intel Mac and Linux ARM64 instead of pretending to install.
+- **`install.sh`** refuses unsupported targets with a pointer to the
+  build-from-source instructions instead of 404'ing on a missing
+  artifact mid-script.
+- No CLI, convention, or wire-format changes.
+
 ## 1.0.1
 
 Documentation + tooling polish on top of 1.0.0. No CLI behavior

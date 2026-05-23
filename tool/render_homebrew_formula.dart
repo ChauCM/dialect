@@ -24,8 +24,6 @@ const String _repo = 'ChauCM/dialect';
 
 const Map<String, String> _archiveByPlaceholder = {
   'MACOS_ARM64_SHA256': 'dialect-macos-arm64.tar.gz',
-  'MACOS_X64_SHA256': 'dialect-macos-x64.tar.gz',
-  'LINUX_ARM64_SHA256': 'dialect-linux-arm64.tar.gz',
   'LINUX_X64_SHA256': 'dialect-linux-x64.tar.gz',
 };
 

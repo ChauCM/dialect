@@ -21,21 +21,18 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # macos-x64 and linux-arm64 are deliberately not built:
+        # - macos-13 runners have hours-long queues and are deprecated by GitHub.
+        # - subosito/flutter-action cannot resolve Flutter for Linux arm64
+        #   ("Unable to determine Flutter version … architecture: arm64").
+        # Intel-Mac / Linux-arm64 users build from source.
         include:
           - os: macos-latest        # Apple Silicon
             target: macos-arm64
             archive_ext: tar.gz
             exe_suffix: ''
-          - os: macos-13            # Last Intel runner
-            target: macos-x64
-            archive_ext: tar.gz
-            exe_suffix: ''
           - os: ubuntu-latest
             target: linux-x64
-            archive_ext: tar.gz
-            exe_suffix: ''
-          - os: ubuntu-24.04-arm
-            target: linux-arm64
             archive_ext: tar.gz
             exe_suffix: ''
           - os: windows-latest

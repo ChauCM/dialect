@@ -1,6 +1,6 @@
 name: dialect
 description: AI-native localization toolkit for Flutter-led teams.
-version: 1.0.1
+version: 1.0.2
 repository: https://github.com/ChauCM/dialect
 
 environment:

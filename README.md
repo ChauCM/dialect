@@ -181,6 +181,35 @@ jobs:
 
 ---
 
+## Backend support
+
+Dialect emits JSON for backends in two flavors — pick one per platform in `dialect.yaml`:
+
+- **[`icu-json`](dialect/spec/icu-json.md)** — preserves `{count, plural, …}` for stacks with an ICU runtime.
+- **[`flat-json`](dialect/spec/flat-json.md)** — plain `{ "key": "value" }` for stacks without ICU.
+
+```yaml
+platforms:
+  backend:
+    output: api/locales/
+    format: icu-json        # or flat-json
+    namespaces: [common, backend]
+```
+
+Then point your stack's existing localization library at the output directory — callsites don't change:
+
+| Stack | Integration | Surface |
+|---|---|---|
+| **ASP.NET (C#)** | `dotnet add package Dialect.AspNetCore` — implements `IStringLocalizer<T>` over Dialect's `icu-json`. Keeps `_localizer["checkout.bookNow"]` everywhere. | First-class NuGet (v1.1) |
+| **Node / Express / Fastify** | `i18next-fs-backend` reads flat-key JSON natively. ICU plurals via `intl-messageformat`. | ~10-line snippet |
+| **Django** | Drop-in JSON catalog adapter; keep `_("checkout.bookNow")` callsites. | ~15-line snippet |
+| **Flask / FastAPI** | Tiny middleware loads `<locale>.json` from `Accept-Language`; standard template-helper interface. | ~15-line snippet |
+| **Go** | `go-i18n` consumes flat-key JSON natively and parses ICU plurals out of the box. | One-line config |
+
+For each stack, [`docs/platforms-backend.md`](docs/platforms-backend.md) carries the full snippet — registration, ICU plural wiring, fallback behavior, and (for ASP.NET) the hand-rolled `JsonStringLocalizer` template if you can't add a dependency. The principle is **[Backend Humility](planning/competitive-strategy.md#backend-humility)**: your backend keeps its native localization interface, Dialect just swaps the backing store.
+
+---
+
 ## Layout & command reference
 
 ```

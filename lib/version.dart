@@ -3,4 +3,4 @@
 // Source of truth: `pubspec.yaml` `version:` field.
 
 /// The Dialect CLI version.
-const String dialectVersion = '0.1.0-dev';
+const String dialectVersion = '1.0.0-rc.1';

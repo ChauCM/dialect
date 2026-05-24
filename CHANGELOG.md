@@ -5,6 +5,13 @@ work-in-progress milestones from `planning/mvp-plan.md`.
 
 ## [Unreleased]
 
+## 1.0.0-rc.1
+
+First release candidate — feature-complete, dogfooding through the
+distribution pipeline (M11). No source changes since `0.1.0-dev`
+beyond the version bump; this RC's job is to exercise
+`.github/workflows/release.yml` end-to-end before tagging `v1.0.0`.
+
 ## 0.1.0-dev
 
 The pre-1.0 development line. Every milestone from M0 (convention

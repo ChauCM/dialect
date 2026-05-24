@@ -1,0 +1,209 @@
+name: Release
+
+# Tag-driven: pushing `v1.0.0`, `v1.0.0-rc.1`, etc. fans out into a
+# matrix build of pre-compiled binaries, attaches them to the GitHub
+# release, publishes to pub.dev, and opens a bump-PR against
+# ChauCM/homebrew-tap.
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write   # create GitHub release
+  id-token: write   # OIDC for pub.dev publishing
+
+jobs:
+  build:
+    name: build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest        # Apple Silicon
+            target: macos-arm64
+            archive_ext: tar.gz
+            exe_suffix: ''
+          - os: macos-13            # Last Intel runner
+            target: macos-x64
+            archive_ext: tar.gz
+            exe_suffix: ''
+          - os: ubuntu-latest
+            target: linux-x64
+            archive_ext: tar.gz
+            exe_suffix: ''
+          - os: ubuntu-24.04-arm
+            target: linux-arm64
+            archive_ext: tar.gz
+            exe_suffix: ''
+          - os: windows-latest
+            target: windows-x64
+            archive_ext: zip
+            exe_suffix: '.exe'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: dashboard/pnpm-lock.yaml
+
+      - name: dart pub get
+        run: dart pub get
+
+      - name: pnpm install + build (dashboard)
+        working-directory: dashboard
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm build
+
+      - name: Bake dashboard into embedded_assets.g.dart
+        run: dart run tool/build_dashboard.dart --no-pnpm
+
+      - name: Compile binary
+        shell: bash
+        run: |
+          mkdir -p build
+          dart compile exe bin/dialect.dart \
+            -o "build/dialect${{ matrix.exe_suffix }}"
+
+      - name: Package archive (unix)
+        if: matrix.archive_ext == 'tar.gz'
+        shell: bash
+        run: |
+          cd build
+          tar -czf "dialect-${{ matrix.target }}.tar.gz" dialect
+          shasum -a 256 "dialect-${{ matrix.target }}.tar.gz" \
+            > "dialect-${{ matrix.target }}.tar.gz.sha256"
+
+      - name: Package archive (windows)
+        if: matrix.archive_ext == 'zip'
+        shell: pwsh
+        run: |
+          cd build
+          Compress-Archive -Path dialect.exe `
+            -DestinationPath "dialect-${{ matrix.target }}.zip"
+          (Get-FileHash -Algorithm SHA256 "dialect-${{ matrix.target }}.zip").Hash.ToLower() `
+            + "  dialect-${{ matrix.target }}.zip" `
+            | Out-File -Encoding ASCII "dialect-${{ matrix.target }}.zip.sha256"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dialect-${{ matrix.target }}
+          path: |
+            build/dialect-${{ matrix.target }}.${{ matrix.archive_ext }}
+            build/dialect-${{ matrix.target }}.${{ matrix.archive_ext }}.sha256
+          if-no-files-found: error
+
+  release:
+    name: GitHub release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Compose SHA256SUMS
+        run: |
+          mkdir -p release
+          cp artifacts/dialect-*.tar.gz artifacts/dialect-*.zip release/ 2>/dev/null || true
+          cat artifacts/dialect-*.sha256 > release/SHA256SUMS
+          cat release/SHA256SUMS
+          # Copy the installer script alongside the release so
+          # `https://github.com/.../releases/download/<tag>/install.sh`
+          # works as a stable fallback URL if dialect.tools is down.
+          cp install.sh release/
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            release/dialect-*.tar.gz
+            release/dialect-*.zip
+            release/SHA256SUMS
+            release/install.sh
+
+  pub:
+    name: Publish to pub.dev
+    needs: build
+    runs-on: ubuntu-latest
+    # pub.dev publishing uses OIDC. The repo must be registered as a
+    # publisher at https://pub.dev/packages/dialect (manual step,
+    # walked through in CHANGELOG / docs).
+    environment: pub.dev
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+      - run: dart pub get
+      - name: Publish
+        run: dart pub publish --force
+
+  homebrew:
+    name: Bump Homebrew tap
+    needs: release
+    runs-on: ubuntu-latest
+    # Requires a personal access token in repo secrets named
+    # HOMEBREW_TAP_GITHUB_TOKEN with `repo` scope on ChauCM/homebrew-tap.
+    if: ${{ ! contains(github.ref_name, '-') }}   # skip prereleases (rc.*, beta.*)
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+
+      - name: Wait for release assets to be downloadable
+        run: |
+          # Brief sleep — softprops/action-gh-release returns before
+          # downloads propagate. 15s is more than enough.
+          sleep 15
+
+      - name: Render formula
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: |
+          dart run tool/render_homebrew_formula.dart \
+            --version "$VERSION" \
+            > /tmp/dialect.rb
+          cat /tmp/dialect.rb
+
+      - name: Open PR against ChauCM/homebrew-tap
+        env:
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+        run: |
+          set -eu
+          VERSION="${{ github.ref_name }}"
+          git config --global user.name "dialect-release-bot"
+          git config --global user.email "noreply@dialect.tools"
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/ChauCM/homebrew-tap.git" tap
+          mkdir -p tap/Formula
+          cp /tmp/dialect.rb tap/Formula/dialect.rb
+          cd tap
+          branch="bump-dialect-${VERSION}"
+          git checkout -b "$branch"
+          git add Formula/dialect.rb
+          git commit -m "Dialect ${VERSION}"
+          git push -u origin "$branch"
+          gh pr create \
+            --repo ChauCM/homebrew-tap \
+            --base main \
+            --head "$branch" \
+            --title "Dialect ${VERSION}" \
+            --body "Auto-generated by ChauCM/dialect@${VERSION}."

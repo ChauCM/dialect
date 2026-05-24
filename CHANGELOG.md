@@ -5,7 +5,61 @@ work-in-progress milestones from `planning/mvp-plan.md`.
 
 ## [Unreleased]
 
+## 0.1.0-dev
+
+The pre-1.0 development line. Every milestone from M0 (convention
+validation) through M11 (distribution pipeline) is rolled into
+`0.1.0-dev` until the `v1.0.0` tag promotes the spec contracts to
+stable. Detailed per-milestone notes follow.
+
 ### Added
+- **M11.** Distribution pipeline — four channels (Docker + Scoop
+  dropped per scope decision).
+  - **`install.sh`** at the repo root. POSIX `sh`, OS/arch detection
+    (`macos-arm64`, `macos-x64`, `linux-x64`, `linux-arm64`), version
+    pinning via `DIALECT_VERSION`, install location via
+    `DIALECT_INSTALL_DIR` (default `~/.local/bin`), SHA-256 checksum
+    verification against the release's `SHA256SUMS` asset. Refuses
+    Windows with a pointer to the GitHub release zip. Hosted at
+    `https://dialect.tools/install.sh`; also published as a release
+    asset so the GitHub URL is a stable fallback.
+  - **`.github/workflows/release.yml`** — tag-driven (`v*`) matrix
+    build across `macos-latest` (arm64), `macos-13` (Intel x64),
+    `ubuntu-latest` (x64), `ubuntu-24.04-arm` (arm64), and
+    `windows-latest`. Each runner: pnpm install + build the
+    dashboard, `tool/build_dashboard.dart --no-pnpm` to bake the
+    SPA, `dart compile exe`, tarball/zip + SHA-256.
+    Aggregate job composes `SHA256SUMS`, attaches every artifact +
+    `install.sh` to the GitHub release. Separate `pub` job
+    publishes to pub.dev via OIDC (no secret token). Separate
+    `homebrew` job renders the formula from
+    `homebrew/dialect.rb.tmpl` and opens a bump-PR against
+    `ChauCM/homebrew-tap` (skipped for prereleases —
+    `v1.0.0-rc.1` etc. don't ship to Homebrew).
+  - **`action.yml`** at the repo root — composite GitHub Action.
+    `uses: ChauCM/dialect@v1` with `args:` (default
+    `check --strict`), `version:` (default `latest`), and
+    `working-directory:` inputs. Installs via the same
+    `install.sh` script so the action and the curl-installer share
+    one code path.
+  - **`homebrew/dialect.rb.tmpl`** — formula template; per-target
+    `{{*_SHA256}}` and `{{VERSION}}` placeholders. Branched by
+    `Hardware::CPU.arm?` so a single formula covers macOS arm64,
+    macOS x64, linux arm64, linux x64.
+  - **`tool/render_homebrew_formula.dart`** — reads the template,
+    fetches `SHA256SUMS` from the GitHub release for a tag, fills
+    in every placeholder, aborts non-zero if any per-target hash
+    is missing (so the bump-PR can't ship a half-rendered formula).
+  - **`LICENSE.md` → `LICENSE`** per pub.dev convention.
+  - **`CHANGELOG.md`** gains a top-level `0.1.0-dev` heading per
+    pub.dev convention so the next `dart pub publish --dry-run` is
+    down from 4 warnings to the single deferred `docs/ → doc/`
+    rename note.
+  - **Dropped from the original 6-channel plan**: Docker (no
+    expected adoption signal yet; can re-add post-v1.0 if users
+    ask) and Scoop (Windows package manager; Windows users get
+    binaries via the GitHub release zip until there's signal).
+
 - **M10.** Svelte dashboard SPA + `dialect serve`.
   - **Dart Shelf server** at `lib/server/server.dart` binds
     `localhost:4077` by default (configurable via `--port`/`--host`).

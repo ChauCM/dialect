@@ -1,0 +1,41 @@
+name: Dialect
+description: Install and run the Dialect CLI in a GitHub Actions workflow.
+author: Chau Cao
+branding:
+  icon: globe
+  color: purple
+
+inputs:
+  args:
+    description: 'Arguments passed to `dialect`. Default runs the structural + semantic checks in strict mode.'
+    required: false
+    default: 'check --strict'
+  version:
+    description: 'Dialect version to install (e.g. `v1.0.0`). Default `latest` resolves the most recent stable release.'
+    required: false
+    default: 'latest'
+  working-directory:
+    description: 'Directory to run dialect from. Defaults to the workflow''s checkout root.'
+    required: false
+    default: '.'
+
+runs:
+  using: composite
+  steps:
+    - name: Install dialect
+      shell: bash
+      run: |
+        set -eu
+        if [ "${{ inputs.version }}" = "latest" ]; then
+          unset DIALECT_VERSION || true
+        else
+          export DIALECT_VERSION="${{ inputs.version }}"
+        fi
+        export DIALECT_INSTALL_DIR="$RUNNER_TEMP/dialect-bin"
+        curl -fsSL https://dialect.tools/install.sh | sh
+        echo "$DIALECT_INSTALL_DIR" >> "$GITHUB_PATH"
+
+    - name: Run dialect
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: dialect ${{ inputs.args }}

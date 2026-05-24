@@ -1,0 +1,44 @@
+# Homebrew formula template for Dialect.
+#
+# Rendered by `tool/render_homebrew_formula.dart` at release time:
+# fetches the GitHub release for the given tag, extracts each
+# platform's SHA-256 from SHA256SUMS, and substitutes the {{TOKEN}}
+# placeholders below. The rendered file lands at
+# `ChauCM/homebrew-tap`'s `Formula/dialect.rb` via the release
+# workflow's bump-PR step.
+#
+# Edit this template (not the rendered output) for layout changes.
+class Dialect < Formula
+  desc "AI-native localization toolkit for Flutter-led teams"
+  homepage "https://dialect.tools"
+  version "{{VERSION}}"
+  license "MIT"
+
+  on_macos do
+    if Hardware::CPU.arm?
+      url "https://github.com/ChauCM/dialect/releases/download/v#{version}/dialect-macos-arm64.tar.gz"
+      sha256 "{{MACOS_ARM64_SHA256}}"
+    else
+      url "https://github.com/ChauCM/dialect/releases/download/v#{version}/dialect-macos-x64.tar.gz"
+      sha256 "{{MACOS_X64_SHA256}}"
+    end
+  end
+
+  on_linux do
+    if Hardware::CPU.arm?
+      url "https://github.com/ChauCM/dialect/releases/download/v#{version}/dialect-linux-arm64.tar.gz"
+      sha256 "{{LINUX_ARM64_SHA256}}"
+    else
+      url "https://github.com/ChauCM/dialect/releases/download/v#{version}/dialect-linux-x64.tar.gz"
+      sha256 "{{LINUX_X64_SHA256}}"
+    end
+  end
+
+  def install
+    bin.install "dialect"
+  end
+
+  test do
+    assert_match "dialect", shell_output("#{bin}/dialect --version")
+  end
+end

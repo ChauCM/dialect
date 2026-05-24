@@ -2,65 +2,13 @@
 
 **AI-native localization for developers who already code with AI.**
 
+Lokalise starts at **$120/seat/month** and ramps fast. For small and medium teams, most of what Lokalise charges for — organizing translation files, AI-assisted translation, keeping mobile + backend in sync — is something your existing AI editor already does for free. Dialect is the convention + CLI that makes "just ask the AI" the actual workflow.
+
+If you're shipping Flutter + a backend, paying for Lokalise to do work your AI can do, and don't need translation memory / multi-step review chains / RBAC / SOC2 audit trails — **swap Lokalise for Dialect.** It's open source, free, and runs on whatever AI editor you already have open.
+
+> v1.0.0-rc.1 — first release candidate, exercising the full release pipeline. See the [MVP plan](planning/mvp-plan.md) for what's shipped vs planned.
+
 ---
-
-Developers who code with AI already have the perfect translator sitting right next to them. When you just built a checkout screen in Flutter, your AI co-pilot has full context — the widget tree, the button semantics, the user flow. You can just say *"add the labels on this screen to translations and translate them into Spanish, Japanese, and Arabic"* and it should just work.
-
-**Dialect** is a convention-first, open-source localization toolkit. One canonical source syncs translations across mobile apps and backend services. No dashboard. No context switching. Just code.
-
-> **Project Status:** Dialect is in active design. The architecture below is the target — see the [MVP Plan](planning/mvp-plan.md) for what's shipped vs planned.
-
-```
-Dev:  "I just built the checkout screen. Extract all strings,
-       add them to dialect/source/en.arb, translate to Spanish and Japanese."
-
-AI:   *reads checkout_screen.dart*
-      *adds 12 keys to en.arb with contextual @descriptions*
-      *creates/updates es.arb and ja.arb*
-
-Dev:  dialect sync && dialect check
-      ✓ Flutter ARB updated
-      ✓ iOS .strings updated
-      ✓ Android strings.xml updated
-      ✓ Go backend JSON updated
-      ✓ All 3 locales complete, placeholders match
-```
-
-One source. Every platform. 60 seconds.
-
-## Should you use Dialect?
-
-**Yes, if you:**
-
-- Ship Flutter + (iOS native / Android native / a backend) and want one source of truth for translations across platforms
-- Already use AI for coding and want to use it for translation too
-- Are frustrated by the "add key → context-switch to dashboard → wait → resync to backend" loop
-- Don't have a dedicated localization-ops team
-- Run a Flutter + ASP.NET / Node / Python / Go stack and want cross-platform sync without forcing your BE team to rewrite their localization layer
-
-**No, if you:**
-
-- Have a dedicated localization-ops team with linguistic QA — use [Lokalise](https://lokalise.com) or [Crowdin](https://crowdin.com)
-- Operate in a regulated industry needing translation audit trails, approval chains, or RBAC — use a TMS with compliance features
-- Don't allow AI tools in your stack — Dialect's value compounds with AI access; without it, you're using a strict subset
-- Ship **React-web-only** — [i18next](https://www.i18next.com) already solves your problem; Dialect would add indirection without proportional value
-- Are a solo dev shipping one app in two languages — Dialect is overkill for day-one needs; adopt it when you hit scale
-
-Dialect is **opinionated and focused.** It's a Lokalise replacement for Flutter-led teams who code with AI — not an all-in-one TMS for every localization use case.
-
-## What Dialect Is
-
-1. **A spec** — An opinionated convention for organizing ARB/JSON translation files that any AI produces consistently.
-2. **A CLI** — `dialect sync` converts canonical ARB files into platform-specific formats. `dialect check` validates correctness — structurally *and* semantically (catches identical-to-source translations, glossary violations, untranslated English fragments).
-3. **A review UI** — `dialect serve` gives non-developers a local web interface to review and edit translations.
-4. **OTA support** — Optional over-the-air translation updates via a simple protocol that works with any backend.
-5. **AI-readable convention** — `dialect.yaml` includes convention comments that teach any AI assistant the Dialect standard. Editor-agnostic — works with Cursor, Copilot, Windsurf, Claude Code, and anything else.
-
-## What Dialect Is Not
-
-- Not a SaaS platform you depend on.
-- Not a replacement for i18next or any runtime i18n library — Dialect generates the files your runtime consumes.
-- Not a replacement for your AI assistant — it's the standard your AI assistant follows.
 
 ## Install
 
@@ -82,12 +30,164 @@ dart pub global activate dialect
 
 Pre-built binaries for `macos-arm64`, `macos-x64`, `linux-x64`, `linux-arm64`, and `windows-x64` are attached to every [release](https://github.com/ChauCM/dialect/releases). Verify the SHA-256 against the release's `SHA256SUMS` asset.
 
-## Quick Start
+---
+
+## A real day-1 walkthrough
+
+You have a Flutter app with hardcoded English strings (or a `lib/l10n/intl_en.arb`). You want Spanish, Japanese, and Arabic in production. Here's the actual session:
+
+### 1. Scaffold the convention
+
+```bash
+$ cd my-flutter-app
+$ dialect init
+
+✓ Wrote dialect/
+    dialect.yaml         # config + AI-readable convention
+    source/en.arb        # your canonical strings (empty)
+    translations/        # one file per target locale
+    glossary.yaml        # project terms (Book → Reservar, Trip → Viaje, ...)
+  Appended .dialect/ to .gitignore
+
+  Next:
+    1. Edit dialect/dialect.yaml — set `target_locales: [es, ja, ar]`
+    2. Run `dialect import --from arb --path lib/l10n/`
+```
+
+Open `dialect/dialect.yaml`. It's heavily commented — those comments are the spec your AI agent reads. You don't have to write the AI prompt yourself; the YAML *is* the prompt.
+
+```yaml
+source_locale: en
+target_locales: [es, ja, ar]       # ← you edit this
+
+platforms:
+  flutter:
+    output: lib/l10n/
+    format: arb
+    namespaces: [common, checkout, home, settings]
+
+project:
+  name: "My Travel App"
+```
+
+### 2. Tell your AI to import your existing strings
+
+```bash
+$ dialect import --from arb --path lib/l10n/
+
+Wrote import plan to .dialect/import-plan.md
+  Next: open your AI tool (Claude Code, Cursor, Cline, Copilot, …)
+  and ask it to follow the plan:
+    "Read .dialect/import-plan.md and execute the steps."
+```
+
+In your AI editor:
+
+```
+> Read .dialect/import-plan.md and execute the steps.
+
+  Reading dialect/dialect.yaml and dialect/glossary.yaml...
+  Reading lib/l10n/intl_en.arb (24 strings).
+  Reading callsites under lib/ for @description context...
+
+  Renaming keys to namespace.camelCase:
+    "book_now"            → "checkout.bookNow"
+    "cancel_button"       → "common.cancel"
+    "trip_subtitle"       → "checkout.yourTripHeader"
+    ... 21 more
+
+  ✓ 24 entries written to dialect/source/en.arb with @description
+  ✓ Translated to es/ja/ar respecting glossary.yaml
+  ✓ Wrote dialect/translations/{es,ja,ar}.arb
+
+Done. Run `dialect check --fix` to normalize, then `dialect sync`.
+```
+
+Dialect itself never opens your `.dart` files — the AI does. Editor-agnostic; works the same in Cursor, Claude Code, Cline, Copilot.
+
+### 3. Validate
+
+```bash
+$ dialect check
+
+⚠ dialect/translations/ar.arb:14  glossary  Translation for `checkout.yourTripHeader` does not appear to use the glossary term "Trip" (expected "رحلة").
+  hint: Glossary defines "Trip" → "رحلة" in `ar`. If this key uses "Trip"
+        in a non-literal sense, add `"glossary_exempt": true` to the
+        @key block in the source ARB.
+
+! dialect check: 1 warning (warnings only — exit 0 in soft mode;
+  run with --strict in CI)
+```
+
+Five structural rules + four semantic heuristics — placeholder mismatches, missing plural categories for the target locale's CLDR rules, identical-to-source translations, length-ratio outliers, glossary violations, untranslated-English fragments. Every issue has a `file:line` and a real remediation hint.
+
+### 4. Generate platform files
+
+```bash
+$ dialect sync
+
+✓ Wrote lib/l10n/app_en.arb
+✓ Wrote lib/l10n/app_es.arb
+✓ Wrote lib/l10n/app_ja.arb
+✓ Wrote lib/l10n/app_ar.arb
+```
+
+Flutter `gen_l10n` picks these up directly. iOS `.strings` / Android `strings.xml` / backend `flat-json` & `icu-json` adapters land in v1.1; the canonical spec contracts are already locked under [`dialect/spec/`](dialect/spec/).
+
+### 5. Review in the browser
+
+```bash
+$ dialect serve
+
+Dialect Review running at http://localhost:4077
+Reading from: ./dialect/
+```
+
+Open the URL. Every key, every locale, side by side with `@description` context and glossary highlighting. Inline edits save back to ARB on blur. Lock human-reviewed translations to skip them on the next `dialect translate` run.
+
+### 6. CI gate on every PR
+
+`.github/workflows/dialect.yml`:
+
+```yaml
+name: Dialect
+on: [pull_request]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ChauCM/dialect@v1
+        with:
+          args: check --strict
+```
+
+`--strict` promotes warnings to errors, so a missing placeholder, an orphan `@key` block, or a glossary violation fails the build.
+
+### 7. Coverage view
+
+```bash
+$ dialect status
+
+┌────────┬──────────┬───────┬─────┬────────┐
+│ Locale │ Coverage │ Stale │ New │ Locked │
+├────────┼──────────┼───────┼─────┼────────┤
+│ es     │    100%  │     0 │   0 │      0 │
+│ ja     │    100%  │     0 │   0 │      0 │
+│ ar     │     95.8% │     0 │   1 │      0 │
+└────────┴──────────┴───────┴─────┴────────┘
+```
+
+That's the whole product. ~10 commands, no SaaS, no seat tax.
+
+---
+
+## Layout & command reference
 
 ```
 your-project/
 ├── dialect/
-│   ├── dialect.yaml           # Config: locales, platforms
+│   ├── dialect.yaml           # Config + AI-readable convention
 │   ├── source/
 │   │   └── en.arb             # Canonical source strings (ARB format)
 │   ├── translations/
@@ -95,12 +195,14 @@ your-project/
 │   │   ├── ja.arb
 │   │   └── ...
 │   └── glossary.yaml          # Project-specific terms for consistent AI translation
+├── .dialect/                  # Gitignored. AI-pointer plan files land here.
+└── lib/l10n/                  # `dialect sync` output (Flutter convention)
 ```
 
 | Command | Description | Status |
 |---|---|---|
 | `dialect init` | Scaffold the `dialect/` directory | v1.0 |
-| `dialect import` | AI-pointer flow: import existing ARBs into Dialect convention | v1.0 |
+| `dialect import` | AI-pointer flow: import existing ARBs into the convention | v1.0 |
 | `dialect describe` | AI-pointer flow: backfill `@description` from callsites | v1.0 |
 | `dialect sync` | Generate platform-specific files from canonical ARBs | v1.0 |
 | `dialect check` | Validate completeness, correctness, and translation quality heuristics | v1.0 |
@@ -110,6 +212,8 @@ your-project/
 | `dialect publish` | Push translations for OTA delivery | v1.2 |
 | `dialect merge` | Key-aware ARB merge driver (opt-in via `dialect init --enable-merge-driver`) | v1.2 |
 | `dialect diff` | Show translation changes for PR review | v1.5 |
+
+---
 
 ## Documentation
 
@@ -132,6 +236,8 @@ These specify Dialect's versioned file formats. Backend localizer libraries (`Di
 | [`@key.source_hash`](dialect/spec/source_hash.md) | Source-value fingerprint that powers `dialect status` "stale" and the dashboard lock indicator |
 | [`.dialect/state.json`](dialect/spec/state.md) | Soft-mode acknowledgement store for the `dialect check` rules |
 
+---
+
 ## Internal Planning
 
 Design decisions, business analysis, and build roadmap are in [`planning/`](planning/):
@@ -153,6 +259,27 @@ AI-generated analysis and market deep-dives are in [`research/`](research/).
 
 - [`references/repos.md`](references/repos.md) — External repos to study for architecture decisions
 - [`spikes/`](spikes/) — Quick technical experiments to validate assumptions
+
+---
+
+## What Dialect is
+
+Five things, in order of "what you touch":
+
+1. **A convention.** An opinionated way to organize ARB files with rich `@description` / `@placeholders` / glossary metadata, plus a YAML config that doubles as an AI-readable instruction sheet. Any modern AI editor produces correct output by reading it.
+2. **A CLI.** `init` scaffolds, `import` / `describe` write structured plan files the AI follows, `check` validates structurally and semantically, `sync` generates platform files, `status` reports coverage.
+3. **A local review UI** (`dialect serve`). A Svelte SPA embedded in the binary; no `node_modules` at runtime. Side-by-side source + target, glossary highlighting, inline edit, pin/lock.
+4. **Versioned on-disk contracts** ([`dialect/spec/`](dialect/spec/)). Backend localizer libraries target the spec, not the CLI version — breaking changes require a major bump.
+5. **OTA support** (v1.3+). Optional over-the-air translation updates via a simple protocol that works with any backend.
+
+## Who Dialect is for
+
+Small and medium teams currently paying for Lokalise / Crowdin / Phrase, who:
+
+- Ship **Flutter + a backend** (ASP.NET, Node, Python, Go) and need cross-platform sync.
+- **Already code with AI** — Claude Code, Cursor, Cline, Copilot — and want the same workflow for translation.
+- Don't have a dedicated localization-ops team, RBAC requirements, or audit-trail compliance needs.
+- Would rather own their translation files in git than rent a dashboard.
 
 ## License
 

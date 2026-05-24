@@ -5,12 +5,22 @@ work-in-progress milestones from `planning/mvp-plan.md`.
 
 ## [Unreleased]
 
+## 1.0.0-rc.2
+
+Re-cut of `1.0.0-rc.1` with the Flutter-setup fix applied to
+`.github/workflows/release.yml` (same fix CI got — `dart pub get`
+recurses into `example/` which needs Flutter, not bare Dart).
+Bundles the README rewrite that leads with the Lokalise-replacement
+positioning and a real day-1 walkthrough instead of a summary.
+
 ## 1.0.0-rc.1
 
 First release candidate — feature-complete, dogfooding through the
 distribution pipeline (M11). No source changes since `0.1.0-dev`
 beyond the version bump; this RC's job is to exercise
 `.github/workflows/release.yml` end-to-end before tagging `v1.0.0`.
+**Failed at the `dart pub get` step on every matrix runner**
+(Flutter not installed); fixed in rc.2.
 
 ## 0.1.0-dev
 

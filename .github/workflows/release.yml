@@ -45,9 +45,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: dart-lang/setup-dart@v1
+      # Use Flutter (which ships its own Dart) so `pub get` can resolve
+      # the example/ Flutter app alongside the root package. Matches the
+      # CI workflow.
+      - uses: subosito/flutter-action@v2
         with:
-          sdk: stable
+          channel: stable
+          cache: true
 
       - uses: pnpm/action-setup@v4
         with:
@@ -148,9 +152,12 @@ jobs:
     environment: pub.dev
     steps:
       - uses: actions/checkout@v4
-      - uses: dart-lang/setup-dart@v1
+      # Same reason as the build job: pub get walks into example/
+      # which needs Flutter.
+      - uses: subosito/flutter-action@v2
         with:
-          sdk: stable
+          channel: stable
+          cache: true
       - run: dart pub get
       - name: Publish
         run: dart pub publish --force
@@ -165,9 +172,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: dart-lang/setup-dart@v1
+      # Flutter ships Dart; same rationale as the build job.
+      - uses: subosito/flutter-action@v2
         with:
-          sdk: stable
+          channel: stable
+          cache: true
 
       - name: Wait for release assets to be downloadable
         run: |

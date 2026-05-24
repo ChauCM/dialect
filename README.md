@@ -10,15 +10,14 @@ Developers who code with AI already have the perfect translator sitting right ne
 
 ```
 Dev (typing in AI chat session):
-      "I just built the checkout screen. Extract all strings,
-       add them to dialect/source/en.arb, translate to Spanish and Japanese."
+      "I just built the checkout screen. Please do translation with @dialect.yaml"
 
-AI:   *reads checkout_screen.dart*
+AI:   *reads @dialect.yaml — picks up target locales, platforms,
+       glossary, and the full convention*
+      *reads checkout_screen.dart*
       *adds 12 keys to en.arb with contextual @descriptions*
-      *creates/updates es.arb and ja.arb*
-
-Dev (in terminal):
-      $ dialect sync && dialect check
+      *translates to every configured target locale*
+      *runs `dialect check --fix` and `dialect sync`*
       ✓ Flutter ARB updated
       ✓ iOS .strings updated
       ✓ Android strings.xml updated
@@ -72,15 +71,15 @@ In your AI editor (Claude Code, Cursor, Cline, Copilot…):
 
 ```
 Dev (typing in AI chat session):
-      Follow dialect/dialect.yaml. Extract strings from my checkout
-      screen, add them to dialect/source/en.arb, and translate them
-      into all configured target locales.
+      "I just built the checkout screen. Please do translation with @dialect.yaml"
 
 AI:   Reading dialect/dialect.yaml + dialect/glossary.yaml...
+      Convention loaded — target locales, platforms, glossary, key style.
+
       Reading lib/screens/checkout_screen.dart for context.
 
       ✓ 12 entries written to dialect/source/en.arb with @description
-      ✓ Translated to es/ja/ar respecting glossary.yaml
+      ✓ Translated to every configured target locale respecting glossary.yaml
       ✓ Wrote dialect/translations/{es,ja,ar}.arb
       ✓ Ran `dialect check --fix` — normalized formatting
       ✓ Ran `dialect sync` — platform files updated under lib/l10n/
@@ -89,9 +88,9 @@ AI:   Reading dialect/dialect.yaml + dialect/glossary.yaml...
       Done. 12 keys added, 3 locales complete, all platforms in sync.
 ```
 
-That's it. The AI runs the deterministic CLI work (`dialect check --fix`, `dialect sync`) itself; you only see the result. The plan files Dialect emits (`.dialect/*-plan.md`) tell the agent exactly which CLI commands to chain.
+That's it. **Everything the AI needs — target locales, platforms, glossary, the full convention — is in `dialect.yaml`.** The dev says what to translate; the convention says how. The AI then runs the deterministic CLI work (`dialect check --fix`, `dialect sync`) itself; you only see the result. The plan files Dialect emits (`.dialect/*-plan.md`) tell the agent exactly which CLI commands to chain.
 
-Subsequent edits are the same: add UI strings → say "translate my new strings following dialect.yaml" → done.
+Subsequent edits are the same shape: ship UI changes → "@dialect.yaml — translate the new strings" → done.
 
 ### Advanced — manual touchpoints
 

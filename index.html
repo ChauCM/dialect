@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dialect — AI-native localization</title>
+    <meta name="description" content="Open-source localization toolkit for developers who code with AI. One canonical source, synced across Flutter, iOS, Android, and backend." />
+    <meta property="og:title" content="Dialect — AI-native localization" />
+    <meta property="og:description" content="One canonical source, every platform, driven by your AI editor." />
+    <meta property="og:url" content="https://dialect.tools" />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%234f46e5'/%3E%3Ctext x='16' y='22' text-anchor='middle' font-family='ui-monospace,Menlo,monospace' font-size='18' fill='white' font-weight='600'%3ED%3C/text%3E%3C/svg%3E" />
+    <style>
+      :root {
+        --bg: #fafafa;
+        --fg: #18181b;
+        --fg-muted: #52525b;
+        --fg-subtle: #71717a;
+        --border: #e4e4e7;
+        --accent: #4f46e5;
+        --accent-soft: #eef2ff;
+        --code-bg: #18181b;
+        --code-fg: #e4e4e7;
+        --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--fg);
+        font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      .container {
+        max-width: 720px;
+        margin: 0 auto;
+        padding: 64px 24px;
+      }
+      .badge {
+        display: inline-block;
+        background: var(--accent-soft);
+        color: var(--accent);
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      h1 {
+        font-size: 40px;
+        line-height: 1.15;
+        font-weight: 700;
+        margin: 16px 0 8px;
+        letter-spacing: -0.02em;
+      }
+      .tagline {
+        font-size: 18px;
+        color: var(--fg-muted);
+        margin: 0 0 32px;
+      }
+      pre {
+        background: var(--code-bg);
+        color: var(--code-fg);
+        font-family: var(--mono);
+        font-size: 14px;
+        padding: 16px 20px;
+        border-radius: 8px;
+        overflow-x: auto;
+        line-height: 1.6;
+      }
+      pre code { background: transparent; padding: 0; color: inherit; }
+      code {
+        font-family: var(--mono);
+        font-size: 0.9em;
+        background: var(--accent-soft);
+        color: var(--accent);
+        padding: 1px 6px;
+        border-radius: 4px;
+      }
+      h2 {
+        font-size: 14px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--fg-subtle);
+        margin: 48px 0 12px;
+      }
+      ul.commands {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+      }
+      ul.commands li {
+        display: flex;
+        align-items: baseline;
+        gap: 16px;
+        padding: 8px 0;
+        border-bottom: 1px solid var(--border);
+      }
+      ul.commands li:last-child { border-bottom: none; }
+      ul.commands code {
+        flex: 0 0 auto;
+        min-width: 140px;
+      }
+      ul.commands span {
+        color: var(--fg-muted);
+        font-size: 14px;
+      }
+      a { color: var(--accent); }
+      a:hover { text-decoration: underline; }
+      footer {
+        margin-top: 64px;
+        padding-top: 24px;
+        border-top: 1px solid var(--border);
+        color: var(--fg-subtle);
+        font-size: 13px;
+      }
+      footer a { color: var(--fg-muted); }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <span class="badge">In active design · pre-1.0</span>
+      <h1>Dialect</h1>
+      <p class="tagline">
+        AI-native localization for developers who already code with AI.
+        One canonical source, every platform.
+      </p>
+
+      <h2>Install</h2>
+      <pre><code>curl -fsSL https://dialect.tools/install.sh | sh</code></pre>
+
+      <h2>Or pick your package manager</h2>
+      <pre><code>brew install ChauCM/tap/dialect       # macOS / Linux
+dart pub global activate dialect      # any platform with Dart</code></pre>
+
+      <h2>GitHub Actions</h2>
+      <pre><code>- uses: ChauCM/dialect@v1
+  with:
+    args: check --strict</code></pre>
+
+      <h2>What it does</h2>
+      <ul class="commands">
+        <li><code>dialect init</code><span>Scaffold the convention</span></li>
+        <li><code>dialect import</code><span>Convert existing strings into the convention (AI-pointer)</span></li>
+        <li><code>dialect describe</code><span>Backfill @description from callsites (AI-pointer)</span></li>
+        <li><code>dialect sync</code><span>Generate Flutter / iOS / Android / backend files from canonical ARB</span></li>
+        <li><code>dialect check</code><span>Structural + semantic validation</span></li>
+        <li><code>dialect status</code><span>Per-locale coverage table</span></li>
+        <li><code>dialect serve</code><span>Local review dashboard at localhost:4077</span></li>
+      </ul>
+
+      <footer>
+        <p>
+          <a href="https://github.com/ChauCM/dialect">GitHub</a> ·
+          <a href="https://github.com/ChauCM/dialect/blob/main/README.md">README</a> ·
+          <a href="https://github.com/ChauCM/dialect/blob/main/docs/architecture.md">Architecture</a> ·
+          <a href="https://github.com/ChauCM/dialect/blob/main/planning/mvp-plan.md">MVP plan</a>
+        </p>
+        <p>MIT licensed · built by <a href="https://github.com/ChauCM">Chau Cao</a></p>
+      </footer>
+    </div>
+  </body>
+</html>

@@ -96,15 +96,24 @@ You **must not**:
 
 ---
 
-## 5. When you're done
+## 5. Finalize (run these yourself)
 
-1. Run `dialect check --fix` from the project root. It will normalize
-   formatting and flag any structural problems with file:line hints.
-2. Fix anything `dialect check` reports as an error. Warnings are
-   fine to leave for the developer to triage.
-3. Report a brief summary: how many keys you added, which namespaces
-   you used, anything you deliberately skipped, anything you flagged
-   for the developer's attention.
+You're driving the CLI from here. Run these in order from the project
+root and only stop if one reports an error:
 
-Do **not** run `dialect translate` or `dialect sync` — those are the
-developer's calls.
+1. `dialect check --fix` — normalize formatting (sort keys, place
+   `@key` blocks, strip translation-side metadata) and surface
+   structural problems with file:line hints.
+2. `dialect sync` — generate the platform-specific output files
+   declared under `platforms:` in `dialect.yaml`. Idempotent;
+   re-running with no changes touches nothing.
+3. `dialect check` — confirm a clean pass after the sync.
+
+Then report a brief summary: how many keys you added, which
+namespaces you used, the platform files written, anything you
+deliberately skipped, and anything that needs the developer's
+attention. If `dialect check` shows warnings (not errors), leave
+them for the developer to triage rather than guessing.
+
+The deterministic CLI work — formatting, sync, validation — is yours
+to run; the developer's job is review, not orchestration.

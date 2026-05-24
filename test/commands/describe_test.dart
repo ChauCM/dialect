@@ -35,6 +35,10 @@ void main() {
       expect(body, contains('Source locale: `en`'));
       // The hard guardrail must survive substitution.
       expect(body, contains('Do not modify source code under `lib/`'));
+      // The AI must be told to drive the CLI itself — sync + check
+      // chain at the end is the 2-step UX promise.
+      expect(body, contains('`dialect check --fix`'));
+      expect(body, contains('`dialect sync`'));
     });
 
     test('omitting --path falls back to a clear placeholder', () async {

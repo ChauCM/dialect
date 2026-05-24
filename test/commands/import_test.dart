@@ -42,6 +42,10 @@ void main() {
       expect(body, contains('Source locale: `en`'));
       // Anti-goal guardrail is in the plan verbatim.
       expect(body, contains('You may **read** them to derive descriptions'));
+      // The AI must be told to drive the CLI itself — sync + check
+      // chain at the end is the 2-step UX promise.
+      expect(body, contains('`dialect check --fix`'));
+      expect(body, contains('`dialect sync`'));
     });
 
     test('overwrites an existing plan file', () async {

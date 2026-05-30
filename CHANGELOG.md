@@ -4,6 +4,14 @@ All notable changes to the Dialect CLI are tracked here.
 
 ## [Unreleased]
 
+### Changed
+
+- **`dialect init` scaffolding surfaces the new capabilities.** The
+  generated `dialect.yaml` now includes a commented `backend:` platform
+  example (icu-json vs flat-json explained) and a `dialect translate` tip;
+  the `AGENTS.md` section mentions `translate` and cross-stack sync — so
+  backend JSON output and the translate flow are discoverable after init.
+
 ### Added — backend sync (the cross-stack core)
 
 - **`icu-json` and `flat-json` adapters.** `dialect sync` now emits backend

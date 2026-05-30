@@ -52,8 +52,10 @@ Response stringsListHandler(DialectProject project, Request req) {
 ///   `dialect/source/<locale>.arb` for the source locale) is rewritten
 ///   in canonical form via `ArbWriter`. The file mtime updates only
 ///   when the desired bytes differ from disk (M5 idempotency contract).
-/// - Locking writes `@key.source_hash` from the current source value
-///   per `dialect/spec/source_hash.md`. Unlocking clears it.
+/// - Every save stamps `@key.source_hash` from the current source value
+///   (the editor worked against the current source) per
+///   `dialect/spec/source_hash.md`. Unlocking is the exception: it
+///   preserves the existing hash so staleness survives a lock→unlock.
 /// - For the source locale, the request may set `glossary_exempt` on
 ///   the `@key` block.
 Future<Response> stringsPutHandler(
@@ -207,43 +209,45 @@ ArbFile _applyTranslationUpdate(
   );
 }
 
+/// Apply a dashboard save to a translation entry. A save always rewrites
+/// the value; how `source_hash` (provenance) and `locked` change depends on
+/// the requested `locked` field:
+///
+/// - **`locked == true` (lock)** — approve against the current source:
+///   stamp `source_hash` = current, set `locked: true`.
+/// - **`locked == null` (plain value edit)** — the translator edited the
+///   value against the current source, so stamp `source_hash` = current and
+///   preserve the existing lock flag. This is what refreshes a stale value
+///   the moment it's fixed in the dashboard.
+/// - **`locked == false` (unlock)** — remove approval but **preserve the
+///   existing `source_hash`**, so a translation that was locked against an
+///   old source stays flagged stale after unlocking (unlocking is not a
+///   claim that the value is current). If there was no hash, no block.
 ArbEntry _applyToEntry(
   ArbEntry existing,
   String value,
   bool? locked,
   String sourceValue,
 ) {
-  if (locked == null) {
-    return existing.copyWith(value: value);
-  }
-  final currentMeta = existing.metadata ?? ArbMetadata();
-  if (locked) {
-    final nextMeta = currentMeta.copyWith(
-      locked: true,
-      sourceHash: computeSourceHash(sourceValue),
+  if (locked == false) {
+    final keptHash = existing.metadata?.sourceHash;
+    if (keptHash == null) {
+      return ArbEntry(key: existing.key, value: value);
+    }
+    return existing.copyWith(
+      value: value,
+      metadata: ArbMetadata(locked: false, sourceHash: keptHash),
     );
-    return existing.copyWith(value: value, metadata: nextMeta);
   }
-  final unlocked = currentMeta.copyWith(locked: false, sourceHash: null);
-  // Drop the metadata block entirely when nothing useful remains. The
-  // convention is "translation ARBs are key/value-only" (see
-  // dialect.yaml header) — keeping an empty `@key: {}` block would be
-  // noise. ArbEntry.copyWith can't clear `metadata` to null (passing
-  // null means "leave it alone"), so construct directly when clearing.
-  if (_isMetadataEffectivelyEmpty(unlocked)) {
-    return ArbEntry(key: existing.key, value: value);
-  }
-  return existing.copyWith(value: value, metadata: unlocked);
-}
 
-bool _isMetadataEffectivelyEmpty(ArbMetadata m) {
-  return m.description == null &&
-      m.context == null &&
-      (m.placeholders == null || m.placeholders!.isEmpty) &&
-      !m.locked &&
-      !m.glossaryExempt &&
-      m.sourceHash == null &&
-      m.extras.isEmpty;
+  final nextLocked = locked ?? (existing.metadata?.locked ?? false);
+  return existing.copyWith(
+    value: value,
+    metadata: ArbMetadata(
+      locked: nextLocked,
+      sourceHash: computeSourceHash(sourceValue),
+    ),
+  );
 }
 
 String _arbPath(

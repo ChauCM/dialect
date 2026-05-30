@@ -46,10 +46,10 @@ Map<String, Object?> stringsJson(DialectProject project, String locale) {
     final translated = translationByKey[src.key];
     final meta = translated?.metadata;
     final currentHash = computeSourceHash(src.value);
-    final stale =
-        meta?.locked == true &&
-        meta?.sourceHash != null &&
-        meta?.sourceHash != currentHash;
+    // Stale for any tracked translation (locked or unlocked) whose stored
+    // hash no longer matches the current source — matches isStaleEntry /
+    // the stale_translation check rule.
+    final stale = meta?.sourceHash != null && meta?.sourceHash != currentHash;
     entries.add({
       'key': src.key,
       'namespace': src.namespace,

@@ -107,14 +107,46 @@ void main() {
       expect(body, contains('"source_hash": "67be79359de4aa3f"'));
     });
 
-    test('PUT with locked=false drops empty @key blocks entirely', () async {
-      // Regression: an unlock should leave the file looking like a
-      // freshly-translated entry with no metadata at all — not an
-      // orphan `@key: {}` block.
+    test(
+      'PUT with locked=false drops approval but preserves provenance',
+      () async {
+        // Unlocking removes the lock flag but keeps source_hash, so a
+        // translation locked against an old source stays flagged stale after
+        // unlocking — unlocking is not a claim that the value is current.
+        final root = _scratchProject(
+          translations: {
+            'es.arb':
+                '{"@@locale":"es","checkout.bookNow":"Reservar","@checkout.bookNow":{"locked":true,"source_hash":"deadbeefdeadbeef"}}',
+          },
+        );
+        addTearDown(() => _cleanup(root));
+
+        await buildHandler(root)(
+          _put(
+            '/api/strings/checkout.bookNow',
+            body: {'locale': 'es', 'value': 'Reservar', 'locked': false},
+          ),
+        );
+        final body = File(
+          p.join(root, 'dialect', 'translations', 'es.arb'),
+        ).readAsStringSync();
+        expect(body.contains('"locked"'), isFalse, reason: 'approval removed');
+        expect(
+          body.contains('"source_hash": "deadbeefdeadbeef"'),
+          isTrue,
+          reason: 'provenance preserved so staleness survives unlock',
+        );
+      },
+    );
+
+    test('PUT plain value edit stamps a fresh source_hash', () async {
+      // A translator fixing a value in the dashboard is translating against
+      // the current source — the save records that provenance, so a stale
+      // value becomes fresh the moment it's edited.
       final root = _scratchProject(
         translations: {
           'es.arb':
-              '{"@@locale":"es","checkout.bookNow":"Reservar","@checkout.bookNow":{"locked":true,"source_hash":"67be79359de4aa3f"}}',
+              '{"@@locale":"es","checkout.bookNow":"old","@checkout.bookNow":{"source_hash":"deadbeefdeadbeef"}}',
         },
       );
       addTearDown(() => _cleanup(root));
@@ -122,37 +154,15 @@ void main() {
       await buildHandler(root)(
         _put(
           '/api/strings/checkout.bookNow',
-          body: {'locale': 'es', 'value': 'Reservar', 'locked': false},
+          body: {'locale': 'es', 'value': 'Reservar ahora'},
         ),
       );
       final body = File(
         p.join(root, 'dialect', 'translations', 'es.arb'),
       ).readAsStringSync();
-      expect(body.contains('@checkout.bookNow'), isFalse);
-      expect(body.contains('{}'), isFalse);
-    });
-
-    test('PUT with locked=false clears source_hash', () async {
-      final root = _scratchProject(
-        translations: {
-          'es.arb':
-              '{"@@locale":"es","checkout.bookNow":"Reservar","@checkout.bookNow":{"locked":true,"source_hash":"67be79359de4aa3f"}}',
-        },
-      );
-      addTearDown(() => _cleanup(root));
-
-      final res = await buildHandler(root)(
-        _put(
-          '/api/strings/checkout.bookNow',
-          body: {'locale': 'es', 'value': 'Reservar', 'locked': false},
-        ),
-      );
-      expect(res.statusCode, 200);
-      final body = File(
-        p.join(root, 'dialect', 'translations', 'es.arb'),
-      ).readAsStringSync();
-      expect(body.contains('source_hash'), isFalse);
-      expect(body.contains('"locked"'), isFalse);
+      // SHA-256("Book Now")[0:16] = 67be79359de4aa3f per source_hash spec.
+      expect(body, contains('"source_hash": "67be79359de4aa3f"'));
+      expect(body.contains('deadbeefdeadbeef'), isFalse);
     });
 
     test('PUT rejects malformed bodies with 400', () async {

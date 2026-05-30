@@ -21,9 +21,10 @@
 > are still open.
 
 - **Backend adapters land:** `icu-json` and `flat-json` formats fully implemented (specs already locked in v1.0). ✅ *Done — `dialect sync` emits `<locale>.json`; `flat-json` collapses ICU to the `other` branch and prints a lossy-event hint.*
-- **`Dialect.AspNetCore` NuGet** v1.1 with `AddDialectLocalization` — `IStringLocalizer<T>` over `icu-json`
+- **Backend consumption is documented snippets, not packages.** Every stack (ASP.NET, Django, Flask/FastAPI, Node, Go) consumes `icu-json` via a small lossless snippet — see [`platforms-backend.md`](platforms-backend.md). The ASP.NET `JsonStringLocalizer` keeps `IStringLocalizer<T>` callsites unchanged in ~30 lines.
+- **`Dialect.AspNetCore` NuGet — nice-to-have, not release-blocking.** A polished package that wraps the documented `JsonStringLocalizer` behind `dotnet add package` + `AddDialectLocalization(...)`. Pure install ergonomics; the snippet is already complete, so this ships later if demand justifies it. (Same for a `BundleUrl`-at-startup option in v1.2.)
 - **`dialect serve` auto-resync** — dashboard edits trigger sync automatically, push diff over websocket
-- **Sync CLI ergonomics:** `--dry-run`, `--platform <name>`, `--watch`, end-of-run summary with lossy-event count
+- **Sync CLI ergonomics:** `--dry-run`, `--platform <name>` ✅ *done*; `--watch` and an end-of-run lossy-event summary still open
 - **Scope cut:** `apple-strings` and `android-xml` adapters are **dropped from the roadmap**. The actual Flutter ICP doesn't maintain iOS/Android native string files as separate dev surfaces; Flutter's own build generates iOS/Android-compatible output. For edge cases (method channel callbacks, launch screens, native plugins), document the gap and link to Flutter's `gen-l10n` for the in-Flutter approach.
 
 ## v1.2 — Bundle format + `dialect publish`
@@ -31,7 +32,7 @@
 - **Bundle format spec** at [`dialect/spec/bundle.md`](../dialect/spec/) — manifest.json + per-locale JSON files, immutable content-hashed versions
 - **`dialect publish <env>`** — builds bundle and uploads to a user-configured target. Ship two targets: `local` (filesystem) and `s3` (S3-compatible, covers R2/MinIO/Cloudflare R2). Same protocol Cloud will use.
 - **`dialect pull`** — companion command that fetches the latest bundle and writes into `dialect/translations/`. Used in CI deploy scripts.
-- **`Dialect.AspNetCore`** v1.2 adds `BundleUrl` config — service reads manifest + locale JSONs at app startup, with `wwwroot/locales` fallback. No background poller — `dialect pull` + redeploy is the live-update mechanism.
+- **`BundleUrl`-at-startup** (via the nice-to-have `Dialect.AspNetCore` package, or a documented snippet) — read manifest + locale JSONs at app startup, with `wwwroot/locales` fallback. No background poller — `dialect pull` + redeploy is the live-update mechanism.
 - Snippet docs for Node / Go / Python / Django — same "fetch on startup, optional `dialect pull` in deploy script" pattern.
 
 ## v1.3 — Dialect Cloud MVP

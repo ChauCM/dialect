@@ -4,14 +4,14 @@ This file briefs Claude Code (and any other AI agent) on the Dialect project so 
 
 > **Status:** v1.0 shipping locally; v1.1 → v1.3 plan reshaped 2026-05-25. The CLI + convention + distribution are production. The current direction (per `docs/roadmap.md`):
 > - **v1.1** — Backend sync lands (`icu-json`, `flat-json` adapters), `dialect serve` auto-resyncs, sync CLI ergonomics (`--dry-run`, `--platform`, `--watch`). **iOS/Android native adapters dropped from the roadmap** — Flutter handles those via its own build; document the gap. See `docs/roadmap.md`.
-> - **v1.2** — Bundle format spec + `dialect publish` / `dialect pull` to user-managed buckets (S3 / R2 / git / local). `Dialect.AspNetCore` reads bundle URLs at startup. **No background poller** — `dialect pull` + redeploy is the live-update mechanism.
+> - **v1.2** — Bundle format spec + `dialect publish` / `dialect pull` to user-managed buckets (S3 / R2 / git / local). Backends read bundle URLs at startup via a documented snippet (the nice-to-have `Dialect.AspNetCore` package would add a typed option). **No background poller** — `dialect pull` + redeploy is the live-update mechanism.
 > - **v1.3** — **Dialect Cloud MVP** at dialect.tools. Cloud-first; self-host is a deliberate second-class port that ships in v1.4. See `docs/cloud.md` for the public framing.
 
 ---
 
 ## 1. What Dialect is (in one paragraph)
 
-Dialect is an **AI-native localization toolkit** for Flutter-led teams. It is a CLI (`dialect init`, `dialect sync`, `dialect check`, `dialect serve`, …), a convention (an opinionated way of organizing ARB files with rich metadata), and a small set of integration packages (`Dialect.AspNetCore` NuGet today; `dialect-server` + Cloud at dialect.tools in v1.3). The killer feature is **cross-stack sync from one canonical source**: a Flutter dev (with their AI agent) adds a key, the AI generates translations in the same turn, and one command syncs both the Flutter app's ARBs and the backend's JSON across every locale. It is positioned as a **Lokalise replacement for Flutter-led teams who code with AI** — not an all-in-one TMS. iOS/Android native string files are out of v1 scope (Flutter handles native targets via its own build).
+Dialect is an **AI-native localization toolkit** for Flutter-led teams. It is a CLI (`dialect init`, `dialect sync`, `dialect check`, `dialect serve`, …), a convention (an opinionated way of organizing ARB files with rich metadata), and a small set of integration docs/packages (documented backend snippets including an ASP.NET `JsonStringLocalizer`; a `Dialect.AspNetCore` NuGet is a planned nice-to-have, not release-blocking; `dialect-server` + Cloud at dialect.tools in v1.3). The killer feature is **cross-stack sync from one canonical source**: a Flutter dev (with their AI agent) adds a key, the AI generates translations in the same turn, and one command syncs both the Flutter app's ARBs and the backend's JSON across every locale. It is positioned as a **Lokalise replacement for Flutter-led teams who code with AI** — not an all-in-one TMS. iOS/Android native string files are out of v1 scope (Flutter handles native targets via its own build).
 
 ---
 
@@ -52,7 +52,7 @@ The convenience escape hatch is `dialect translate --auto --provider {anthropic|
 
 We do **not** ship lossy format adapters (`.resx`, `.po`) when a lossless localizer-library path exists. Dialect outputs JSON (`flat-json` or `icu-json`). Per-stack support is:
 
-- **ASP.NET** — a real NuGet package `Dialect.AspNetCore` exposing `services.AddDialectLocalization("wwwroot/locales")`. Implements `IStringLocalizer<T>` over Dialect's `icu-json`. Callsites unchanged.
+- **ASP.NET** — a documented ~30-line `JsonStringLocalizer` snippet implementing `IStringLocalizer<T>` over Dialect's `icu-json`. Callsites unchanged. A `Dialect.AspNetCore` NuGet that wraps this same snippet behind `services.AddDialectLocalization("wwwroot/locales")` is a **planned nice-to-have**, not a release requirement — the snippet is complete and lossless on its own.
 - **Django / Flask / FastAPI / Node / Go** — documented snippet (~10–15 lines), no Dialect-maintained package. Existing libraries (`i18next-fs-backend`, `go-i18n`) already consume Dialect's JSON natively.
 
 A BE engineer adopting Dialect should never have to abandon their stack's localization interface.
@@ -112,7 +112,7 @@ Cloud is **not** a git proxy. There is no Dialect-owned GitHub App writing PRs b
 | CLI | **Dart** | `dart compile exe` → ~8 MB self-contained binary. Backend engineers never need the Dart SDK; they install pre-built binaries. |
 | Review UI / dashboard | **Svelte 5** (runes) + Vite 8, pnpm-managed | Embedded as static assets in the CLI binary via `tool/build_dashboard.dart`. Served by a Dart Shelf server on `localhost:4077`. No `npm install` for end users. |
 | OTA Flutter package (`dialect_ota`) | **Dart** | v1.3+. Thin wrapper around `http` + `shared_preferences` + custom `LocalizationsDelegate`. |
-| ASP.NET integration | **C# (`net8.0`)** NuGet package `Dialect.AspNetCore` | v1.1. First-class real package. Other backend stacks stay as snippets. v1.2 adds `BundleUrl` config — fetch on startup, no background poller. |
+| ASP.NET integration | **C# (`net8.0`)** — documented `JsonStringLocalizer` snippet | Snippet ships today (in `platforms-backend.md`). A `Dialect.AspNetCore` NuGet wrapping it is a **nice-to-have**, not release-blocking. All backend stacks are snippets against the `icu-json` contract. |
 | LLM client (for `--auto` mode) | Hand-rolled HTTP over Anthropic / OpenAI REST | v1.2+. ~50 lines per provider. Don't depend on community SDKs. **Always BYO key — Dialect never resells inference.** |
 | **Cloud server (`dialect-server`)** — v1.3 | Same Dart Shelf server as `dialect serve`, extended with Postgres + auth + multi-user | Single binary. Deploys to Render (Cloud) or `docker compose` (self-host, v1.4). |
 | Database | **Postgres** | Neon (managed) for Cloud; any Postgres for self-host. Code directly against Neon — no abstracted DB driver. |
@@ -150,7 +150,7 @@ The chat-message default is **`run dialect init and follow the instructions`** �
 
 ## 6. Anti-goals (don't do these)
 
-- **Don't ship a `.resx` adapter.** ASP.NET integration is the `Dialect.AspNetCore` NuGet package consuming `icu-json`. See Backend Humility (§3.2).
+- **Don't ship a `.resx` adapter.** ASP.NET integration is the documented `JsonStringLocalizer` snippet consuming `icu-json` (a `Dialect.AspNetCore` NuGet wrapping it is a nice-to-have, not required). See Backend Humility (§3.2).
 - **Don't ship a gettext `.po` adapter.** Same reasoning.
 - **Don't ship `apple-strings` or `android-xml` adapters.** Dropped 2026-05-25 — Flutter handles iOS/Android targets via its own build; native string files are an edge case (method channels, plugins, launch screens) we document as out of v1 scope. See `docs/roadmap.md` and `.brainstorm/planning/sync-direction-2026-05.md`.
 - **Don't have Dialect parse source code.** `dialect import` / `dialect describe` write instruction files for the user's AI. Dialect never opens `.dart`, `.kt`, `.swift`, `.cs` files itself.
@@ -186,7 +186,7 @@ dialect/
 │   └── templates/              # Generated Dart consts mirroring templates/
 ├── templates/                  # Canonical text of init scaffolding + plan files
 ├── dashboard/                  # Svelte SPA for `dialect serve` (extended with auth + multi-project in v1.3)
-├── dialect_aspnetcore/         # C# NuGet package (v1.1; adds BundleUrl in v1.2)
+├── dialect_aspnetcore/         # PLANNED nice-to-have: C# NuGet wrapping the JsonStringLocalizer snippet (not release-blocking)
 ├── dialect_server/             # PLANNED v1.3: Dart server bootstrap, Postgres migrations, OAuth, REST API
 ├── dialect_ota/                # Flutter OTA package (v2.0+, deferred — see roadmap)
 ├── dialect/spec/               # Stable JSON contract docs
@@ -237,7 +237,7 @@ The `planning/`, `research/`, `references/`, and `spikes/` directories live in t
 
 Per `CONTRIBUTING.md`: Dart code follows `dart format` defaults, keep functions small and testable, and prefer explicit types over `var` for public APIs.
 
-The `Dialect.AspNetCore` NuGet package (v1.1) lives under `dialect_aspnetcore/` and is targeted at `net8.0`; it has its own `dotnet test` / `dotnet pack` lifecycle and is independent of the Dart build.
+A `Dialect.AspNetCore` NuGet package is a **planned nice-to-have** (not release-blocking): it would live under `dialect_aspnetcore/`, target `net8.0`, and wrap the documented `JsonStringLocalizer` snippet behind `dotnet add package`. For the release, ASP.NET integration is the snippet in `docs/platforms-backend.md`. If/when the package is built, it gets its own `dotnet test` / `dotnet pack` lifecycle, independent of the Dart build.
 
 ---
 

@@ -142,9 +142,9 @@ Dialect doesn't ship a library for this; it's ~20 lines of code per backend. Doc
 
 ## ASP.NET (C#)
 
-ASP.NET's standard localization story is `IStringLocalizer<T>` backed by `.resx` files. Dialect does **not** ship a `.resx` adapter — instead, we provide a first-class **`Dialect.AspNetCore` NuGet package** that implements the same `IStringLocalizer<T>` interface but reads Dialect's `icu-json` output. **Callsites don't change.** Only the registration in `Program.cs` swaps.
+ASP.NET's standard localization story is `IStringLocalizer<T>` backed by `.resx` files. Dialect does **not** ship a `.resx` adapter. The recommended path is a **~30-line `JsonStringLocalizer`** that implements the same `IStringLocalizer<T>` interface over Dialect's `icu-json` output. **Callsites don't change** — only the registration in `Program.cs` swaps, and there's no dependency to add or version to track.
 
-ASP.NET is the only backend stack Dialect ships as a real package (rather than a docs snippet) because it's the highest-leverage adoption artifact for the Flutter + ASP.NET segment — `dotnet add package Dialect.AspNetCore` is the install ergonomic BE engineers expect.
+> **A `Dialect.AspNetCore` NuGet package is a planned nice-to-have, not a release requirement.** It would wrap exactly the snippet below behind `dotnet add package Dialect.AspNetCore` + `AddDialectLocalization(...)` for teams that prefer an install over a paste. Because the snippet is already complete and lossless, the package is pure ergonomics — it ships if and when there's demand, and nothing depends on it. See [`roadmap.md`](roadmap.md).
 
 ### Format
 
@@ -153,56 +153,9 @@ dialect/source/en.arb → wwwroot/locales/en.json   (icu-json)
                        → wwwroot/locales/es.json
 ```
 
-### Recommended: `Dialect.AspNetCore` NuGet (v1.1+)
+### Recommended: `JsonStringLocalizer` template (~30 lines, ships today)
 
-```bash
-dotnet add package Dialect.AspNetCore
-```
-
-```csharp
-// Program.cs
-builder.Services.AddDialectLocalization("wwwroot/locales");
-
-// Optional configuration
-builder.Services.AddDialectLocalization(options =>
-{
-    options.LocalesDirectory = "wwwroot/locales";
-    options.DefaultCulture = "en";
-    options.FallbackBehavior = FallbackBehavior.ReturnKey;
-});
-
-// v1.2: fetch bundle from a published URL at startup
-builder.Services.AddDialectLocalization(options =>
-{
-    options.BundleUrl = "https://cdn.example.com/locales/prod/manifest.json";
-    options.Fallback  = "wwwroot/locales";   // bundled, used if URL unreachable
-});
-```
-
-The package handles `Accept-Language` culture resolution, ICU MessageFormat evaluation (plurals, gender, select), and hot-reload during development. Conforms to Dialect's versioned `icu-json` contract so the package and CLI stay in sync across upgrades. **No background poller** — see "Live updates" above for the recommended update pattern.
-
-### Callsites — unchanged
-
-```csharp
-public class CheckoutController : Controller
-{
-    private readonly IStringLocalizer<SharedResource> _localizer;
-
-    public CheckoutController(IStringLocalizer<SharedResource> localizer)
-        => _localizer = localizer;
-
-    public IActionResult Checkout()
-    {
-        ViewData["BookNow"] = _localizer["checkoutBookNow"];
-        ViewData["ItemCount"] = _localizer["checkoutItemCount", 3];
-        return View();
-    }
-}
-```
-
-### Fallback: hand-rolled `JsonStringLocalizer` template
-
-For teams that can't add a dependency (compliance, internal NuGet feed friction), the underlying template is ~30 lines. The NuGet package is a thin wrapper around this same logic.
+Drop this into your project — no dependency, lossless, preserves `IStringLocalizer<T>` callsites.
 
 ```csharp
 using System.Globalization;
@@ -550,13 +503,13 @@ platforms:
 
 | Stack | Output format | Integration | Effort |
 |---|---|---|---|
-| ASP.NET (C#) | `icu-json` | **`Dialect.AspNetCore` NuGet** (`AddDialectLocalization`) | One line |
+| ASP.NET (C#) | `icu-json` | `JsonStringLocalizer` snippet over `IStringLocalizer<T>` (NuGet is a planned nice-to-have) | ~30 lines of snippet |
 | Django (Python) | `icu-json` | JSON catalog loader, callsites unchanged | ~15 lines of snippet |
 | Flask / FastAPI (Python) | `icu-json` or `flat-json` | Dict loader or Flask-Babel adapter | ~15 lines of snippet |
 | Node.js | `icu-json` or `flat-json` | `i18next-fs-backend` config or vanilla loader | ~10 lines of snippet |
 | Go | `icu-json` | `go-i18n` bundle loader (native JSON) | ~10 lines of snippet |
 
-ASP.NET gets a real NuGet package because it's the highest-traffic adoption path for Flutter + .NET teams. Other stacks stay as snippets until demand justifies separate packages — most already have generic JSON-loading libraries (`i18next-fs-backend`, `go-i18n`) that consume Dialect's output natively.
+Every stack consumes the same versioned `icu-json` contract via a small snippet — most already have generic JSON-loading libraries (`i18next-fs-backend`, `go-i18n`) that read Dialect's output natively. A polished `Dialect.AspNetCore` NuGet (and similar per-stack packages) is a nice-to-have that can ship later if demand justifies it; none are release-blocking, and the snippets are complete and lossless on their own.
 
 The maintenance cost stays low across the board because everything targets the same versioned `icu-json` contract — no per-stack format adapters in the CLI codebase.
 

@@ -241,7 +241,7 @@ Then point your stack's existing localization library at the output directory â€
 
 | Stack | Integration | Surface |
 |---|---|---|
-| **ASP.NET (C#)** | `dotnet add package Dialect.AspNetCore` â€” implements `IStringLocalizer<T>` over Dialect's `icu-json`. Keeps `_localizer["checkoutBookNow"]` everywhere. | First-class NuGet (v1.1) |
+| **ASP.NET (C#)** | ~30-line `JsonStringLocalizer` over `IStringLocalizer<T>`, reading Dialect's `icu-json`. Keeps `_localizer["checkoutBookNow"]` everywhere, no dependency. | Snippet (a `Dialect.AspNetCore` NuGet wrapping it is a planned nice-to-have) |
 | **Node / Express / Fastify** | `i18next-fs-backend` reads flat-key JSON natively. ICU plurals via `intl-messageformat`. | ~10-line snippet |
 | **Django** | Drop-in JSON catalog adapter; keep `_("checkoutBookNow")` callsites. | ~15-line snippet |
 | **Flask / FastAPI** | Tiny middleware loads `<locale>.json` from `Accept-Language`; standard template-helper interface. | ~15-line snippet |

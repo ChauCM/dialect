@@ -8,6 +8,7 @@ import 'commands/init.dart';
 import 'commands/serve.dart';
 import 'commands/status.dart';
 import 'commands/sync.dart';
+import 'commands/translate.dart';
 import 'version.dart';
 
 class DialectCommandRunner extends CommandRunner<int> {
@@ -25,6 +26,7 @@ class DialectCommandRunner extends CommandRunner<int> {
     addCommand(SyncCommand());
     addCommand(CheckCommand());
     addCommand(StatusCommand());
+    addCommand(TranslateCommand());
     addCommand(ServeCommand());
   }
 

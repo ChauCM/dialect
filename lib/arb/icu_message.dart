@@ -69,6 +69,105 @@ class IcuMessage {
     return any;
   }
 
+  /// Collapse every ICU plural / select / selectordinal expression in
+  /// [message] to its `other` branch, recursively, and strip type/format
+  /// suffixes from typed placeholders (`{amount, number, currency}` →
+  /// `{amount}`). Literal text, simple `{placeholder}` tokens, and quoted
+  /// runs are preserved verbatim. This is the `flat-json` lowering rule —
+  /// see `dialect/spec/flat-json.md`.
+  ///
+  /// Throws [FormatException] if a plural/select/selectordinal expression
+  /// is missing its required `other` branch (ICU mandates one; `flat-json`
+  /// can't pick a branch without it). [keyHint] is woven into the error
+  /// message so callers can point at the offending key.
+  ///
+  /// Examples:
+  ///   `'{count, plural, =1{1 item} other{{count} items}}'` → `'{count} items'`.
+  ///   `'{g, select, female{She} other{They}}'` → `'They'`.
+  ///   `'Total: {amount, number, currency}'` → `'Total: {amount}'`.
+  ///   `'Hello {name}'` → `'Hello {name}'` (unchanged).
+  static String flattenToOther(String message, {String? keyHint}) {
+    final buf = StringBuffer();
+    var i = 0;
+    while (i < message.length) {
+      final ch = message.codeUnitAt(i);
+      if (ch == _apos) {
+        final end = _skipQuotedRun(message, i);
+        buf.write(message.substring(i, end));
+        i = end;
+        continue;
+      }
+      if (ch == _open) {
+        final end = _matchClose(message, i);
+        if (end == -1) {
+          // Unmatched `{` — malformed. Copy the remainder verbatim rather
+          // than silently truncating; the structural checks flag the real
+          // problem upstream.
+          buf.write(message.substring(i));
+          break;
+        }
+        buf.write(_flattenExpr(message.substring(i + 1, end), keyHint));
+        i = end + 1;
+        continue;
+      }
+      buf.writeCharCode(ch);
+      i++;
+    }
+    return buf.toString();
+  }
+
+  /// Flatten the inside of a single `{…}` expression (braces excluded).
+  static String _flattenExpr(String inside, String? keyHint) {
+    final firstComma = _findTopLevelComma(inside);
+    if (firstComma == -1) {
+      // `{name}` — simple placeholder, passes through.
+      return '{${inside.trim()}}';
+    }
+    final varName = inside.substring(0, firstComma).trim();
+    final rest = inside.substring(firstComma + 1).trimLeft();
+    final secondComma = _findTopLevelComma(rest);
+    final type = (secondComma == -1 ? rest : rest.substring(0, secondComma))
+        .trim()
+        .toLowerCase();
+
+    if (type == 'plural' || type == 'selectordinal' || type == 'select') {
+      final body = secondComma == -1 ? '' : rest.substring(secondComma + 1);
+      final branches = _parseBranches(body);
+      for (final branch in branches) {
+        if (branch.name == 'other') {
+          // Recurse: nested ICU inside the `other` branch gets the same
+          // treatment.
+          return flattenToOther(branch.body, keyHint: keyHint);
+        }
+      }
+      final where = keyHint == null ? '' : ' (key "$keyHint")';
+      throw FormatException(
+        'ICU $type expression$where is missing the required `other` '
+        'branch; flat-json cannot collapse it. Add an `other{…}` branch '
+        'to the source, or use `format: icu-json` for this platform.',
+      );
+    }
+
+    // Typed but not plural/select (number/date/time/…): strip the
+    // type/format suffix, keep the bare placeholder.
+    return '{$varName}';
+  }
+
+  /// True if [message] contains any `plural`, `select`, or `selectordinal`
+  /// expression at any nesting depth — i.e. anything `flat-json` would
+  /// collapse. Used to count lossy events for the sync hint.
+  static bool hasPluralOrSelect(String message) {
+    var found = false;
+    _walk(message, (expr) {
+      if (expr.type == 'plural' ||
+          expr.type == 'select' ||
+          expr.type == 'selectordinal') {
+        found = true;
+      }
+    });
+    return found;
+  }
+
   static void _walk(String s, void Function(_Expr) visit) {
     for (final expr in _parseExpressions(s)) {
       visit(expr);

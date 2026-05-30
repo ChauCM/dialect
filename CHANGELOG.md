@@ -4,6 +4,30 @@ All notable changes to the Dialect CLI are tracked here.
 
 ## [Unreleased]
 
+### Added — backend sync (the cross-stack core)
+
+- **`icu-json` and `flat-json` adapters.** `dialect sync` now emits backend
+  JSON, not just Flutter ARB. `icu-json` preserves ICU plural/select
+  expressions verbatim; `flat-json` collapses them to the `other` branch
+  for stacks without an ICU runtime. Both honor the same `@key.namespace`
+  filter as the ARB path, write `<locale>.json` with sorted keys and a
+  trailing newline, and are idempotent. Output matches the locked specs at
+  `dialect/spec/icu-json.md` and `dialect/spec/flat-json.md`. This is the
+  cross-stack value prop — one canonical source, Flutter + backend in sync.
+- **`flat-json` lossy-event hint.** When a `flat-json` platform strips
+  plurals, sync prints one info line listing the affected keys and points
+  at `icu-json` for locale-correct plurals.
+
+### Added — `dialect translate`
+
+- **`dialect translate`** (AI-pointer flow). Writes
+  `.dialect/translate-plan.md` with a **computed work list**: which keys are
+  missing per locale (in source order) and which locked translations have
+  gone stale (source changed since the lock). Stale locks are flagged
+  review-only — the plan never instructs the agent to overwrite a human
+  lock. `--auto` (direct LLM call) is reserved and currently exits with a
+  clear "use the AI-pointer flow" message rather than silently no-opping.
+
 ## 1.0.4
 
 Release-pipeline-only patch. Fixes the pub.dev publish step that hung

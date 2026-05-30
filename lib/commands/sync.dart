@@ -4,6 +4,8 @@ import 'package:args/command_runner.dart';
 import 'package:path/path.dart' as p;
 
 import '../adapters/arb_adapter.dart';
+import '../adapters/json_adapter.dart';
+import '../arb/arb_file.dart';
 import '../config/dialect_config.dart';
 import '../project/dialect_project.dart';
 
@@ -72,22 +74,33 @@ class SyncCommand extends Command<int> {
     final excludedPerPlatform = <String, Set<String>>{};
 
     for (final platform in project.config.platforms.values) {
-      if (platform.format != 'arb') {
-        // v1.0 ships only the ARB adapter. Other formats land in v1.1.
-        stdout.writeln(
-          '! ${platform.name} (format: ${platform.format}) — adapter '
-          'lands in v1.1; skipping.',
-        );
-        totalSkipped++;
-        continue;
+      final _PlatformOutcome outcome;
+      try {
+        if (platform.format == 'arb') {
+          outcome = _syncArbPlatform(project, platform, force: force);
+        } else if (JsonAdapter.handles(platform.format)) {
+          outcome = _syncJsonPlatform(project, platform, force: force);
+        } else {
+          stdout.writeln(
+            '! ${platform.name} (format: ${platform.format}) — unknown '
+            'format; expected one of arb, icu-json, flat-json. Skipping.',
+          );
+          totalSkipped++;
+          continue;
+        }
+      } on FormatException catch (e) {
+        stderr.writeln('✗ ${platform.name}: ${e.message}');
+        return 65;
       }
-      final outcome = _syncPlatform(project, platform, force: force);
       totalWritten += outcome.filesWritten;
       if (outcome.unnamespacedKeys.isNotEmpty) {
         unnamespacedPerPlatform[platform.name] = outcome.unnamespacedKeys;
       }
       if (outcome.excludedNamespaces.isNotEmpty) {
         excludedPerPlatform[platform.name] = outcome.excludedNamespaces;
+      }
+      if (outcome.pluralStrippedKeys.isNotEmpty) {
+        _warnPluralStripped(platform, outcome.pluralStrippedKeys);
       }
     }
 
@@ -108,10 +121,10 @@ class SyncCommand extends Command<int> {
     return 0;
   }
 
-  /// Sync one platform. Returns ([_PlatformOutcome.filesWritten] +
-  /// [_PlatformOutcome.unnamespacedKeys]) — files whose on-disk bytes
+  /// Sync one `arb`-format platform. Returns ([_PlatformOutcome.filesWritten]
+  /// + [_PlatformOutcome.unnamespacedKeys]) — files whose on-disk bytes
   /// already match are touched not at all, preserving mtime.
-  _PlatformOutcome _syncPlatform(
+  _PlatformOutcome _syncArbPlatform(
     DialectProject project,
     PlatformConfig platform, {
     required bool force,
@@ -168,6 +181,81 @@ class SyncCommand extends Command<int> {
       filesWritten: written,
       unnamespacedKeys: unnamespacedKeys,
       excludedNamespaces: excludedNamespaces,
+    );
+  }
+
+  /// Sync one `icu-json` / `flat-json` backend platform. Reuses the same
+  /// namespace filter + metadata strip as the ARB path ([ArbAdapter.prepare]),
+  /// then encodes each locale to a flat `<locale>.json` via [JsonAdapter].
+  /// For `flat-json`, collects the keys whose ICU expressions were collapsed
+  /// so sync can surface the lossy-event hint.
+  _PlatformOutcome _syncJsonPlatform(
+    DialectProject project,
+    PlatformConfig platform, {
+    required bool force,
+  }) {
+    final outDir = Directory(p.join(project.root, platform.output));
+    outDir.createSync(recursive: true);
+
+    final stripPlurals = platform.format == 'flat-json';
+    var written = 0;
+    final unnamespacedKeys = <String>{};
+    final excludedNamespaces = <String>{};
+    final pluralStrippedKeys = <String>{};
+
+    void emit(ArbFile arb, String locale, {required bool isSource}) {
+      final prepared = ArbAdapter.prepare(
+        arb,
+        platform: platform,
+        isSource: isSource,
+        source: isSource ? null : project.source,
+      );
+      unnamespacedKeys.addAll(prepared.keysMissingNamespace);
+      excludedNamespaces.addAll(prepared.keysExcludedByNamespace.keys);
+
+      final result = JsonAdapter.encode(
+        prepared.arb,
+        stripPlurals: stripPlurals,
+      );
+      pluralStrippedKeys.addAll(result.collapsedKeys);
+      if (_maybeWrite(
+        outDir.path,
+        JsonAdapter.filenameFor(locale),
+        result.content,
+        force: force,
+      )) {
+        written++;
+      }
+    }
+
+    emit(project.source, project.config.sourceLocale, isSource: true);
+    for (final entry in project.translations.entries) {
+      emit(entry.value, entry.key, isSource: false);
+    }
+
+    return _PlatformOutcome(
+      filesWritten: written,
+      unnamespacedKeys: unnamespacedKeys,
+      excludedNamespaces: excludedNamespaces,
+      pluralStrippedKeys: pluralStrippedKeys,
+    );
+  }
+
+  /// flat-json loss-of-information hint (spec: one info line per affected
+  /// platform). Lists the keys whose plural/select expressions were
+  /// collapsed to their `other` branch.
+  void _warnPluralStripped(PlatformConfig platform, Set<String> keys) {
+    final sorted = keys.toList()..sort();
+    final preview = sorted.length > 8
+        ? '${sorted.take(8).join(", ")}, … (${sorted.length - 8} more)'
+        : sorted.join(', ');
+    stdout.writeln('');
+    stdout.writeln(
+      'info: ${platform.output}  flat-json strips plurals for: $preview',
+    );
+    stdout.writeln(
+      '  hint: switch this platform to `format: icu-json` if those keys '
+      'need locale-correct plurals.',
     );
   }
 
@@ -246,8 +334,13 @@ class _PlatformOutcome {
     required this.filesWritten,
     required this.unnamespacedKeys,
     required this.excludedNamespaces,
+    this.pluralStrippedKeys = const {},
   });
   final int filesWritten;
   final Set<String> unnamespacedKeys;
   final Set<String> excludedNamespaces;
+
+  /// flat-json only: keys whose ICU plural/select was collapsed. Empty for
+  /// the ARB and icu-json paths.
+  final Set<String> pluralStrippedKeys;
 }

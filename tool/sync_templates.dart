@@ -77,6 +77,11 @@ const List<_Mapping> _mappings = [
     constName: 'describePlanMdTemplate',
   ),
   _Mapping(
+    source: ['templates', 'translate_plan.md'],
+    target: ['lib', 'templates', 'translate_plan_md.dart'],
+    constName: 'translatePlanMdTemplate',
+  ),
+  _Mapping(
     source: ['templates', 'init_plan.md'],
     target: ['lib', 'templates', 'init_plan_md.dart'],
     constName: 'initPlanMdTemplate',

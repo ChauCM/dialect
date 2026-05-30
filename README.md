@@ -6,7 +6,7 @@
 
 Developers who code with AI already have the perfect translator sitting right next to them. When you just built a checkout screen in Flutter, your AI co-pilot has full context — the widget tree, the button semantics, the user flow. You can just say *"add the labels on this screen to translations and translate them into Spanish, Japanese, and Arabic"* and it should just work.
 
-**Dialect** is a convention-first, open-source localization toolkit. One canonical source syncs translations across mobile apps and backend services. No dashboard. No context switching. Just code.
+**Dialect** is a convention-first, open-source localization toolkit. One canonical source syncs translations across your Flutter app and backend services. The CLI is forever free and full-featured — no required dashboard, no context switching, just code. (An optional hosted dashboard at `dialect.tools` is coming in v1.3 for teams who want non-dev translators to review AI-generated translations — see [`docs/cloud.md`](docs/cloud.md).)
 
 ```
 Dev (typing in AI chat session):
@@ -23,13 +23,11 @@ AI:   *reads AGENTS.md → this project uses Dialect*
       *translates to es, ja, ar respecting the glossary*
       *runs `dialect check --fix && dialect sync && dialect check`*
       ✓ Flutter ARB updated
-      ✓ iOS .strings updated
-      ✓ Android strings.xml updated
-      ✓ Go backend JSON updated
+      ✓ Backend JSON updated (icu-json)
       ✓ All 3 locales complete, placeholders match
 ```
 
-One chat message. One source. Every platform. 60 seconds.
+One chat message. One source. Flutter + backend in sync. 60 seconds.
 
 ---
 
@@ -167,7 +165,7 @@ $ dialect sync
 ✓ Wrote lib/l10n/app_ar.arb
 ```
 
-Flutter `gen_l10n` picks these up directly. iOS `.strings` / Android `strings.xml` / backend `flat-json` & `icu-json` adapters land in v1.1; the canonical spec contracts are already locked under [`dialect/spec/`](dialect/spec/).
+Flutter `gen_l10n` picks these up directly. Backend `flat-json` & `icu-json` adapters ship today — `dialect sync` writes `<locale>.json` per the canonical spec contracts under [`dialect/spec/`](dialect/spec/). iOS / Android native string-file adapters are **not on the roadmap** — Flutter generates iOS/Android-compatible output via its own build; native string files matter only for edge cases like method channels, native plugins, and launch screens. See [`docs/roadmap.md`](docs/roadmap.md).
 </details>
 
 <details>
@@ -279,9 +277,11 @@ your-project/
 | `dialect check` | Validate completeness, correctness, and translation quality heuristics | v1.0 |
 | `dialect status` | Coverage overview across locales | v1.0 |
 | `dialect serve` | Local web UI for reviewing translations | v1.0 |
-| `dialect translate` | AI-pointer flow for translation (`--auto` for direct LLM call) | v1.2 |
-| `dialect publish` | Push translations for OTA delivery | v1.2 |
-| `dialect merge` | Key-aware ARB merge driver (opt-in via `dialect init --enable-merge-driver`) | v1.2 |
+| `dialect translate` | AI-pointer flow for translation (`--auto` for direct LLM call) | v1.0 |
+| `dialect publish` | Build versioned bundle (manifest + per-locale JSON) and upload to S3/R2/git/local | v1.2 |
+| `dialect pull` | Fetch latest bundle into `dialect/translations/` (use in CI deploy scripts) | v1.2 |
+| `dialect login` / `link` / `push` | Talk to `dialect-server` (Cloud or self-host) — see [`docs/cloud.md`](docs/cloud.md) | v1.3 |
+| `dialect export` | Full project tarball for migration between Cloud / self-host / local | v1.3 |
 | `dialect diff` | Show translation changes for PR review | v1.5 |
 
 ---
@@ -291,10 +291,12 @@ your-project/
 | Document | Description |
 |---|---|
 | [Why Dialect](docs/thesis.md) | The problem with localization today and the insight behind Dialect |
+| [Roadmap](docs/roadmap.md) | What's shipped, what's planned for v1.1 → v2.0+, and what's explicitly out of scope |
 | [Architecture](docs/architecture.md) | File convention, CLI reference, config format, CI integration |
-| [Mobile Platforms](docs/platforms-frontend.md) | Flutter, iOS, Android — format adapters and OTA. React/RN as secondary. |
-| [Backend Platforms](docs/platforms-backend.md) | Node.js, ASP.NET, FastAPI — format adapters, integration patterns |
-| [OTA Updates](docs/ota.md) | Over-the-air protocol, publish adapters, and the `dialect_ota` Flutter package |
+| [Dialect Cloud](docs/cloud.md) | Cloud (v1.3), self-host (v1.4), and OSS local-only — three modes, same protocol |
+| [Frontend Platforms](docs/platforms-frontend.md) | Flutter primary. iOS / Android native and React / RN as edge cases. |
+| [Backend Platforms](docs/platforms-backend.md) | ASP.NET, Node, Django, FastAPI, Go — format adapters and bundle-URL integration |
+| [Flutter OTA](docs/ota.md) | Over-the-air protocol for the `dialect_ota` Flutter package — deferred to v2.0+ |
 
 ### Stable on-disk contracts (`dialect/spec/`)
 
@@ -311,13 +313,14 @@ These specify Dialect's versioned file formats. Backend localizer libraries (`Di
 
 ## What Dialect is
 
-Five things, in order of "what you touch":
+Six things, in order of "what you touch":
 
 1. **A convention.** An opinionated way to organize ARB files with rich `@description` / `@placeholders` / glossary metadata, plus a YAML config that doubles as an AI-readable instruction sheet. Any modern AI editor produces correct output by reading it.
-2. **A CLI.** `init` scaffolds, `import` / `describe` write structured plan files the AI follows, `check` validates structurally and semantically, `sync` generates platform files, `status` reports coverage.
+2. **A CLI.** `init` scaffolds, `import` / `describe` write structured plan files the AI follows, `check` validates structurally and semantically, `sync` generates platform files, `status` reports coverage. **Forever free and full-featured.**
 3. **A local review UI** (`dialect serve`). A Svelte SPA embedded in the binary; no `node_modules` at runtime. Side-by-side source + target, glossary highlighting, inline edit, pin/lock.
 4. **Versioned on-disk contracts** ([`dialect/spec/`](dialect/spec/)). Backend localizer libraries target the spec, not the CLI version — breaking changes require a major bump.
-5. **OTA support** (v1.3+). Optional over-the-air translation updates via a simple protocol that works with any backend.
+5. **Dialect Cloud** ([planned v1.3](docs/cloud.md)). Optional hosted dashboard at `dialect.tools` for translator review without git access. Self-host comes in v1.4 — same binary, your infra.
+6. **Flutter OTA** ([deferred to v2.0+](docs/ota.md)). Optional over-the-air translation updates for the `dialect_ota` Flutter package; reuses the v1.2 bundle format.
 
 ## Who Dialect is for
 

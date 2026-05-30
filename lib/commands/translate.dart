@@ -1,0 +1,233 @@
+import 'dart:io';
+
+import 'package:args/command_runner.dart';
+import 'package:path/path.dart' as p;
+
+import '../arb/source_hash.dart';
+import '../project/dialect_project.dart';
+import '../templates/plan_render.dart';
+import '../templates/translate_plan_md.dart';
+
+/// `dialect translate` — AI-pointer flow (primary), direct LLM call
+/// (`--auto`) as a CI convenience.
+///
+/// The default path writes `.dialect/translate-plan.md` with a computed
+/// work list (which keys are missing per locale, which locked keys went
+/// stale) and hands it to the user's AI agent. Dialect never calls an LLM
+/// on this path — that's what keeps it model-agnostic and vendor-neutral.
+///
+/// `--auto` is the escape hatch for CI where no agent is in the loop; it
+/// is not yet wired to a provider (see the message below) — the AI-pointer
+/// flow is the documented primary path.
+class TranslateCommand extends Command<int> {
+  TranslateCommand() {
+    argParser
+      ..addFlag(
+        'auto',
+        negatable: false,
+        help:
+            'CI convenience: call an LLM directly instead of writing a plan. '
+            'Requires --provider and that provider\'s API key.',
+      )
+      ..addOption(
+        'provider',
+        allowed: ['anthropic', 'openai'],
+        help:
+            'LLM provider for --auto. BYO key — Dialect never resells '
+            'inference.',
+      );
+  }
+
+  @override
+  String get name => 'translate';
+
+  @override
+  String get description =>
+      'Write an AI-pointer plan that translates missing keys (--auto for a '
+      'direct LLM call).';
+
+  @override
+  String get invocation =>
+      'dialect translate [--auto --provider <name>] [project-root]';
+
+  @override
+  Future<int> run() async {
+    final results = argResults!;
+    final auto = results['auto'] as bool;
+    final rest = results.rest;
+
+    if (rest.length > 1) {
+      stderr.writeln(
+        'dialect translate takes at most one positional argument.',
+      );
+      return 64;
+    }
+    final root = rest.isEmpty ? Directory.current.path : rest.first;
+
+    final DialectProject project;
+    try {
+      project = DialectProject.load(root);
+    } on FileSystemException catch (e) {
+      stderr.writeln(e.message);
+      stderr.writeln(
+        'Run `dialect init` first, or pass the project root as an argument.',
+      );
+      return 66;
+    } on FormatException catch (e) {
+      stderr.writeln('dialect.yaml or an ARB file is malformed:');
+      stderr.writeln('  ${e.message}');
+      return 65;
+    }
+
+    if (auto) {
+      // The direct-LLM path is on the roadmap (v1.2) but not built. Fail
+      // loudly rather than silently no-op in CI.
+      stderr.writeln(
+        '--auto is not available yet. The AI-pointer flow is the primary '
+        'path: run `dialect translate` (no flags) and have your AI agent '
+        'execute the generated plan.',
+      );
+      return 70;
+    }
+
+    if (project.config.targetLocales.isEmpty) {
+      stdout.writeln(
+        '! dialect translate: no `target_locales` configured in dialect.yaml.',
+      );
+      stdout.writeln('  Add a target locale and re-run.');
+      return 0;
+    }
+
+    final work = _computeWork(project);
+    final tokens = {
+      ...commonPlanTokens(project),
+      'WORKLIST': _renderWorklist(work),
+    };
+    final rendered = renderPlanTemplate(translatePlanMdTemplate, tokens);
+
+    final planPath = p.join(root, '.dialect', 'translate-plan.md');
+    final planFile = File(planPath);
+    planFile.parent.createSync(recursive: true);
+    planFile.writeAsStringSync(rendered);
+
+    final relativePath = p.relative(planPath, from: Directory.current.path);
+    final totalMissing = work.fold<int>(0, (n, w) => n + w.missing.length);
+    final totalStale = work.fold<int>(0, (n, w) => n + w.staleLocked.length);
+
+    if (totalMissing == 0 && totalStale == 0) {
+      stdout.writeln(
+        '✓ dialect translate: every target locale is fully translated — '
+        'nothing to do.',
+      );
+      stdout.writeln('  (Wrote $relativePath anyway, for the record.)');
+      return 0;
+    }
+
+    stdout.writeln(
+      'Wrote translate plan to $relativePath '
+      '($totalMissing key(s) to translate'
+      '${totalStale > 0 ? ', $totalStale stale lock(s) to review' : ''}).',
+    );
+    stdout.writeln(
+      '  Next: open your AI tool (Claude Code, Cursor, Cline, Copilot, …)',
+    );
+    stdout.writeln('  and ask it to follow the plan:');
+    stdout.writeln('    "Read $relativePath and execute the steps."');
+    return 0;
+  }
+
+  /// Per-locale missing keys (in source, absent from the translation) and
+  /// stale locked keys (locked translation whose stored `source_hash` no
+  /// longer matches the current source value). Missing keys are returned
+  /// in source order so the plan reads top-to-bottom like the ARB.
+  static List<_LocaleWork> _computeWork(DialectProject project) {
+    final sourceKeysInOrder = [for (final e in project.source.entries) e.key];
+    final sourceHashes = <String, String>{
+      for (final e in project.source.entries) e.key: computeSourceHash(e.value),
+    };
+
+    final work = <_LocaleWork>[];
+    for (final locale in project.config.targetLocales) {
+      final arb = project.translations[locale];
+      final translationByKey = {
+        if (arb != null)
+          for (final e in arb.entries) e.key: e,
+      };
+
+      final missing = [
+        for (final key in sourceKeysInOrder)
+          if (!translationByKey.containsKey(key)) key,
+      ];
+
+      final staleLocked = <String>[];
+      for (final entry in translationByKey.values) {
+        final meta = entry.metadata;
+        if (meta == null || !meta.locked) continue;
+        final hash = meta.sourceHash;
+        if (hash == null) continue; // pre-spec lock; not provably stale
+        final current = sourceHashes[entry.key];
+        if (current != null && current != hash) staleLocked.add(entry.key);
+      }
+      staleLocked.sort();
+
+      work.add(
+        _LocaleWork(locale: locale, missing: missing, staleLocked: staleLocked),
+      );
+    }
+    return work;
+  }
+
+  /// Render the work list as Markdown for the `{{WORKLIST}}` token.
+  static String _renderWorklist(List<_LocaleWork> work) {
+    final hasAnything = work.any(
+      (w) => w.missing.isNotEmpty || w.staleLocked.isNotEmpty,
+    );
+    if (!hasAnything) {
+      return 'Every target locale is fully translated and no locked '
+          'translation has gone stale. There is nothing to do — you can '
+          'stop here.';
+    }
+
+    final buf = StringBuffer();
+    for (final w in work) {
+      if (w.missing.isEmpty && w.staleLocked.isEmpty) {
+        buf.writeln('### `${w.locale}` — up to date');
+        buf.writeln();
+        continue;
+      }
+      buf.writeln('### `${w.locale}`');
+      buf.writeln();
+      if (w.missing.isNotEmpty) {
+        buf.writeln('**Missing (${w.missing.length}) — translate these:**');
+        buf.writeln();
+        for (final key in w.missing) {
+          buf.writeln('- `$key`');
+        }
+        buf.writeln();
+      }
+      if (w.staleLocked.isNotEmpty) {
+        buf.writeln(
+          '**Stale (locked) (${w.staleLocked.length}) — review only, do '
+          'NOT edit:**',
+        );
+        buf.writeln();
+        for (final key in w.staleLocked) {
+          buf.writeln('- `$key`');
+        }
+        buf.writeln();
+      }
+    }
+    return buf.toString().trimRight();
+  }
+}
+
+class _LocaleWork {
+  _LocaleWork({
+    required this.locale,
+    required this.missing,
+    required this.staleLocked,
+  });
+  final String locale;
+  final List<String> missing;
+  final List<String> staleLocked;
+}

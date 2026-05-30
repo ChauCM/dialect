@@ -284,6 +284,95 @@ void main() {
       );
       expect(await runSync(), 0);
     });
+
+    test('icu-json: emits flat <locale>.json with ICU preserved', () async {
+      _writeProject(
+        tmp.path,
+        sourceLocale: 'en',
+        targetLocales: ['ar'],
+        source: '''
+{
+  "@@locale": "en",
+  "checkoutItemCount": "{count, plural, =1{1 item} other{{count} items}}",
+  "@checkoutItemCount": { "namespace": "checkout", "description": "Cart line." },
+  "commonCancel": "Cancel",
+  "@commonCancel": { "namespace": "common", "description": "Cancel." }
+}
+''',
+        translations: {
+          'ar':
+              '{ "@@locale": "ar", "checkoutItemCount": "{count, plural, other{{count} عنصر}}", "commonCancel": "إلغاء" }',
+        },
+        platforms: {
+          'backend': {
+            'output': 'api/locales/',
+            'format': 'icu-json',
+            'namespaces': ['common', 'checkout'],
+          },
+        },
+      );
+
+      expect(await runSync(), 0);
+
+      final en = File(p.join(tmp.path, 'api', 'locales', 'en.json'));
+      expect(en.existsSync(), isTrue);
+      expect(
+        en.readAsStringSync(),
+        '{\n'
+        '  "checkoutItemCount": "{count, plural, =1{1 item} other{{count} items}}",\n'
+        '  "commonCancel": "Cancel"\n'
+        '}\n',
+      );
+      // Translation file: no @@locale, no metadata, just key→value.
+      final ar = File(p.join(tmp.path, 'api', 'locales', 'ar.json'));
+      expect(ar.readAsStringSync(), contains('"commonCancel": "إلغاء"'));
+      expect(ar.readAsStringSync(), isNot(contains('@@locale')));
+    });
+
+    test('flat-json: collapses plurals to the other branch', () async {
+      _writeProject(
+        tmp.path,
+        sourceLocale: 'en',
+        targetLocales: const [],
+        source: '''
+{
+  "@@locale": "en",
+  "checkoutItemCount": "{count, plural, =1{1 item} other{{count} items}}",
+  "@checkoutItemCount": { "namespace": "common", "description": "Cart line." }
+}
+''',
+        platforms: {
+          'gateway': {
+            'output': 'gateway/locales/',
+            'format': 'flat-json',
+            'namespaces': ['common'],
+          },
+        },
+      );
+
+      expect(await runSync(), 0);
+
+      final en = File(p.join(tmp.path, 'gateway', 'locales', 'en.json'));
+      expect(
+        en.readAsStringSync(),
+        '{\n  "checkoutItemCount": "{count} items"\n}\n',
+      );
+    });
+
+    test('unknown format is skipped with a hint, not an error', () async {
+      _writeProject(
+        tmp.path,
+        sourceLocale: 'en',
+        targetLocales: const [],
+        source:
+            '{ "@@locale": "en", "k": "v", "@k": { "namespace": "common" } }',
+        platforms: {
+          'weird': {'output': 'out/', 'format': 'toml', 'namespaces': []},
+        },
+      );
+      expect(await runSync(), 0);
+      expect(Directory(p.join(tmp.path, 'out')).existsSync(), isFalse);
+    });
   });
 }
 

@@ -4,6 +4,12 @@ All notable changes to the Dialect CLI are tracked here.
 
 ## [Unreleased]
 
+## 1.1.0
+
+Backend sync lands — the cross-stack thesis is real. One canonical source
+now syncs to Flutter ARB *and* backend JSON, the stale-translation loop
+closes the change-half, and `dialect translate` ships.
+
 ### Added — stale-translation tracking (the change-half of the loop)
 
 - **Every translation now records `@key.source_hash`** — the version of the

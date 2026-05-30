@@ -50,3 +50,8 @@ coverage/
 
 # Dialect ephemeral plan files (regenerated each command run)
 .dialect/
+
+# Local-only symlink to the brainstorm repo (private planning docs).
+# Created with: ln -s /path/to/brainstorm/dialect .brainstorm
+# Never committed — sensitive pricing / strategy notes live in the brainstorm repo.
+.brainstorm

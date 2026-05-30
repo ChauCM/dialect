@@ -1,6 +1,8 @@
 # Architecture
 
-Dialect has four components: a file convention (the spec), a CLI tool, a local review UI, and an optional OTA delivery system.
+Dialect has five components: a file convention (the spec), a CLI tool, a local review UI, an optional Cloud / self-host server (v1.3+), and an optional Flutter OTA delivery system (v2.0+).
+
+> **Roadmap context.** See [`roadmap.md`](roadmap.md) for what's shipped vs. planned. This doc describes the convention + CLI shape; v1.1 adds `icu-json` / `flat-json` adapters, v1.2 adds `dialect publish` / `dialect pull`, v1.3 adds Cloud + `dialect-server`. **iOS / Android native string-file adapters are not on the roadmap** — Flutter handles native targets via its own build.
 
 ---
 
@@ -74,6 +76,7 @@ Keys are sorted alphabetically — `checkoutBookNow` before `commonLoading`. Thi
 ## CLI Reference
 
 ```bash
+# Local commands — work offline against the dialect/ directory
 dialect init                    # Scaffold the dialect/ directory
 dialect import                  # AI-pointer flow: import existing ARBs into Dialect convention
 dialect describe                # AI-pointer flow: backfill @description from callsites
@@ -82,13 +85,22 @@ dialect check                   # Validate completeness and correctness
 dialect status                  # Coverage overview across locales
 dialect translate               # AI-pointer flow: translate missing keys (--auto for direct LLM call)
 dialect serve                   # Local web UI for reviewing and editing translations
-dialect publish                 # Push translations for OTA delivery
 dialect diff                    # Show translation changes (for PR comments)
+
+# Bundle commands (v1.2) — talk to S3 / R2 / git / local
+dialect publish <env>           # Build versioned bundle, upload to configured target
+dialect pull                    # Fetch latest bundle into dialect/translations/
+
+# Server commands (v1.3) — talk to dialect-server (Cloud at dialect.tools, or self-host)
+dialect login [--server <url>]  # GitHub OAuth flow; writes ~/.config/dialect/auth.json
+dialect link <project-slug>     # Associate this repo with a server project
+dialect push                    # Send source ARB + AI-generated translations up to server
+dialect export                  # Full project tarball — migration / backup
 ```
 
 **Design principle.** Commands split into two categories:
 
-- **Syntactic** (`sync`, `check`, `status`, `diff`, `publish`) — deterministic format conversion and validation. Dialect does this itself.
+- **Syntactic** (`sync`, `check`, `status`, `diff`, `publish`, `push`, `pull`) — deterministic format conversion, validation, file transfer. Dialect does this itself.
 - **Semantic** (`import`, `describe`, `translate`) — needs intelligence: read code, understand context, produce natural language. Dialect writes a structured instruction file (`.dialect/*-plan.md`) and the user's existing AI agent (Cursor, Claude Code, Cline, Copilot, …) executes it. No model API keys, no vendor lock, no staleness as models evolve.
 
 ### `dialect init`
@@ -148,12 +160,16 @@ Reads canonical ARB files and generates platform-specific outputs:
 dialect/source/en.arb (canonical)
        │
        ├──▶ lib/l10n/app_en.arb                        (Flutter — direct copy)
-       ├──▶ ios/en.lproj/Localizable.strings            (iOS — .strings + .stringsdict)
-       ├──▶ android/app/src/main/res/values/strings.xml (Android — strings.xml + plurals)
-       └──▶ api/locales/en.json                         (Backend — flat JSON or ICU JSON)
+       └──▶ api/locales/en.json                         (Backend — flat-json or icu-json, v1.1)
 ```
 
-The CLI is a format converter. It doesn't translate. It doesn't parse code. It keeps platform-specific files in sync from one canonical source. See [Mobile Platforms](platforms-frontend.md) and [Backend Platforms](platforms-backend.md) for detailed integration guides.
+The CLI is a format converter. It doesn't translate. It doesn't parse code. It keeps Flutter + backend files in sync from one canonical source.
+
+**Out of scope.** Native iOS `.strings`/`.stringsdict` and Android `strings.xml` are **not** sync targets. Flutter's own build pipeline produces iOS/Android-compatible output from `AppLocalizations`; standalone native string files only matter for edge cases (method channels, native plugins, launch screens). See [Frontend Platforms](platforms-frontend.md) for the gap and recommended workarounds.
+
+See [Frontend Platforms](platforms-frontend.md) and [Backend Platforms](platforms-backend.md) for detailed integration guides.
+
+**v1.2 ergonomics:** `dialect sync --dry-run` (list what would change), `--platform <name>` (sync one configured platform), `--watch` (foreground re-sync on file change). End-of-run prints a summary with lossy-event count (e.g. `flat-json` strips ICU plurals to the `other` branch — each such event is counted and surfaced).
 
 ### `dialect check`
 
@@ -237,9 +253,54 @@ Reading from: ./dialect/
 
 Opens a browser with a translation table showing source strings alongside each target locale. Edits save directly back to the local ARB files. See the [Review UI](#review-ui) section below for details.
 
-### `dialect publish`
+### `dialect publish` (v1.2)
 
-Outputs a versioned translation bundle for OTA delivery. See [OTA documentation](ota.md).
+Builds an **immutable, content-hashed bundle** (manifest.json + per-locale JSON files in `icu-json` or `flat-json` shape) and uploads to a user-configured target.
+
+```bash
+dialect publish prod              # Build bundle, upload to target configured in dialect.yaml
+dialect publish staging --dry-run # Show what would happen, don't upload
+```
+
+```yaml
+# dialect.yaml
+publish:
+  production:
+    target: s3            # or r2 | git | local
+    bucket: my-bucket
+    prefix: locales/prod/
+    manifest_url: https://cdn.example.com/locales/prod/manifest.json
+  staging:
+    target: local
+    path: dist/locales/
+```
+
+The published bundle format is specified in [`dialect/spec/bundle.md`](../dialect/spec/) (lands v1.2). Backend libraries fetch the manifest URL at app startup — no background poller; live updates happen via `dialect pull` in CI + redeploy.
+
+`dialect publish` against a `dialect-server` (Cloud or self-host) targets the server's `/publish` endpoint, which builds the bundle and uploads to Cloud-managed R2 (or your S3-compatible bucket in self-host). Same protocol either way.
+
+### `dialect pull` (v1.2)
+
+Fetches the latest bundle for a configured environment and writes per-locale JSON into `dialect/translations/`. Use in CI deploy scripts:
+
+```bash
+# In CI before deploying the backend
+dialect pull
+dotnet publish --configuration Release
+```
+
+### `dialect login` / `link` / `push` / `export` (v1.3)
+
+CLI commands for talking to `dialect-server` (the Cloud instance at `dialect.tools`, or a self-host instance). See [`cloud.md`](cloud.md) for the full picture.
+
+```bash
+dialect login                          # GitHub OAuth flow, defaults to dialect.tools
+dialect login --server https://dialect.mycompany.com   # Self-host
+dialect link my-app-slug               # Associate this repo with a project
+dialect push                           # Send source ARB + AI translations up
+dialect pull                           # Fetch translations down (works for both server-linked and bucket-only configs)
+dialect export --out my-app.tar.gz     # Full project snapshot for migration
+```
 
 ### `dialect diff`
 
@@ -277,6 +338,9 @@ A developer points their AI at this file: *"read dialect/dialect.yaml and then e
 #   - Keys are always sorted alphabetically within each ARB file
 #   - Check dialect/glossary.yaml for project-specific terms
 #     and required translations before translating
+#   - When you add new keys, also generate translations for every
+#     target locale in the same turn — translators review, they
+#     don't fill blanks
 #   - After editing ARB files, run:
 #       dialect check --fix && dialect sync && dialect check
 # ============================================================
@@ -290,20 +354,18 @@ platforms:
     format: arb
     namespaces: [common, mobile]
 
-  ios:
-    output: ios/
-    format: apple-strings
-    namespaces: [common, mobile]
-
-  android:
-    output: android/app/src/main/res/
-    format: android-xml
-    namespaces: [common, mobile]
-
   backend:
     output: api/locales/
     format: flat-json      # use icu-json if backend needs pluralization
     namespaces: [common, backend]
+
+# Optional: bundle publishing (v1.2+)
+# publish:
+#   production:
+#     target: s3
+#     bucket: my-bucket
+#     prefix: locales/prod/
+#     manifest_url: https://cdn.example.com/locales/prod/manifest.json
 ```
 
 `dialect init` generates this file with the header comments included. Teams can customize the AI Instructions block to add project-specific conventions (tone, formality, domain-specific rules) without creating additional files.
@@ -312,29 +374,26 @@ For highly complex projects that outgrow YAML comments (e.g., detailed style gui
 
 ### Platform Formats
 
-**Core (v1.0–v1.1):**
+**Shipping or planned for v1.0–v1.2:**
 
-| Format | Key Style | Pluralization | Used By |
-|---|---|---|---|
-| `arb` | `camelCase` (flat) | ICU MessageFormat | Flutter (`flutter gen-l10n`-compatible by design) |
-| `apple-strings` | `snake_case` (per namespace) | `.stringsdict` plist | iOS (Swift) |
-| `android-xml` | `snake_case` (per namespace) | `plurals.xml` | Android (Kotlin) |
-| `flat-json` | `camelCase` (flat) | None (stripped) | Backend APIs (simple strings) |
-| `icu-json` | `camelCase` (flat) | ICU MessageFormat (preserved) | Backend APIs (full ICU support) |
+| Format | Key Style | Pluralization | Used By | Status |
+|---|---|---|---|---|
+| `arb` | `camelCase` (flat) | ICU MessageFormat | Flutter (`flutter gen-l10n`-compatible by design) | v1.0 |
+| `icu-json` | `camelCase` (flat) | ICU MessageFormat (preserved) | Backend APIs with ICU runtime | v1.1 |
+| `flat-json` | `camelCase` (flat) | None (stripped to `other` branch) | Backend APIs without ICU | v1.1 |
+| Bundle (`bundle.md` spec) | manifest + per-locale JSON | Same as the chosen JSON format | `dialect publish` / `dialect pull` / Cloud delivery | v1.2 |
 
-`flat-json` strips ICU pluralization and outputs plain interpolation strings — use it for backends that only need simple key-value lookups. `icu-json` preserves the full ICU MessageFormat expressions — use it for backends that parse ICU strings at runtime with a library like `intl-messageformat` (Node), `icu4c` (Python), or `MessageFormat` (C#). Cross-platform adapters group keys by `@key.namespace` when the backing format supports nesting; see [Backend Platforms](platforms-backend.md) for details.
+`flat-json` strips ICU pluralization and outputs plain interpolation strings — use it for backends that only need simple key-value lookups. `icu-json` preserves the full ICU MessageFormat expressions — use it for backends that parse ICU strings at runtime with a library like `intl-messageformat` (Node), `icu4c` (Python), or `MessageFormat` (C#). See [Backend Platforms](platforms-backend.md) for details.
 
-**Stable JSON contract.** The `icu-json` and `flat-json` output shapes are versioned and specified in `dialect/spec/icu-json.md` / `dialect/spec/flat-json.md`. Backend localizer libraries (the `Dialect.AspNetCore` NuGet package, community PyPI packages, hand-written snippets) target this contract. Breaking changes to the JSON shape require a major version bump and a migration note — snippets in user repos won't silently break across Dialect upgrades.
-
-**Secondary (v1.4):**
-
-| Format | Key Style | Pluralization | Used By |
-|---|---|---|---|
-| `i18next-json` | `nested.dot.keys` (built from `@key.namespace` + key) | i18next plural syntax | React, React Native |
+**Stable JSON contract.** The `icu-json` and `flat-json` output shapes are versioned and specified in `dialect/spec/icu-json.md` / `dialect/spec/flat-json.md`. Backend localizer libraries (the `Dialect.AspNetCore` NuGet package, community packages, hand-written snippets) target this contract. Breaking changes to the JSON shape require a major version bump.
 
 ### Not on the roadmap as adapters
 
-`.resx` (ASP.NET) and `.po` (gettext) are **not** planned adapters. Both would require silently degrading ARB features — `.resx` has no native ICU plurals and uses positional `{0}` placeholders; `.po` has the 2-form / 6-form `ngettext` awkwardness. Instead, Dialect ships **lossless drop-in localizer templates** for each stack: a `JsonStringLocalizer` for ASP.NET, a JSON catalog swap for Django, equivalent loaders for Flask/FastAPI/Node/Go. Callsites stay unchanged; only the backing store swaps to Dialect's `icu-json`. See [Backend Platforms](platforms-backend.md) for the per-stack snippets — the principle is *Backend Humility*: your backend keeps its native localization interface, Dialect just swaps the backing store.
+The following are **explicitly out of scope.** See [`roadmap.md`](roadmap.md) for the full list.
+
+- **`apple-strings` / `.stringsdict` (iOS native)** and **`android-xml` / `<plurals>` (Android native).** Flutter generates iOS/Android-compatible output from `AppLocalizations` via its own build; native string files matter only for edge cases (method channels, native plugins, launch screens). For those, document the gap and let users hand-write the small native files they need. The maintenance cost of two adapters outweighs the value for the Flutter-led ICP.
+- **`.resx` (ASP.NET)** and **`.po` (gettext)**. Both would require silently degrading ARB features — `.resx` has no native ICU plurals and uses positional `{0}` placeholders; `.po` has the 2-form / 6-form `ngettext` awkwardness. Instead, Dialect ships **lossless drop-in localizer templates** for each stack: the `Dialect.AspNetCore` NuGet for ASP.NET, a JSON catalog swap for Django, equivalent loaders for Flask/FastAPI/Node/Go. Callsites stay unchanged; only the backing store swaps to Dialect's `icu-json`. See [Backend Platforms](platforms-backend.md). The principle is **Backend Humility**: your backend keeps its native localization interface, Dialect just swaps the backing store.
+- **`i18next-json` for React / React Native.** Originally planned for v1.4; deprioritized in 2026-05 alongside iOS/Android adapters. React-web-only teams are not the ICP — `i18next` alone covers their needs without Dialect.
 
 ---
 

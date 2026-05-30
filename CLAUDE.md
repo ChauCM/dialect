@@ -2,13 +2,16 @@
 
 This file briefs Claude Code (and any other AI agent) on the Dialect project so you can pick up work without re-reading the entire repo.
 
-> **Status:** v1.0 shipping. The convention is locked, the CLI is feature-complete, distribution is wired (Pub + Homebrew + curl + GitHub Action). Treat this as production code, not a greenfield project.
+> **Status:** v1.0 shipping locally; v1.1 → v1.3 plan reshaped 2026-05-25. The CLI + convention + distribution are production. The current direction (per `docs/roadmap.md`):
+> - **v1.1** — Backend sync lands (`icu-json`, `flat-json` adapters), `dialect serve` auto-resyncs, sync CLI ergonomics (`--dry-run`, `--platform`, `--watch`). **iOS/Android native adapters dropped from the roadmap** — Flutter handles those via its own build; document the gap. See `docs/roadmap.md`.
+> - **v1.2** — Bundle format spec + `dialect publish` / `dialect pull` to user-managed buckets (S3 / R2 / git / local). `Dialect.AspNetCore` reads bundle URLs at startup. **No background poller** — `dialect pull` + redeploy is the live-update mechanism.
+> - **v1.3** — **Dialect Cloud MVP** at dialect.tools. Cloud-first; self-host is a deliberate second-class port that ships in v1.4. See `docs/cloud.md` for the public framing.
 
 ---
 
 ## 1. What Dialect is (in one paragraph)
 
-Dialect is an **AI-native localization toolkit** for Flutter-led teams. It is a CLI (`dialect init`, `dialect sync`, `dialect check`, `dialect serve`, …), a convention (an opinionated way of organizing ARB files with rich metadata), and a small set of integration packages (`Dialect.AspNetCore` NuGet, `dialect_ota` Flutter package). The killer feature is **cross-platform sync from one canonical source**: a Flutter dev adds a key, runs one command, and iOS `.strings`, Android `strings.xml`, and the ASP.NET backend's JSON all update in every locale. It is positioned as a **Lokalise replacement for Flutter-led teams who code with AI** — not an all-in-one TMS.
+Dialect is an **AI-native localization toolkit** for Flutter-led teams. It is a CLI (`dialect init`, `dialect sync`, `dialect check`, `dialect serve`, …), a convention (an opinionated way of organizing ARB files with rich metadata), and a small set of integration packages (`Dialect.AspNetCore` NuGet today; `dialect-server` + Cloud at dialect.tools in v1.3). The killer feature is **cross-stack sync from one canonical source**: a Flutter dev (with their AI agent) adds a key, the AI generates translations in the same turn, and one command syncs both the Flutter app's ARBs and the backend's JSON across every locale. It is positioned as a **Lokalise replacement for Flutter-led teams who code with AI** — not an all-in-one TMS. iOS/Android native string files are out of v1 scope (Flutter handles native targets via its own build).
 
 ---
 
@@ -18,13 +21,17 @@ Dialect is an **AI-native localization toolkit** for Flutter-led teams. It is a 
 |---|---|---|
 | 1 | [`README.md`](README.md) | Elevator pitch, two-step happy path, install + advanced surface. |
 | 2 | [`docs/thesis.md`](docs/thesis.md) | The problem Dialect solves and why it solves it this way. |
-| 3 | [`docs/architecture.md`](docs/architecture.md) | Convention (flat camelCase keys + `@key.namespace`), CLI reference, `dialect.yaml` shape, check rules, glossary, review UI. |
-| 4 | [`docs/platforms-frontend.md`](docs/platforms-frontend.md) | Flutter (`gen-l10n`-compatible by design), iOS, Android adapter specifics. |
-| 5 | [`docs/platforms-backend.md`](docs/platforms-backend.md) | Backend integration via lossless localizer libraries (no `.resx` adapter). |
-| 6 | [`docs/ota.md`](docs/ota.md) | OTA protocol for v1.2+. |
-| 7 | [`dialect/spec/icu-json.md`](dialect/spec/icu-json.md), [`flat-json.md`](dialect/spec/flat-json.md) | Versioned on-disk contracts that backend localizer libraries target. |
+| 3 | [`docs/roadmap.md`](docs/roadmap.md) | What's shipped vs planned vs explicitly out of scope (v1.1 → v2.0+). |
+| 4 | [`docs/architecture.md`](docs/architecture.md) | Convention (flat camelCase keys + `@key.namespace`), CLI reference, `dialect.yaml` shape, check rules, glossary, review UI. |
+| 5 | [`docs/cloud.md`](docs/cloud.md) | Dialect Cloud + self-host + OSS local-only — three modes, same protocol. v1.3 target. |
+| 6 | [`docs/platforms-frontend.md`](docs/platforms-frontend.md) | Flutter (`gen-l10n`-compatible by design). iOS/Android native adapters dropped — Flutter handles them. |
+| 7 | [`docs/platforms-backend.md`](docs/platforms-backend.md) | Backend integration via lossless localizer libraries (no `.resx` adapter); bundle URL pattern in v1.2. |
+| 8 | [`docs/ota.md`](docs/ota.md) | Flutter OTA protocol — reuses the v1.2 bundle format; deferred to v2.0+. |
+| 9 | [`dialect/spec/icu-json.md`](dialect/spec/icu-json.md), [`flat-json.md`](dialect/spec/flat-json.md) | Versioned on-disk contracts that backend localizer libraries target. |
 
 The brainstorm phase (April–May 2026) is archived at `/Users/chaucao/Documents/github/brainstorm/dialect`. That repo carries the historical planning docs, research, references, and spikes that shaped the design — read them when you need *why* context that isn't in the shipping docs. None of that lives in this repo.
+
+**Local-only shortcut.** A symlink at `.brainstorm/` in this repo points at the brainstorm directory. It's gitignored — never committed. Use it for quick references: e.g. `.brainstorm/planning/cloud-strategy.md`, `.brainstorm/planning/sync-direction-2026-05.md`. Sensitive material (pricing, free-tier economics, "self-host second-class" positioning, infra cost projections) lives in the brainstorm repo by design; the public OSS repo only carries neutral framings.
 
 ---
 
@@ -50,21 +57,51 @@ We do **not** ship lossy format adapters (`.resx`, `.po`) when a lossless locali
 
 A BE engineer adopting Dialect should never have to abandon their stack's localization interface.
 
-### 3.3 Flutter Humility
+### 3.3 ARB-as-universal-source (the convention)
 
-The convention is **flat camelCase keys** (`checkoutBookNow`) with logical grouping in `@key.namespace` metadata. This is what `flutter gen-l10n` requires — every key in the source ARB becomes a method on `AppLocalizations` after sync. No mangling, no impedance mismatch with Flutter's default localization tool.
+The convention is **flat camelCase keys** + `@key.namespace` metadata + ICU MessageFormat. This is not a Flutter accommodation — it's the best universal source format. ARB is JSON-based, metadata-rich (`description` / `placeholders` / `context` / `namespace`), has ICU built in for plurals/select/gender, and produces identifier-safe keys that work as method names in *every* codegen target (Swift, Kotlin, Dart, TS, C#).
 
-If a feature would require dotted keys or any non-`gen-l10n`-compatible shape, push back.
+Compare to alternatives as a source format: `.po` (2-form/6-form plural awkwardness, fragile comment-as-context), XLIFF (bloated XML, interchange-not-authoring), i18next JSON (nested dots, no metadata), `.stringsdict` (plural-only), Android XML (escaping nightmare, no metadata), CSV/spreadsheet (no plurals, no metadata). None come close.
 
-### 3.4 Lokalise-replacement-for-Flutter, not all-in-one TMS
+Flutter happens to use ARB natively, which is why we lead with the Flutter ICP — but the architecture is universal. Adapters to native iOS `.strings`, Android XML, i18next JSON, etc. are mechanical syntactic transforms, not architectural compromises. They're scope/maintenance decisions, not philosophy decisions.
+
+If a feature would require dotted keys, break ICU MessageFormat, or compromise the metadata richness of `@key` blocks, push back. The convention is the moat — protect it.
+
+### 3.4 Translators review; they don't fill blanks
+
+By the time a key reaches a translator (or Cloud), every locale **already has an AI-generated value**. The AI agent that wrote the screen also generated the translations in the same turn — that's the central DX promise. Translators function as a QA net catching nuance/tone errors, not as a workflow primary that bottlenecks the dev cycle.
+
+**Why this matters:** never frame the workflow as "translators fill in missing translations." UIs, docs, and prompts should default to "review queue" framing. The dashboard never shows "missing in fr/es/de" — it shows status flags (AI-generated-unreviewed / approved / human-edited / stale). This is what differentiates Dialect from Lokalise (which assumes translation is a separate, human-driven phase).
+
+### 3.5 Lokalise-replacement-for-Flutter, not all-in-one TMS
 
 Dialect is **focused**. The README's "Who Dialect is for" / "isn't for" sections explicitly say no to regulated industries needing audit trails, dedicated localization-ops teams, React-web-only teams, solo devs shipping one app in two languages, and shops that can't use AI tools.
 
 If a feature request feels like "let's also do X for audience Y," check those sections first.
 
-### 3.5 Stable JSON contract
+### 3.6 Stable JSON contract
 
-`icu-json` and `flat-json` output shapes are versioned. Specs live at [`dialect/spec/icu-json.md`](dialect/spec/icu-json.md) and [`dialect/spec/flat-json.md`](dialect/spec/flat-json.md). Backend localizer libraries (NuGet, snippets) target this contract. Breaking changes require a major version bump.
+`icu-json` and `flat-json` output shapes are versioned. Specs live at [`dialect/spec/icu-json.md`](dialect/spec/icu-json.md) and [`dialect/spec/flat-json.md`](dialect/spec/flat-json.md). Backend localizer libraries (NuGet, snippets) target this contract. Breaking changes require a major version bump. v1.2 adds `dialect/spec/bundle.md` (manifest + per-locale JSON) for `dialect publish` / `dialect pull` / Cloud delivery.
+
+### 3.7 The convention is the product
+
+Cloud, the CLI, the dashboard, the backend libraries — all of them are delivery mechanisms for the underlying convention (ARB-as-source + flat camelCase + `@key.namespace` + ICU MessageFormat + glossary). The convention spreading widely is the long-term win; any specific piece of code is replaceable.
+
+**Implications:**
+- Spec-grade docs > marketing-grade docs. The `dialect/spec/` files should read like ECMAScript or HTTP/2 specs — precise, exhaustive, examples for every rule.
+- A conformance test suite that third-party tools can run against to claim "Dialect-compatible" is high-leverage and should ship before broad community engagement.
+- Reference apps (Flutter + each backend stack) are recruitment material. Build them well.
+- `dialect check`'s output quality matters disproportionately — it's the surface most users touch most often, and "this feels like Prettier" perceptions form there.
+- Every feature added should make the convention more visible, useful, or credible. Features that don't serve the convention are distractions.
+
+### 3.8 Schema in git, values in DB (the Cloud split)
+
+When Cloud is in the picture, **devs own the schema; translators own the values.**
+
+- **Schema** (which keys exist, their metadata, the English source ARB) is dev-edited, lives in the user's git repo, and is synced UP to Cloud via `dialect push`.
+- **Values** (non-English translation strings) live in Cloud's Postgres, are translator-edited via the dashboard, and sync DOWN to local via `dialect pull`.
+
+Cloud is **not** a git proxy. There is no Dialect-owned GitHub App writing PRs back to user repos. Cloud is a normal SaaS with its own database; `dialect export` is the lock-in escape. Self-host = same binary, your infra. OSS local-only = everything in git, Cloud not involved.
 
 ---
 
@@ -75,10 +112,15 @@ If a feature request feels like "let's also do X for audience Y," check those se
 | CLI | **Dart** | `dart compile exe` → ~8 MB self-contained binary. Backend engineers never need the Dart SDK; they install pre-built binaries. |
 | Review UI / dashboard | **Svelte 5** (runes) + Vite 8, pnpm-managed | Embedded as static assets in the CLI binary via `tool/build_dashboard.dart`. Served by a Dart Shelf server on `localhost:4077`. No `npm install` for end users. |
 | OTA Flutter package (`dialect_ota`) | **Dart** | v1.3+. Thin wrapper around `http` + `shared_preferences` + custom `LocalizationsDelegate`. |
-| ASP.NET integration | **C# (`net8.0`)** NuGet package `Dialect.AspNetCore` | v1.1. First-class real package. Other backend stacks stay as snippets. |
-| LLM client (for `--auto` mode) | Hand-rolled HTTP over Anthropic / OpenAI REST | v1.2+. ~50 lines per provider. Don't depend on community SDKs. |
+| ASP.NET integration | **C# (`net8.0`)** NuGet package `Dialect.AspNetCore` | v1.1. First-class real package. Other backend stacks stay as snippets. v1.2 adds `BundleUrl` config — fetch on startup, no background poller. |
+| LLM client (for `--auto` mode) | Hand-rolled HTTP over Anthropic / OpenAI REST | v1.2+. ~50 lines per provider. Don't depend on community SDKs. **Always BYO key — Dialect never resells inference.** |
+| **Cloud server (`dialect-server`)** — v1.3 | Same Dart Shelf server as `dialect serve`, extended with Postgres + auth + multi-user | Single binary. Deploys to Render (Cloud) or `docker compose` (self-host, v1.4). |
+| Database | **Postgres** | Neon (managed) for Cloud; any Postgres for self-host. Code directly against Neon — no abstracted DB driver. |
+| Storage / CDN | **Cloudflare R2** + Cloudflare edge | Zero egress — load-bearing for unit economics. S3-compatible everywhere (MinIO for self-host). |
+| Cloud auth | GitHub OAuth (devs); magic-link email via Resend (translators) post-MVP | No password DB; GitHub OAuth covers the dogfood audience. |
+| Dashboard hosting (Cloud) | **Cloudflare Pages** | Static front-end against the Render-hosted API. |
 
-**Distribution channels (shipping from v1.0):** Pub + Homebrew tap (`ChauCM/homebrew-tap`) + curl install script + GitHub Action (`ChauCM/dialect@v1`). Docker + Scoop are deliberate cuts for v1.0 — revisit if requested.
+**Distribution channels (shipping from v1.0):** Pub + Homebrew tap (`ChauCM/homebrew-tap`) + curl install script + GitHub Action (`ChauCM/dialect@v1`). Docker + Scoop are deliberate cuts for v1.0 — revisit if requested. v1.3 adds Cloud sign-in at `dialect.tools`.
 
 ---
 
@@ -110,13 +152,22 @@ The chat-message default is **`run dialect init and follow the instructions`** �
 
 - **Don't ship a `.resx` adapter.** ASP.NET integration is the `Dialect.AspNetCore` NuGet package consuming `icu-json`. See Backend Humility (§3.2).
 - **Don't ship a gettext `.po` adapter.** Same reasoning.
+- **Don't ship `apple-strings` or `android-xml` adapters.** Dropped 2026-05-25 — Flutter handles iOS/Android targets via its own build; native string files are an edge case (method channels, plugins, launch screens) we document as out of v1 scope. See `docs/roadmap.md` and `.brainstorm/planning/sync-direction-2026-05.md`.
 - **Don't have Dialect parse source code.** `dialect import` / `dialect describe` write instruction files for the user's AI. Dialect never opens `.dart`, `.kt`, `.swift`, `.cs` files itself.
 - **Don't reintroduce dotted keys** (`checkout.bookNow`). They break `flutter gen-l10n`. Use flat camelCase + `@key.namespace` metadata.
-- **Don't add a hosted dashboard or SSO to v1.** All of that is v2 business-layer work, gated on real user adoption.
+- **Don't add a background runtime poller to any backend library.** Dropped 2026-05-25 — backend libs read locale files at app startup; `dialect pull` + redeploy is the live-update mechanism. For sub-minute updates, document the webhook → reload-endpoint pattern, don't ship a poller.
+- **Don't make Cloud open auto-PRs back to the user's git via a Dialect-owned GitHub App.** Cloud is a normal SaaS with its own DB (`schema-in-git, values-in-DB`). The lock-in escape is `dialect export`, not git-proxy hacks.
+- **Don't bill Cloud users for LLM inference.** `dialect translate --auto` always uses the user's own Anthropic / OpenAI key — Dialect never resells inference, and the public framing is "zero vendor lock-in on AI provider."
 - **Don't build a translator marketplace, human-review workflow, or approval chain.** Pin/lock is the v1 answer for "human-approved this translation."
 - **Don't ship `dialect translate --auto` as the default `translate` behavior.** The AI-pointer flow is primary; `--auto` is a CI convenience.
-- **Don't add telemetry, version-check pings, or any phone-home.** v1.0 anti-goal.
+- **Don't add telemetry, version-check pings, or any phone-home.** v1.0 anti-goal, holds through Cloud — Cloud only sees data users explicitly `dialect push`.
 - **Don't add backwards-compat shims for the pre-1.0 dotted-key convention.** Pre-1.0 had no released users; no migration story needed.
+- **Don't frame the dashboard around "missing translations."** Translators review AI-generated values; they don't fill blanks. See principle 3.4.
+- **Don't build SSO/SAML, audit log, RBAC beyond per-project membership, multi-region deployment, custom branding, white-label, or any enterprise-compliance features.** These serve <5% of users at high build + maintenance cost. The audience for them is already served by Lokalise / Phrase / Smartling; Dialect isn't competing in that segment.
+- **Don't build a paid self-host tier or any license-key-activated Pro features on self-host.** Self-host is community OSS, full stop. No managed self-host product. No "Pro features unlocked by license key" (Sentry / PostHog model) — Dialect's economics don't work at that scale of build effort for that audience size.
+- **Don't add a "Contact Sales" pricing tier.** Public pricing only — the moment "contact us" appears, the indie-passive model breaks.
+- **Don't sell consulting / migration services as a productized revenue line.** One-off paid help for friends-of-the-project is fine; productizing it is active work that erodes passive economics.
+- **Don't accept enterprise inbound** ("we'd pay $50K/yr for SSO + on-prem"). Every yes is months of distraction. The answer is "we don't sell that, sorry — try Lokalise."
 
 ---
 
@@ -127,19 +178,21 @@ dialect/
 ├── bin/                        # Dart CLI entry point
 │   └── dialect.dart
 ├── lib/                        # Dart CLI source
-│   ├── adapters/               # Per-platform format conversion (ARB v1.0)
+│   ├── adapters/               # Per-platform format conversion (ARB v1.0; icu-json + flat-json land v1.1)
 │   ├── arb/                    # ARB parsing + serialization
 │   ├── checks/                 # Structural + semantic check rules
 │   ├── commands/               # One file per CLI subcommand
-│   ├── server/                 # Dart Shelf server for `dialect serve`
+│   ├── server/                 # Dart Shelf server for `dialect serve` (extended for `dialect-server` in v1.3)
 │   └── templates/              # Generated Dart consts mirroring templates/
 ├── templates/                  # Canonical text of init scaffolding + plan files
-├── dashboard/                  # Svelte SPA for `dialect serve`
-├── dialect_aspnetcore/         # C# NuGet package (v1.1)
-├── dialect_ota/                # Flutter OTA package (v1.3+)
+├── dashboard/                  # Svelte SPA for `dialect serve` (extended with auth + multi-project in v1.3)
+├── dialect_aspnetcore/         # C# NuGet package (v1.1; adds BundleUrl in v1.2)
+├── dialect_server/             # PLANNED v1.3: Dart server bootstrap, Postgres migrations, OAuth, REST API
+├── dialect_ota/                # Flutter OTA package (v2.0+, deferred — see roadmap)
 ├── dialect/spec/               # Stable JSON contract docs
 │   ├── icu-json.md
 │   ├── flat-json.md
+│   ├── bundle.md               # PLANNED v1.2: manifest + per-locale JSON for `dialect publish` / Cloud
 │   ├── source_hash.md
 │   └── state.md
 ├── test/                       # Dart tests
@@ -154,6 +207,7 @@ dialect/
 ├── homebrew/                   # Homebrew formula template
 ├── install.sh                  # POSIX installer
 ├── action.yml                  # GitHub composite action
+├── .brainstorm                 # Gitignored symlink → ../brainstorm/dialect (sensitive planning)
 ├── README.md
 ├── CHANGELOG.md
 ├── CONTRIBUTING.md
@@ -192,12 +246,20 @@ The `Dialect.AspNetCore` NuGet package (v1.1) lives under `dialect_aspnetcore/` 
 If a future request would:
 
 - Add a backend format adapter (`.resx`, `.po`, `.xliff`)
+- Reintroduce `apple-strings` or `android-xml` adapters — Flutter handles native targets via its own build
 - Have Dialect parse source code directly
 - Reintroduce dotted keys or any non-`gen-l10n`-compatible shape
-- Make Dialect call an LLM as the default for semantic work
-- Add enterprise TMS features in v1
+- Make Dialect call an LLM as the default for semantic work, or have Dialect pay for LLM inference instead of BYO key
+- Add a background runtime poller to any backend library (operational overhead; `dialect pull` + redeploy is the answer)
+- Make Cloud open auto-PRs back to the user's git via a GitHub App (Cloud is a normal SaaS; `dialect export` is the escape hatch)
+- Add enterprise TMS features in v1 (audit log, RBAC, approval chains)
 - Target React-web-only / regulated industries / dedicated-loc-ops teams as primary
 - Replace `IStringLocalizer<T>` with a Dialect-specific interface
+- Frame the dashboard or docs around "missing translations" (translators review, they don't fill blanks)
+- Add SSO/SAML, audit log, RBAC beyond per-project, enterprise-compliance features
+- Build a paid self-host tier or license-key-gated Pro features on self-host
+- Add a "Contact Sales" tier or hide pricing
+- Sell consulting/migration services as a productized revenue line
 - Add telemetry, version-check pings, or phone-home behavior
 
 …push back and point at the relevant principle. These trade-offs were deliberate.

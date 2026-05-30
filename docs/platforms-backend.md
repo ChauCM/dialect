@@ -1,6 +1,6 @@
 # Backend Platforms
 
-How Dialect integrates with backend frameworks. Backend platforms need format conversion but not OTA — the server controls its own translations, deployed with the service.
+How Dialect integrates with backend frameworks. Backends consume translations either at build time (locale files bundled with the service) or at app startup (fetched from a `dialect publish` bundle URL — see below).
 
 ---
 
@@ -93,6 +93,53 @@ The common pattern: load a JSON file keyed by locale, look up strings at request
 
 ---
 
+## Live updates: `dialect pull` + redeploy (no background poller)
+
+When translations change (translator approves an edit in `dialect serve` or in Cloud), how do backends pick up the new strings?
+
+**Dialect's answer is deliberately simple: read locale files at app startup, run `dialect pull` in your deploy script.** No background poller in the backend library, no SDK that hits a manifest URL every 60 seconds. The operational cost of a poller (network failures, partial reads, auth header rotation, cache coherence across replicas) outweighs the benefit for almost every team.
+
+The two supported patterns:
+
+### Pattern 1: Bundle locale files at build time
+
+Locale files live in your repo at e.g. `wwwroot/locales/` (ASP.NET) or `api/locales/` (Node/Go/Python). CI does:
+
+```bash
+dialect pull                 # Fetch the latest bundle into dialect/translations/
+dialect sync                 # Regenerate per-platform locale files
+# now build + deploy as normal
+```
+
+The deployed service reads locale files at startup. Translation updates require a redeploy — which, for most backends, happens in minutes.
+
+### Pattern 2: Fetch a bundle URL at app startup (v1.2)
+
+For teams that want translations to update without rebuilding (e.g. continuously-deployed services that boot frequently), the v1.2 bundle format lets the backend fetch directly:
+
+```csharp
+// ASP.NET — v1.2
+builder.Services.AddDialectLocalization(opts =>
+{
+    opts.BundleUrl = "https://cdn.example.com/locales/prod/manifest.json";
+    opts.Fallback  = "wwwroot/locales";   // bundled at build time
+});
+```
+
+On startup, the service fetches the manifest, downloads any changed locale JSONs, loads them into the in-memory localizer. If the URL is unreachable, the bundled fallback wins. No background poller — the next pod restart picks up the next bundle version.
+
+### Sub-minute updates (rare): wire your own webhook
+
+For the small fraction of teams that genuinely need translations to land in production within seconds:
+
+1. Expose an admin endpoint in your backend: `POST /admin/reload-translations` (require an auth header).
+2. Configure a webhook from `dialect publish` (or from your Cloud project) to hit that endpoint on each publish event.
+3. The endpoint re-reads the bundle URL and atomically swaps the localizer.
+
+Dialect doesn't ship a library for this; it's ~20 lines of code per backend. Document the pattern, don't generalize it.
+
+---
+
 ## ASP.NET (C#)
 
 ASP.NET's standard localization story is `IStringLocalizer<T>` backed by `.resx` files. Dialect does **not** ship a `.resx` adapter — instead, we provide a first-class **`Dialect.AspNetCore` NuGet package** that implements the same `IStringLocalizer<T>` interface but reads Dialect's `icu-json` output. **Callsites don't change.** Only the registration in `Program.cs` swaps.
@@ -123,9 +170,16 @@ builder.Services.AddDialectLocalization(options =>
     options.DefaultCulture = "en";
     options.FallbackBehavior = FallbackBehavior.ReturnKey;
 });
+
+// v1.2: fetch bundle from a published URL at startup
+builder.Services.AddDialectLocalization(options =>
+{
+    options.BundleUrl = "https://cdn.example.com/locales/prod/manifest.json";
+    options.Fallback  = "wwwroot/locales";   // bundled, used if URL unreachable
+});
 ```
 
-The package handles `Accept-Language` culture resolution, ICU MessageFormat evaluation (plurals, gender, select), and hot-reload during development. Conforms to Dialect's versioned `icu-json` contract so the package and CLI stay in sync across upgrades.
+The package handles `Accept-Language` culture resolution, ICU MessageFormat evaluation (plurals, gender, select), and hot-reload during development. Conforms to Dialect's versioned `icu-json` contract so the package and CLI stay in sync across upgrades. **No background poller** — see "Live updates" above for the recommended update pattern.
 
 ### Callsites — unchanged
 

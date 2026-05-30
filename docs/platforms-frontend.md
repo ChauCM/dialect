@@ -1,6 +1,8 @@
-# Mobile Platforms
+# Frontend Platforms
 
-How Dialect integrates with each mobile framework — format conversion, OTA support, and platform-specific considerations.
+How Dialect integrates with frontend frameworks. **Flutter is the only first-class frontend target.**
+
+> **Scope notice (2026-05).** Native iOS `.strings`/`.stringsdict` and native Android `strings.xml`/`<plurals>` adapters are **not on the roadmap**. Flutter generates iOS/Android-compatible output from `AppLocalizations` via its own build pipeline; standalone native string files only matter for edge cases (method channels, native plugins, launch screens). The sections below remain for reference — they describe the conversion patterns if you need to hand-write native files for those cases — but Dialect does not generate them automatically. See [`roadmap.md`](roadmap.md). React Native and React-web are likewise secondary; `i18next` alone covers their needs.
 
 ---
 
@@ -10,7 +12,7 @@ How Dialect integrates with each mobile framework — format conversion, OTA sup
 
 ### Format
 
-Dialect's canonical ARB is Flutter's native format. `dialect sync` filters by `@key.namespace` and writes the result to the Flutter output directory.
+Dialect's canonical source is ARB — the best universal source format (JSON-based, metadata-rich, ICU MessageFormat built in, identifier-safe keys). Flutter happens to use ARB natively, which is why the Flutter adapter is trivial — `dialect sync` filters by `@key.namespace` and writes the result to the Flutter output directory with no format conversion.
 
 ```
 dialect/source/en.arb → lib/l10n/app_en.arb
@@ -59,9 +61,11 @@ AI:   *reads checkout_screen.dart*
 
 ---
 
-## iOS (Swift)
+## iOS (Swift) — out of v1 scope
 
-**Priority: Primary.** iOS localization DX is painful — `.strings` files are manual, `.stringsdict` XML is verbose, and there's no cross-platform sync story. Dialect solves this with format sync from the canonical ARB source.
+**Priority: Reference only.** Dialect does **not** ship an `apple-strings` adapter. The sections below describe the conversion pattern for teams who need to hand-write `.strings` / `.stringsdict` for native edge cases (method channel callbacks, launch screens, native plugins).
+
+For Flutter apps, the iOS build produces an `.ipa` containing `AppLocalizations` and the bundled ARBs; you don't need separate native string files for the Flutter UI layer.
 
 Translations ship with the app binary. OTA is not supported for iOS native (Apple's `NSLocalizedString` reads from the compiled bundle).
 
@@ -148,9 +152,9 @@ platforms:
 
 ---
 
-## Android (Kotlin)
+## Android (Kotlin) — out of v1 scope
 
-**Priority: Primary.** Same value proposition as iOS — Android's XML resource files are verbose and manual, and there's no cross-platform sync.
+**Priority: Reference only.** Dialect does **not** ship an `android-xml` adapter. Same reasoning as iOS above — Flutter handles strings via `AppLocalizations` for the Flutter UI layer. The sections below describe the conversion pattern if you need to hand-write `strings.xml` / `<plurals>` for native edge cases.
 
 Translations ship with the app binary. OTA is not supported for Android native (resources are compiled at build time).
 
@@ -254,11 +258,11 @@ platforms:
 
 ## Platform Priority Summary
 
-| Priority | Platform | Format Adapter | OTA | Reasoning |
+| Priority | Platform | Adapter ships? | OTA | Reasoning |
 |---|---|---|---|---|
-| Primary | Flutter | Trivial (ARB copy) | Full (`dialect_ota`) | Home audience, native format |
-| Primary | iOS (Swift) | `.strings` + `.stringsdict` | No (ships with binary) | Painful DX, high sync value |
-| Primary | Android (Kotlin) | `strings.xml` + `plurals` | No (ships with binary) | Same story as iOS |
-| Primary | Backends | See [Backend Platforms](platforms-backend.md) | N/A | Cross-platform sync is the core value prop |
-| Secondary | React Native | i18next JSON | Via i18next-http-backend | Existing i18next ecosystem covers most needs |
-| Secondary | React Web | i18next JSON | Via i18next-http-backend | Same — supported as output, not the target audience |
+| **Primary** | Flutter | ✓ ARB copy | Deferred to v2.0+ (`dialect_ota`) | ARB is the universal source format; Flutter consumes it natively. Flutter's build produces iOS/Android binaries. |
+| **Primary** | Backends | ✓ `icu-json` / `flat-json` (v1.1) | N/A — `dialect pull` + redeploy | Cross-stack Flutter ↔ backend sync is the core value prop |
+| Out of v1 scope | iOS (Swift) native | ✗ Not shipped | No (ships with binary) | Flutter handles iOS strings via its own build; only edge cases need hand-written `.strings`. See section above. |
+| Out of v1 scope | Android (Kotlin) native | ✗ Not shipped | No (ships with binary) | Same as iOS. |
+| Out of v1 scope | React Native | ✗ Not shipped | n/a | Existing `i18next` ecosystem already covers these teams |
+| Out of v1 scope | React Web | ✗ Not shipped | n/a | Same — `i18next` alone covers; revisit if demand surfaces |

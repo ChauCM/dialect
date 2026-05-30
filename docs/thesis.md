@@ -2,7 +2,7 @@
 
 ## The Problem
 
-A Flutter developer adds a string to their checkout screen. Now they need it translated into 6 languages. The same string also needs to be on the iOS native app, the Android native app, and the Go backend that sends push notifications.
+A Flutter developer adds a string to their checkout screen. Now they need it translated into 6 languages. The same string also needs to be in the Go backend that sends push notifications, and any other services the app talks to.
 
 Here's what happens today:
 
@@ -34,9 +34,9 @@ Dialect provides these three missing pieces.
 
 **A spec** — One canonical source file (ARB format) with rich metadata: descriptions that disambiguate meaning, glossary terms that enforce brand consistency, and ICU MessageFormat for correct pluralization across locales.
 
-**A CLI** — `dialect sync` reads the canonical source and generates platform-specific outputs: Flutter ARB, iOS `.strings`/`.stringsdict`, Android `strings.xml`, backend flat JSON or ICU JSON. `dialect check` validates completeness and correctness in CI.
+**A CLI** — `dialect sync` reads the canonical source and generates platform-specific outputs: Flutter ARB and backend JSON (`flat-json` or `icu-json`). `dialect check` validates completeness and correctness in CI. (iOS/Android native string files are not on the roadmap — Flutter generates iOS/Android-compatible output via its own build. See [`roadmap.md`](roadmap.md).)
 
-**OTA delivery** — Optional over-the-air translation updates for mobile apps. Fix a bad translation without waiting for App Store review.
+**Hosted collaboration** — *Planned for v1.3.* [Dialect Cloud](cloud.md) at `dialect.tools` lets non-developer translators review AI-generated translations without git access. Self-host arrives in v1.4. Both run the same `dialect-server` binary; the CLI stays free and full-featured.
 
 ## The Moment That Matters
 
@@ -46,16 +46,16 @@ Dev:  "I just built the checkout screen. Extract all strings,
 
 AI:   *reads checkout_screen.dart*
       *adds 12 keys to en.arb with contextual @descriptions*
-      *translates to es.arb and ja.arb*
+      *translates to es.arb and ja.arb in the same turn*
 
 Dev:  dialect sync && dialect check
       ✓ Flutter ARB updated
-      ✓ iOS .strings + .stringsdict updated
-      ✓ Android strings.xml updated
-      ✓ Backend JSON updated
+      ✓ Backend JSON (icu-json) updated
       ✓ All 3 locales complete, placeholders match
 
 Dev:  git add . && git commit
 ```
 
-One source. Every platform. 60 seconds.
+One source. Flutter + backend in sync. 60 seconds.
+
+The translator's role (when one exists) is to review the AI-generated translations — not to fill in blanks. By the time anyone outside the dev sees a new key, every locale already has a value.

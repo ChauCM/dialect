@@ -18,6 +18,18 @@ All notable changes to the Dialect CLI are tracked here.
   plurals, sync prints one info line listing the affected keys and points
   at `icu-json` for locale-correct plurals.
 
+### Added — soft-mode acknowledgements (`dialect check --ack`)
+
+- **`.dialect/state.json` + `dialect check --ack <rule>:<locale>:<key>`.**
+  Dismiss an intentional soft warning (e.g. "Email" stays "Email" in
+  Vietnamese) without flipping CI to `--strict`. The ack is fingerprinted
+  with the source/translation value at ack-time per
+  `dialect/spec/state.md`; if that value later changes, the warning
+  re-fires and the report flags the ack as stale (`⚠ stale-ack …`).
+  Structural rules are rejected — those are correctness failures, not
+  heuristics. `--note` records a justification; `check` prints how many
+  issues were hidden by acks.
+
 ### Added — `dialect translate`
 
 - **`dialect translate`** (AI-pointer flow). Writes

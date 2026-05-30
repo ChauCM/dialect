@@ -208,6 +208,14 @@ $ dialect check
 
 **Soft mode (default) vs strict (`--strict`).** On a fresh import (or when no `.dialect-state` lock exists), `dialect check` emits warnings with helpful hints ("run `dialect describe`" / "run `dialect translate`") instead of erroring. `--strict` is for CI — every warning becomes a hard failure (except length-ratio, which stays a warning unless `--strict-length` is also passed). The soft-default removes the "imported and immediately broken" experience on day one.
 
+**Acknowledging a warning (`--ack`).** When a soft warning is intentional (e.g. "Email" is the canonical Vietnamese form, so `source_equality` firing is noise), dismiss it without flipping CI to strict:
+
+```bash
+dialect check --ack source_equality:vi:settingsEmailLabel --note "Email is canonical in vi"
+```
+
+This writes `.dialect/state.json` (workspace-local, gitignored), fingerprinting the source/translation value at ack-time per [`dialect/spec/state.md`](../dialect/spec/state.md). The warning stays hidden until that value changes — at which point it re-fires and the report flags the ack as stale (`⚠ stale-ack …`) so you can re-ack or delete it. Only the four heuristic rules (`source_equality`, `glossary`, `untranslated_english`, `length_ratio`) are ack-able; structural rules are correctness failures and can't be silenced.
+
 ### `dialect status`
 
 ```bash

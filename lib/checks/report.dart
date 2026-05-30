@@ -31,6 +31,8 @@ class CheckReport {
     required bool strict,
     bool strictLength = false,
     IOSink? out,
+    int suppressed = 0,
+    List<String> staleAcks = const [],
   }) {
     final sink = out ?? stdout;
 
@@ -39,7 +41,15 @@ class CheckReport {
         .toList();
 
     if (result.issues.isEmpty) {
-      sink.writeln('✓ dialect check: no issues');
+      if (suppressed > 0) {
+        sink.writeln(
+          '✓ dialect check: no issues '
+          '($suppressed hidden by acknowledgements in .dialect/state.json)',
+        );
+      } else {
+        sink.writeln('✓ dialect check: no issues');
+      }
+      _writeStaleAcks(sink, staleAcks);
       return 0;
     }
 
@@ -61,6 +71,8 @@ class CheckReport {
     for (final issue in noFile) {
       _writeIssue(sink, issue, strict: strict, strictLength: strictLength);
     }
+
+    _writeStaleAcks(sink, staleAcks);
 
     final errorCount = failing.length;
     final warningCount = result.issues
@@ -88,8 +100,30 @@ class CheckReport {
                   'exit 0 in soft mode; run with --strict in CI)',
       );
     }
+    if (suppressed > 0) {
+      sink.writeln(
+        '  ($suppressed issue(s) hidden by acknowledgements in '
+        '.dialect/state.json)',
+      );
+    }
 
     return errorCount > 0 ? 1 : 0;
+  }
+
+  /// Surface acks whose fingerprint drifted: the underlying warning is
+  /// already shown above; this tells the reviewer the ack is stale.
+  static void _writeStaleAcks(IOSink sink, List<String> staleAcks) {
+    for (final id in staleAcks) {
+      sink.writeln('⚠ stale-ack  $id');
+      sink.writeln(
+        '  The source/translation value changed since this acknowledgement '
+        'was recorded.',
+      );
+      sink.writeln(
+        '  Re-ack with `dialect check --ack $id`, or delete the entry from '
+        '.dialect/state.json.',
+      );
+    }
   }
 
   static void _writeIssue(

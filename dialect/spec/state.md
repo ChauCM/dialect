@@ -2,7 +2,7 @@
 
 **Status:** v1.0. Stable contract. Breaking changes require a major-version bump.
 
-**Owners:** `dialect check` (reads and writes via a forthcoming `dialect check --ack <key>` flag, v1.0.x), the dashboard (M10+ — reads to render "dismissed" badges).
+**Owners:** `dialect check` (reads on every run; writes via `dialect check --ack <rule>:<locale>:<key>` — **implemented**), the dashboard (M10+ — reads to render "dismissed" badges).
 
 ---
 
@@ -157,7 +157,7 @@ Subsequent `dialect check` runs hide both warnings as long as the source values 
 
 ## Out of scope for v1.0
 
-- `dialect check --ack` flag implementation. Spec'd here; lands in a v1.0.x patch release. Until then, hand-edit the file.
+- ~~`dialect check --ack` flag implementation.~~ **Implemented** — `dialect check --ack <rule>:<locale>:<key> [--note <text>]` writes entries; the file can still be hand-edited.
 - Acknowledgements for structural rules. Structural issues are correctness, not heuristics — fix the underlying problem.
 - Workspace-shared acks (a separate committed file). Teams can choose to un-gitignore `.dialect/state.json`; we don't prescribe.
 - Migrating between hash algorithms. When needed, fingerprints become `sha256-16:<hex>` so a future algorithm can coexist. Not blocking v1.0.

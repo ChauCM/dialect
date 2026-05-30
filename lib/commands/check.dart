@@ -2,10 +2,12 @@ import 'dart:io';
 
 import 'package:args/command_runner.dart';
 
+import '../checks/ack.dart';
 import '../checks/check_runner.dart';
 import '../checks/fixer.dart';
 import '../checks/report.dart';
 import '../project/dialect_project.dart';
+import '../state/state_store.dart';
 
 class CheckCommand extends Command<int> {
   CheckCommand() {
@@ -29,6 +31,19 @@ class CheckCommand extends Command<int> {
             'Normalize ARB files in place: sort keys, hoist @@locale, '
             'place each @key block after its key, strip @key blocks from '
             'translation files, drop orphan @key blocks.',
+      )
+      ..addOption(
+        'ack',
+        help:
+            'Acknowledge a soft-mode warning so it stops surfacing: '
+            '--ack <rule>:<locale>:<key> (e.g. '
+            'source_equality:vi:settingsEmailLabel). Writes '
+            '.dialect/state.json; re-fires if the source/translation changes.',
+        valueHelp: 'rule:locale:key',
+      )
+      ..addOption(
+        'note',
+        help: 'Optional justification stored alongside --ack.',
       );
   }
 
@@ -68,6 +83,11 @@ class CheckCommand extends Command<int> {
       return 65;
     }
 
+    final ackId = results.option('ack');
+    if (ackId != null) {
+      return _writeAck(project, root, ackId, results.option('note'));
+    }
+
     if (results.flag('fix')) {
       final report = Fixer.fix(project);
       if (report.count == 0) {
@@ -84,19 +104,98 @@ class CheckCommand extends Command<int> {
       // the rewritten files. This catches issues that the fix can't
       // resolve (missing keys, placeholder mismatches, etc.).
       final reloaded = DialectProject.load(root);
-      final result = runChecks(reloaded);
+      final outcome = applyAcks(
+        runChecks(reloaded),
+        reloaded,
+        StateStore.load(root),
+      );
       return CheckReport.write(
-        result,
+        outcome.result,
         strict: results.flag('strict'),
         strictLength: results.flag('strict-length'),
+        suppressed: outcome.suppressed,
+        staleAcks: outcome.staleAcks,
       );
     }
 
-    final result = runChecks(project);
+    final outcome = applyAcks(
+      runChecks(project),
+      project,
+      StateStore.load(root),
+    );
     return CheckReport.write(
-      result,
+      outcome.result,
       strict: results.flag('strict'),
       strictLength: results.flag('strict-length'),
+      suppressed: outcome.suppressed,
+      staleAcks: outcome.staleAcks,
     );
+  }
+
+  /// Write (or refresh) an acknowledgement for [ackId] of the form
+  /// `<rule>:<locale>:<key>`. The fingerprint is computed from the current
+  /// source/translation value, so the ack auto-expires when that value
+  /// changes. Structural rules are rejected — those are correctness
+  /// failures, not heuristics.
+  int _writeAck(
+    DialectProject project,
+    String root,
+    String ackId,
+    String? note,
+  ) {
+    final parts = ackId.split(':');
+    if (parts.length != 3 || parts.any((p) => p.isEmpty)) {
+      stderr.writeln(
+        'Invalid --ack id `$ackId`. Expected `<rule>:<locale>:<key>` '
+        '(e.g. source_equality:vi:settingsEmailLabel).',
+      );
+      return 64;
+    }
+    final rule = parts[0];
+    final locale = parts[1];
+    final key = parts[2];
+
+    if (!isAckableRule(rule)) {
+      stderr.writeln(
+        'Rule `$rule` is not acknowledgeable. Only the heuristic rules '
+        '(source_equality, glossary, untranslated_english, length_ratio) '
+        'can be acked; structural issues are correctness failures — fix '
+        'the underlying problem instead.',
+      );
+      return 64;
+    }
+
+    final fingerprint = ackFingerprint(
+      rule,
+      locale == 'source' ? null : locale,
+      key,
+      project,
+    );
+    if (fingerprint == null) {
+      stderr.writeln(
+        'Could not resolve `$key`'
+        '${locale == 'source' ? '' : ' (locale `$locale`)'} to a value to '
+        'fingerprint. Is the key present in the source'
+        '${locale == 'source' ? '' : '/translation'} ARB?',
+      );
+      return 65;
+    }
+
+    final state = StateStore.load(root);
+    state.checks[ackId] = AckRecord(
+      acknowledged: fingerprint,
+      acknowledgedAt: DateTime.now().toUtc().toIso8601String(),
+      note: note,
+    );
+    state.save(root);
+
+    stdout.writeln('✓ acknowledged $ackId');
+    stdout.writeln('  fingerprint: $fingerprint');
+    if (note != null) stdout.writeln('  note: $note');
+    stdout.writeln(
+      '  This warning stays hidden until the '
+      '${isSourceHashed(rule) ? 'source' : 'translation'} value changes.',
+    );
+    return 0;
   }
 }

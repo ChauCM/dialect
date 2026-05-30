@@ -28,9 +28,10 @@ class CheckCommand extends Command<int> {
         'fix',
         negatable: false,
         help:
-            'Normalize ARB files in place: sort keys, hoist @@locale, '
-            'place each @key block after its key, strip @key blocks from '
-            'translation files, drop orphan @key blocks.',
+            'Normalize ARB files in place: sort keys, hoist @@locale, place '
+            'each @key block after its key, strip descriptive metadata from '
+            'translations (keeping locked + source_hash), stamp source_hash '
+            'provenance onto unlocked translations, drop orphan @key blocks.',
       )
       ..addOption(
         'ack',

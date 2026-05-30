@@ -153,7 +153,10 @@ void main() {
       expect(row.stale, 0);
     });
 
-    test('unlocked entries are never stale, even with a source_hash', () {
+    test('unlocked entry with a mismatched source_hash is stale', () {
+      // The change-half of the loop: an unlocked translation whose stored
+      // hash no longer matches the current source is stale, even though
+      // nobody locked it.
       final source = _arb('en', entries: [_entry('a', 'Book Now')]);
       final es = _arb(
         'es',
@@ -175,6 +178,20 @@ void main() {
       );
       final row = computeStatus(p).single;
       expect(row.locked, 0);
+      expect(row.stale, 1);
+    });
+
+    test('untracked entry (no source_hash) is never stale', () {
+      // Adoption guard: a translation with no provenance is not flagged —
+      // tracking starts only once a hash is stamped.
+      final source = _arb('en', entries: [_entry('a', 'Book Now')]);
+      final es = _arb('es', entries: [_entry('a', 'Reservar ahora')]);
+      final p = _project(
+        targetLocales: ['es'],
+        source: source,
+        translations: {'es': es},
+      );
+      final row = computeStatus(p).single;
       expect(row.stale, 0);
     });
   });

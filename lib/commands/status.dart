@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:args/command_runner.dart';
 
-import '../arb/source_hash.dart';
+import '../arb/freshness.dart';
 import '../project/dialect_project.dart';
 import '../render/table.dart';
 
@@ -79,11 +79,11 @@ class StatusCommand extends Command<int> {
 /// no source keys, coverage is 1.0 by convention (nothing to translate
 /// = nothing missing).
 ///
-/// `stale` is the count of locked translation entries whose stored
-/// `@key.source_hash` no longer matches the current source value's hash
-/// per `dialect/spec/source_hash.md`. Locked entries with no
-/// `source_hash` (pre-spec locks) are not counted — they're a soft
-/// state, not stale.
+/// `stale` is the count of translation entries (locked OR unlocked) whose
+/// stored `@key.source_hash` no longer matches the current source value's
+/// hash per `dialect/spec/source_hash.md` — i.e. the English source
+/// changed since the translation was written. Entries with no stored hash
+/// are untracked, not stale.
 class LocaleStatus {
   LocaleStatus({
     required this.locale,
@@ -106,9 +106,7 @@ class LocaleStatus {
 List<LocaleStatus> computeStatus(DialectProject project) {
   final sourceByKey = {for (final e in project.source.entries) e.key: e};
   final sourceKeys = sourceByKey.keys.toSet();
-  final sourceHashes = <String, String>{
-    for (final e in project.source.entries) e.key: computeSourceHash(e.value),
-  };
+  final sourceHashes = computeSourceHashes(project.source);
 
   final rows = <LocaleStatus>[];
   for (final locale in project.config.targetLocales) {
@@ -125,13 +123,8 @@ List<LocaleStatus> computeStatus(DialectProject project) {
     var stale = 0;
     if (arb != null) {
       for (final entry in arb.entries) {
-        final meta = entry.metadata;
-        if (meta == null || !meta.locked) continue;
-        locked++;
-        final hash = meta.sourceHash;
-        if (hash == null) continue; // pre-spec lock; not stale
-        final currentHash = sourceHashes[entry.key];
-        if (currentHash != null && currentHash != hash) stale++;
+        if (entry.metadata?.locked ?? false) locked++;
+        if (isStaleEntry(entry, sourceHashes)) stale++;
       }
     }
 

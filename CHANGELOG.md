@@ -4,6 +4,33 @@ All notable changes to the Dialect CLI are tracked here.
 
 ## [Unreleased]
 
+### Added — stale-translation tracking (the change-half of the loop)
+
+- **Every translation now records `@key.source_hash`** — the version of the
+  English source it was written against. `dialect check --fix` stamps it
+  onto unlocked translations (never overwriting an existing one, so
+  staleness survives); the dashboard stamps it at lock/edit time. When the
+  source later changes, the hash no longer matches and the translation is
+  **stale** — surfaced for *all* translations now, not just locked ones.
+- **New `stale_translation` check rule** — warns (promotes under `--strict`,
+  so CI gates on it) when a translation's source changed since it was
+  written. Resolved by re-translating (`dialect translate` refreshes the
+  hash) or locking the value if it's still correct. `dialect status`'s
+  `Stale` column now counts unlocked staleness too.
+- **`dialect translate`** gained a **Stale (re-translate)** bucket for
+  unlocked-stale keys, alongside Missing and the review-only Stale (locked).
+- Provenance is committed in the ARB and travels with the value — the same
+  contract maps to a Postgres column carried by `push`/`pull` in Cloud
+  (v1.3). See `dialect/spec/source_hash.md`.
+
+### Fixed
+
+- **`dialect check --fix` no longer wipes locks.** It previously rebuilt
+  every translation as bare key/value, silently destroying dashboard-written
+  `locked` + `source_hash` on the next run. `--fix` now strips only
+  *descriptive* metadata (namespace/description/placeholders) and preserves
+  *state* metadata (locked, source_hash).
+
 ### Changed
 
 - **`dialect init` scaffolding surfaces the new capabilities.** The

@@ -2,7 +2,8 @@
 
 You are an AI assistant. This file is your instruction manual for one
 specific task: produce translations for the keys that are missing them
-in `{{PROJECT_NAME}}`, and flag the ones a human locked that have gone
+in `{{PROJECT_NAME}}`, refresh the ones whose English source changed
+since they were translated, and flag the locked ones that have gone
 stale.
 
 Project: **{{PROJECT_NAME}}**
@@ -35,10 +36,19 @@ with those, they win.
 
 ## 2. The work list
 
-Everything below was computed from the current project state. Translate
-exactly these keys — don't go hunting for others, and don't re-translate
-keys that already have values unless they appear under **Stale** for a
-locale.
+Everything below was computed from the current project state. Each locale
+may have up to three buckets:
+
+- **Missing** — no translation yet. Translate them.
+- **Stale** — a translation exists, but the English source changed since
+  it was written. Re-translate against the current source, then delete
+  that key's `@<key>` block in the translation file so the CLI re-stamps
+  it as fresh (see §4).
+- **Stale (locked)** — a human locked this translation and the source has
+  since changed. **Review only — do not edit.**
+
+Translate exactly the keys listed — don't go hunting for others, and
+don't touch keys that aren't listed.
 
 {{WORKLIST}}
 
@@ -46,7 +56,7 @@ locale.
 
 ## 3. How to translate each key
 
-For every key under **Missing** for a locale:
+For every key under **Missing** or **Stale** for a locale:
 
 - Read the source value and its `@key.description` / `context` in
   `dialect/source/{{SOURCE_LOCALE}}.arb`.
@@ -66,19 +76,31 @@ For every key under **Missing** for a locale:
   value is the single most common failure mode and `dialect check`
   flags it.
 
-For every key under **Stale (locked)** for a locale: **do not edit it.**
-A human locked that translation and the source has since changed. List
-it in your summary so the developer can decide whether to unlock and
-re-translate. Overwriting a lock silently is never allowed.
+For every key under **Stale** (unlocked): re-translate it against the
+current source value, exactly as above. Then **delete that key's `@<key>`
+block** in `dialect/translations/<locale>.arb` (it holds the old
+`source_hash`). `dialect check --fix` re-stamps a fresh hash, marking the
+translation current again. If you skip the delete, the key stays flagged
+stale even though you fixed it — harmless, but the developer will see a
+false warning.
+
+For every key under **Stale (locked)**: **do not edit it.** A human
+locked that translation and the source has since changed. List it in your
+summary so the developer can decide whether to unlock and re-translate.
+Overwriting a lock silently is never allowed.
 
 ---
 
 ## 4. Where to write
 
 - Write values into `dialect/translations/<locale>.arb` for each target
-  locale — one file per locale, key/value pairs only.
-- Do **not** add `@key` blocks to translation files. Metadata lives only
-  in the source ARB; the CLI strips it from translations.
+  locale — one file per locale. Write keys and values; don't hand-write
+  `@key` blocks. The CLI manages a tiny `source_hash` on each translation
+  (provenance for staleness) — you only ever *delete* a stale key's
+  `@<key>` block when re-translating it (per §3); you never author one.
+- Do **not** copy descriptive metadata (`namespace`, `description`,
+  `placeholders`) into translation files. That lives only in the source
+  ARB; the CLI strips it from translations.
 - Do **not** touch `dialect/source/{{SOURCE_LOCALE}}.arb`. Translating is
   not the time to change source strings or descriptions — that's
   `dialect describe`.

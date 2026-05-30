@@ -2,6 +2,7 @@ import 'dart:io';
 
 import '../arb/arb_file.dart';
 import '../arb/arb_writer.dart';
+import '../arb/freshness.dart';
 import '../project/dialect_project.dart';
 
 /// Result of `dialect check --fix`: which files were rewritten and the
@@ -28,19 +29,21 @@ class Fixer {
   /// - emits `@@` file-level metadata (preserved verbatim) after
   ///   `@@locale`,
   /// - drops `orphanMetadata` (by construction — writer never emits it),
-  /// - in translation ARBs, strips `@key` metadata blocks (the writer
-  ///   only emits them when the source ARB shape is detected by a
-  ///   non-`@@locale` key matching the convention; translation files
-  ///   passed through `_stripMetadata` lose theirs).
+  /// - in translation ARBs, strips **descriptive** `@key` metadata
+  ///   (`namespace`/`description`/`context`/`placeholders` — those live in
+  ///   the source), preserves **state** metadata (`locked`, `source_hash`),
+  ///   and stamps `source_hash` onto unlocked entries that lack one (see
+  ///   [normalizeTranslation]).
   ///
   /// Files that are already canonical are not touched. Returns a
   /// [FixReport] for terminal display.
   static FixReport fix(DialectProject project) {
     final changed = <String>[];
+    final sourceHashes = computeSourceHashes(project.source);
 
     _maybeRewrite(project.source, changed);
     for (final t in project.translations.values) {
-      _maybeRewrite(_stripMetadata(t), changed);
+      _maybeRewrite(normalizeTranslation(t, sourceHashes), changed);
     }
 
     return FixReport(changedFiles: changed);
@@ -55,22 +58,5 @@ class Fixer {
       file.writeAsStringSync(emitted);
       changed.add(path);
     }
-  }
-
-  /// Translation ARBs by convention contain only key/value pairs (no
-  /// `@key` blocks). If a translation accidentally accumulated metadata
-  /// (e.g. a copy-paste from the source), strip it before re-emitting.
-  /// Orphan metadata is dropped here too.
-  static ArbFile _stripMetadata(ArbFile arb) {
-    return ArbFile(
-      locale: arb.locale,
-      entries: [
-        for (final e in arb.entries) ArbEntry(key: e.key, value: e.value),
-      ],
-      fileMetadata: arb.fileMetadata,
-      orphanMetadata: const {},
-      entryLines: arb.entryLines,
-      sourcePath: arb.sourcePath,
-    );
   }
 }

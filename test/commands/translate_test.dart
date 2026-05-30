@@ -85,6 +85,35 @@ void main() {
       expect(body, isNot(contains('Missing (')));
     });
 
+    test('unlocked stale key lands in the re-translate bucket', () async {
+      tmp = _project(
+        source: '''
+{
+  "@@locale": "en",
+  "commonCancel": "Cancel",
+  "@commonCancel": { "namespace": "common", "description": "Cancel." }
+}
+''',
+        translations: {
+          // Unlocked, with a hash that can't match "Cancel" → stale.
+          'es':
+              '{ "@@locale": "es", "commonCancel": "Cancelar", "@commonCancel": { "source_hash": "0000000000000000" } }',
+        },
+        targetLocales: ['es'],
+      );
+
+      final exit = await DialectCommandRunner().run(['translate', tmp.path]);
+      expect(exit, 0);
+
+      final body = planBody();
+      // The unlocked-stale worklist bucket (header carries the count). The
+      // static instructions further down legitimately name every bucket;
+      // assert on the "(N)" count-header form to target the worklist.
+      expect(body, contains('**Stale (1)'));
+      expect(body, isNot(contains('Stale (locked) (')));
+      expect(body, isNot(contains('Missing (')));
+    });
+
     test('fully covered project reports nothing to do', () async {
       tmp = _project(
         source: '''

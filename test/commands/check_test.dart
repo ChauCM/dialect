@@ -156,9 +156,16 @@ void main() {
         p.join(tmp.path, 'dialect', 'translations', 'es.arb'),
       ).readAsStringSync();
       expect(
-        esBody.contains('@aFirst'),
+        esBody.contains('"description"'),
         isFalse,
-        reason: 'translation @key metadata must be stripped',
+        reason: 'descriptive translation metadata must be stripped',
+      );
+      expect(
+        esBody.contains('"source_hash"'),
+        isTrue,
+        reason:
+            '--fix stamps provenance: unlocked translations get a '
+            'source_hash so staleness can be tracked',
       );
     });
 

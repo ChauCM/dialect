@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:args/command_runner.dart';
 import 'package:path/path.dart' as p;
 
-import '../arb/source_hash.dart';
+import '../arb/freshness.dart';
 import '../project/dialect_project.dart';
 import '../templates/plan_render.dart';
 import '../templates/translate_plan_md.dart';
@@ -111,13 +111,19 @@ class TranslateCommand extends Command<int> {
     planFile.writeAsStringSync(rendered);
 
     final relativePath = p.relative(planPath, from: Directory.current.path);
-    final totalMissing = work.fold<int>(0, (n, w) => n + w.missing.length);
-    final totalStale = work.fold<int>(0, (n, w) => n + w.staleLocked.length);
+    final totalToTranslate = work.fold<int>(
+      0,
+      (n, w) => n + w.missing.length + w.staleUnlocked.length,
+    );
+    final totalStaleLocked = work.fold<int>(
+      0,
+      (n, w) => n + w.staleLocked.length,
+    );
 
-    if (totalMissing == 0 && totalStale == 0) {
+    if (totalToTranslate == 0 && totalStaleLocked == 0) {
       stdout.writeln(
-        '✓ dialect translate: every target locale is fully translated — '
-        'nothing to do.',
+        '✓ dialect translate: every target locale is fully translated and '
+        'fresh — nothing to do.',
       );
       stdout.writeln('  (Wrote $relativePath anyway, for the record.)');
       return 0;
@@ -125,8 +131,8 @@ class TranslateCommand extends Command<int> {
 
     stdout.writeln(
       'Wrote translate plan to $relativePath '
-      '($totalMissing key(s) to translate'
-      '${totalStale > 0 ? ', $totalStale stale lock(s) to review' : ''}).',
+      '($totalToTranslate key(s) to (re)translate'
+      '${totalStaleLocked > 0 ? ', $totalStaleLocked stale lock(s) to review' : ''}).',
     );
     stdout.writeln(
       '  Next: open your AI tool (Claude Code, Cursor, Cline, Copilot, …)',
@@ -136,15 +142,14 @@ class TranslateCommand extends Command<int> {
     return 0;
   }
 
-  /// Per-locale missing keys (in source, absent from the translation) and
-  /// stale locked keys (locked translation whose stored `source_hash` no
-  /// longer matches the current source value). Missing keys are returned
-  /// in source order so the plan reads top-to-bottom like the ARB.
+  /// Per-locale work buckets: keys missing a translation, unlocked stale
+  /// keys (source changed → safe to re-translate), and locked stale keys
+  /// (human-approved → review only, never auto-overwritten). Missing keys
+  /// are returned in source order so the plan reads top-to-bottom like the
+  /// ARB.
   static List<_LocaleWork> _computeWork(DialectProject project) {
     final sourceKeysInOrder = [for (final e in project.source.entries) e.key];
-    final sourceHashes = <String, String>{
-      for (final e in project.source.entries) e.key: computeSourceHash(e.value),
-    };
+    final sourceHashes = computeSourceHashes(project.source);
 
     final work = <_LocaleWork>[];
     for (final locale in project.config.targetLocales) {
@@ -159,19 +164,26 @@ class TranslateCommand extends Command<int> {
           if (!translationByKey.containsKey(key)) key,
       ];
 
+      final staleUnlocked = <String>[];
       final staleLocked = <String>[];
       for (final entry in translationByKey.values) {
-        final meta = entry.metadata;
-        if (meta == null || !meta.locked) continue;
-        final hash = meta.sourceHash;
-        if (hash == null) continue; // pre-spec lock; not provably stale
-        final current = sourceHashes[entry.key];
-        if (current != null && current != hash) staleLocked.add(entry.key);
+        if (!isStaleEntry(entry, sourceHashes)) continue;
+        if (entry.metadata?.locked ?? false) {
+          staleLocked.add(entry.key);
+        } else {
+          staleUnlocked.add(entry.key);
+        }
       }
+      staleUnlocked.sort();
       staleLocked.sort();
 
       work.add(
-        _LocaleWork(locale: locale, missing: missing, staleLocked: staleLocked),
+        _LocaleWork(
+          locale: locale,
+          missing: missing,
+          staleUnlocked: staleUnlocked,
+          staleLocked: staleLocked,
+        ),
       );
     }
     return work;
@@ -179,18 +191,15 @@ class TranslateCommand extends Command<int> {
 
   /// Render the work list as Markdown for the `{{WORKLIST}}` token.
   static String _renderWorklist(List<_LocaleWork> work) {
-    final hasAnything = work.any(
-      (w) => w.missing.isNotEmpty || w.staleLocked.isNotEmpty,
-    );
+    final hasAnything = work.any((w) => w.hasWork);
     if (!hasAnything) {
-      return 'Every target locale is fully translated and no locked '
-          'translation has gone stale. There is nothing to do — you can '
-          'stop here.';
+      return 'Every target locale is fully translated and nothing has gone '
+          'stale. There is nothing to do — you can stop here.';
     }
 
     final buf = StringBuffer();
     for (final w in work) {
-      if (w.missing.isEmpty && w.staleLocked.isEmpty) {
+      if (!w.hasWork) {
         buf.writeln('### `${w.locale}` — up to date');
         buf.writeln();
         continue;
@@ -201,6 +210,18 @@ class TranslateCommand extends Command<int> {
         buf.writeln('**Missing (${w.missing.length}) — translate these:**');
         buf.writeln();
         for (final key in w.missing) {
+          buf.writeln('- `$key`');
+        }
+        buf.writeln();
+      }
+      if (w.staleUnlocked.isNotEmpty) {
+        buf.writeln(
+          '**Stale (${w.staleUnlocked.length}) — the English source changed; '
+          're-translate, then delete each key\'s `@<key>` block so the CLI '
+          're-stamps it fresh:**',
+        );
+        buf.writeln();
+        for (final key in w.staleUnlocked) {
           buf.writeln('- `$key`');
         }
         buf.writeln();
@@ -225,9 +246,18 @@ class _LocaleWork {
   _LocaleWork({
     required this.locale,
     required this.missing,
+    required this.staleUnlocked,
     required this.staleLocked,
   });
   final String locale;
   final List<String> missing;
+
+  /// Stale and unlocked → re-translate (source changed).
+  final List<String> staleUnlocked;
+
+  /// Stale and locked → human-approved; review only, never auto-overwrite.
   final List<String> staleLocked;
+
+  bool get hasWork =>
+      missing.isNotEmpty || staleUnlocked.isNotEmpty || staleLocked.isNotEmpty;
 }

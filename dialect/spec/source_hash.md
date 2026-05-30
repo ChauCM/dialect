@@ -2,15 +2,22 @@
 
 **Status:** v1.0. Stable contract; breaking changes require a major-version bump and a migration note.
 
-**Owners:** `dialect status` (M6 — reads), the dashboard's pin/lock action (M10 — writes), `dialect translate` (M8 — reads to decide whether to skip locked entries).
+**Owners:** `dialect check --fix` (**writes** — stamps unlocked translations), the dashboard's pin/lock action (**writes** — stamps at lock-time), `dialect status` / `dialect check`'s `stale_translation` rule / `dialect translate` (**read** — compute staleness).
 
 ---
 
 ## What it is
 
-`@key.source_hash` is a small, stable fingerprint of a translation key's canonical English value. When a translator pins ("locks") a target translation, the dashboard captures the fingerprint of the **source** at lock-time and writes it onto the translation's `@key` block. Later, if the source value changes, the hash mismatch tells everyone the locked translation is now **stale** — the human reviewer pinned a translation of an older English string, and the new English needs a fresh review.
+`@key.source_hash` is a small, stable fingerprint of a translation key's canonical English value, recorded **on the translation** to mark which source version it was written against. It is the provenance behind staleness detection: if the English source later changes, the stored hash no longer matches the current source's hash, and the translation is **stale** — it needs re-translating (or re-reviewing).
+
+Every translation carries it — not only locked ones:
+
+- **`dialect check --fix`** stamps the current source hash onto any *unlocked* translation that has a value but no hash (new translations, or values just written by an AI / `dialect pull`). It never overwrites an existing hash, so a stale translation stays stale until it is actually re-translated.
+- **The dashboard** stamps it at lock-time (and on edit), the same way.
 
 The field lives on the **translation** ARB (`dialect/translations/<locale>.arb`), inside each `@key` block. It does **not** appear on the source ARB itself — the source IS the canonical value, comparing it to itself is meaningless.
+
+This is also the Cloud (v1.3) contract: in Cloud the same hash is a column on the translation row in Postgres, carried by `push`/`pull` alongside the value. The staleness definition (`stored ≠ current source hash`) is identical across local-only, self-host, and Cloud — provenance travels with the value wherever the value lives.
 
 ---
 
@@ -25,8 +32,9 @@ The field lives on the **translation** ARB (`dialect/translations/<locale>.arb`)
 | **NOT** hashed | description, context, placeholders, source_hash itself, any other `@key.*` field |
 | Field name | `source_hash` (snake_case to match the rest of `@key.*`) |
 | ARB type | string |
-| Written by | The dashboard (M10) at pin/lock-time |
-| Read by | `dialect status` (M6), the dashboard's stale indicator, `dialect translate --skip-locked` logic (M8+) |
+| Written by | `dialect check --fix` (unlocked translations, stamp-if-missing); the dashboard at lock/edit-time |
+| Read by | `dialect status`, the `stale_translation` check rule, `dialect translate`, the dashboard's stale indicator |
+| Stamp rule | `--fix` stamps current hash onto an unlocked entry with a value and no hash. Existing hashes are never overwritten (staleness survives until re-translation clears the hash). Locked entries are stamped only by the lock flow, never by `--fix`. |
 
 ### Rationale for the choices
 
@@ -68,9 +76,9 @@ Later, source changes:
 
 ## Backward compatibility
 
-A translation ARB with **no** `source_hash` on a locked entry is **not** a stale entry — it's a pre-spec lock from before the dashboard knew to write the field. `dialect status` reports it as "locked, no hash" (a soft state, not flagged), and the dashboard fills in the hash on the next interaction. We never invalidate user-pinned translations because their hashes are missing.
+A translation entry with **no** `source_hash` is **untracked**, not stale — its provenance is simply unknown. This is the adoption path: an existing project's translations carry no hash until the first `dialect check --fix` stamps them. Until then `status`/`check` never flag them, so turning the feature on doesn't flood a project with false positives. The first `--fix` baselines every unlocked translation as fresh-against-current (the usual case for committed translations); tracking is exact from there forward.
 
-Unlocked entries never carry `source_hash` (no lock-time, no fingerprint).
+A locked entry with no `source_hash` is likewise untracked (a pre-spec lock) — `locked` but not flagged. The lock flow fills the hash on the next interaction; we never invalidate a user-pinned translation just because its hash is missing.
 
 ---
 

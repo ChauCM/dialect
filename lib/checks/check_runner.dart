@@ -3,6 +3,7 @@ import 'rule.dart';
 import 'semantic/glossary.dart';
 import 'semantic/length_ratio.dart';
 import 'semantic/source_equality.dart';
+import 'semantic/stale_translation.dart';
 import 'semantic/untranslated_english.dart';
 import 'structural/empty_values.dart';
 import 'structural/key_format.dart';
@@ -36,6 +37,7 @@ const List<Rule> semanticRules = <Rule>[
   LengthRatioRule(),
   UntranslatedEnglishRule(),
   GlossaryRule(),
+  StaleTranslationRule(),
 ];
 
 class CheckResult {

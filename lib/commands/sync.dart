@@ -11,14 +11,30 @@ import '../project/dialect_project.dart';
 
 class SyncCommand extends Command<int> {
   SyncCommand() {
-    argParser.addFlag(
-      'force',
-      negatable: false,
-      help:
-          'Rewrite every output file even if its contents already match. '
-          'Use when an external process has touched lib/l10n/ or you want '
-          'to refresh mtimes for a downstream watcher.',
-    );
+    argParser
+      ..addFlag(
+        'force',
+        negatable: false,
+        help:
+            'Rewrite every output file even if its contents already match. '
+            'Use when an external process has touched lib/l10n/ or you want '
+            'to refresh mtimes for a downstream watcher.',
+      )
+      ..addFlag(
+        'dry-run',
+        negatable: false,
+        help:
+            'Show which files would change without writing anything. '
+            'Exits non-zero if any file is out of date — useful as a CI '
+            'gate that the committed outputs match the source.',
+      )
+      ..addOption(
+        'platform',
+        help:
+            'Sync only the named platform from dialect.yaml (e.g. '
+            '`--platform backend`). Default: every configured platform.',
+        valueHelp: 'name',
+      );
   }
 
   @override
@@ -36,6 +52,8 @@ class SyncCommand extends Command<int> {
   Future<int> run() async {
     final results = argResults!;
     final force = results['force'] as bool;
+    final dryRun = results['dry-run'] as bool;
+    final onlyPlatform = results.option('platform');
     final rest = results.rest;
     if (rest.length > 1) {
       stderr.writeln('sync takes at most one positional argument.');
@@ -68,18 +86,43 @@ class SyncCommand extends Command<int> {
       return 0;
     }
 
+    final platforms = project.config.platforms.values.toList();
+    if (onlyPlatform != null) {
+      final match = platforms.where((p) => p.name == onlyPlatform).toList();
+      if (match.isEmpty) {
+        stderr.writeln(
+          'No platform named `$onlyPlatform` in dialect.yaml. '
+          'Configured: ${platforms.map((p) => p.name).join(", ")}.',
+        );
+        return 64;
+      }
+      platforms
+        ..clear()
+        ..addAll(match);
+    }
+
     var totalWritten = 0;
     var totalSkipped = 0;
     final unnamespacedPerPlatform = <String, Set<String>>{};
     final excludedPerPlatform = <String, Set<String>>{};
 
-    for (final platform in project.config.platforms.values) {
+    for (final platform in platforms) {
       final _PlatformOutcome outcome;
       try {
         if (platform.format == 'arb') {
-          outcome = _syncArbPlatform(project, platform, force: force);
+          outcome = _syncArbPlatform(
+            project,
+            platform,
+            force: force,
+            dryRun: dryRun,
+          );
         } else if (JsonAdapter.handles(platform.format)) {
-          outcome = _syncJsonPlatform(project, platform, force: force);
+          outcome = _syncJsonPlatform(
+            project,
+            platform,
+            force: force,
+            dryRun: dryRun,
+          );
         } else {
           stdout.writeln(
             '! ${platform.name} (format: ${platform.format}) — unknown '
@@ -107,6 +150,18 @@ class SyncCommand extends Command<int> {
     _maybeWarnUnnamespaced(unnamespacedPerPlatform);
     _maybeWarnExcludedNamespaces(excludedPerPlatform);
 
+    if (dryRun) {
+      if (totalWritten == 0) {
+        stdout.writeln('✓ dialect sync --dry-run: every output is up to date.');
+        return 0;
+      }
+      stdout.writeln(
+        '✗ dialect sync --dry-run: $totalWritten file(s) would change. '
+        'Run `dialect sync` to write them.',
+      );
+      return 1;
+    }
+
     if (totalWritten == 0 && totalSkipped == 0) {
       stdout.writeln(
         '✓ dialect sync: nothing to do (every output is already up to date).',
@@ -128,9 +183,10 @@ class SyncCommand extends Command<int> {
     DialectProject project,
     PlatformConfig platform, {
     required bool force,
+    required bool dryRun,
   }) {
     final outDir = Directory(p.join(project.root, platform.output));
-    outDir.createSync(recursive: true);
+    if (!dryRun) outDir.createSync(recursive: true);
 
     var written = 0;
     final unnamespacedKeys = <String>{};
@@ -149,6 +205,7 @@ class SyncCommand extends Command<int> {
       ArbAdapter.filenameFor(project.config.sourceLocale),
       ArbAdapter.encode(preparedSource.arb),
       force: force,
+      dryRun: dryRun,
     )) {
       written++;
     }
@@ -172,6 +229,7 @@ class SyncCommand extends Command<int> {
         ArbAdapter.filenameFor(locale),
         ArbAdapter.encode(prepared.arb),
         force: force,
+        dryRun: dryRun,
       )) {
         written++;
       }
@@ -193,9 +251,10 @@ class SyncCommand extends Command<int> {
     DialectProject project,
     PlatformConfig platform, {
     required bool force,
+    required bool dryRun,
   }) {
     final outDir = Directory(p.join(project.root, platform.output));
-    outDir.createSync(recursive: true);
+    if (!dryRun) outDir.createSync(recursive: true);
 
     final stripPlurals = platform.format == 'flat-json';
     var written = 0;
@@ -223,6 +282,7 @@ class SyncCommand extends Command<int> {
         JsonAdapter.filenameFor(locale),
         result.content,
         force: force,
+        dryRun: dryRun,
       )) {
         written++;
       }
@@ -310,18 +370,25 @@ class SyncCommand extends Command<int> {
 
   /// Write [content] to `<dir>/<filename>` only if the on-disk bytes
   /// differ — unless [force] is true, in which case always write.
-  /// Returns true if a write happened. Skipping no-op writes keeps
-  /// mtimes stable and is part of the idempotency contract.
+  /// Returns true if a write happened (or, under [dryRun], *would* have).
+  /// Skipping no-op writes keeps mtimes stable and is part of the
+  /// idempotency contract. Under [dryRun] nothing is written and the line
+  /// reads `would write:` instead of `wrote:`.
   bool _maybeWrite(
     String dir,
     String filename,
     String content, {
     required bool force,
+    required bool dryRun,
   }) {
     final path = p.join(dir, filename);
     final file = File(path);
     if (!force && file.existsSync() && file.readAsStringSync() == content) {
       return false;
+    }
+    if (dryRun) {
+      stdout.writeln('  would write: $path');
+      return true;
     }
     file.writeAsStringSync(content);
     stdout.writeln('  wrote: $path');

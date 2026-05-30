@@ -169,7 +169,7 @@ The CLI is a format converter. It doesn't translate. It doesn't parse code. It k
 
 See [Frontend Platforms](platforms-frontend.md) and [Backend Platforms](platforms-backend.md) for detailed integration guides.
 
-**v1.2 ergonomics:** `dialect sync --dry-run` (list what would change), `--platform <name>` (sync one configured platform), `--watch` (foreground re-sync on file change). End-of-run prints a summary with lossy-event count (e.g. `flat-json` strips ICU plurals to the `other` branch — each such event is counted and surfaced).
+**Ergonomics:** `dialect sync --dry-run` (list what would change without writing; exits non-zero if anything is out of date) and `--platform <name>` (sync one configured platform) ship today. `--watch` (foreground re-sync on file change) is still planned. A `flat-json` platform prints a per-platform lossy-event line listing the keys whose ICU plurals were collapsed to the `other` branch.
 
 ### `dialect check`
 

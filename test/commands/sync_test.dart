@@ -359,6 +359,64 @@ void main() {
       );
     });
 
+    test('--dry-run reports would-change, writes nothing, exits 1', () async {
+      _writeProject(
+        tmp.path,
+        sourceLocale: 'en',
+        targetLocales: const [],
+        source:
+            '{ "@@locale": "en", "commonCancel": "Cancel", "@commonCancel": { "namespace": "common" } }',
+        platforms: {
+          'flutter': {'output': 'lib/l10n/', 'format': 'arb', 'namespaces': []},
+        },
+      );
+      expect(await runSync(['--dry-run']), 1);
+      // Nothing written — not even the output directory.
+      expect(Directory(p.join(tmp.path, 'lib', 'l10n')).existsSync(), isFalse);
+
+      // After a real sync, --dry-run is clean and exits 0.
+      expect(await runSync(), 0);
+      expect(await runSync(['--dry-run']), 0);
+    });
+
+    test('--platform syncs only the named platform', () async {
+      _writeProject(
+        tmp.path,
+        sourceLocale: 'en',
+        targetLocales: const [],
+        source:
+            '{ "@@locale": "en", "commonCancel": "Cancel", "@commonCancel": { "namespace": "common" } }',
+        platforms: {
+          'flutter': {'output': 'lib/l10n/', 'format': 'arb', 'namespaces': []},
+          'backend': {
+            'output': 'api/locales/',
+            'format': 'icu-json',
+            'namespaces': [],
+          },
+        },
+      );
+      expect(await runSync(['--platform', 'backend']), 0);
+      expect(
+        File(p.join(tmp.path, 'api', 'locales', 'en.json')).existsSync(),
+        isTrue,
+      );
+      // flutter was not selected — no ARB output.
+      expect(Directory(p.join(tmp.path, 'lib', 'l10n')).existsSync(), isFalse);
+    });
+
+    test('--platform with an unknown name errors (exit 64)', () async {
+      _writeProject(
+        tmp.path,
+        sourceLocale: 'en',
+        targetLocales: const [],
+        source: '{ "@@locale": "en", "k": "v", "@k": { "namespace": "c" } }',
+        platforms: {
+          'flutter': {'output': 'lib/l10n/', 'format': 'arb', 'namespaces': []},
+        },
+      );
+      expect(await runSync(['--platform', 'nope']), 64);
+    });
+
     test('unknown format is skipped with a hint, not an error', () async {
       _writeProject(
         tmp.path,

@@ -17,6 +17,10 @@ All notable changes to the Dialect CLI are tracked here.
 - **`flat-json` lossy-event hint.** When a `flat-json` platform strips
   plurals, sync prints one info line listing the affected keys and points
   at `icu-json` for locale-correct plurals.
+- **`dialect sync` ergonomics.** `--dry-run` previews which files would
+  change without writing (exits non-zero if any are out of date — a CI
+  gate that committed outputs match the source); `--platform <name>` syncs
+  a single configured platform.
 
 ### Added — soft-mode acknowledgements (`dialect check --ack`)
 

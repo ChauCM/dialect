@@ -183,6 +183,9 @@ const String dialectYamlTemplate = r'''# =======================================
 #      dialect/translations/<locale>.arb. Keep the same key name;
 #      translate only the value. Preserve placeholders and ICU
 #      plural structure exactly. Respect the glossary.
+#      Tip: `dialect translate` writes `.dialect/translate-plan.md` with
+#      a per-locale work list of exactly which keys are missing (and
+#      which locked translations went stale) — execute that plan.
 #   5. Run `dialect check --fix && dialect sync && dialect check`
 #      to normalize, generate platform output, and validate.
 #
@@ -213,6 +216,17 @@ platforms:
     output: lib/l10n/
     format: arb
     namespaces: [common]  # add more as your project grows
+
+  # Cross-stack sync: emit the SAME source to a backend service, in JSON.
+  # Uncomment and adjust to keep your Flutter app and backend in sync from
+  # one canonical source. Two formats:
+  #   icu-json  — preserves ICU plurals/select (backend has an ICU runtime)
+  #   flat-json — collapses plurals to the `other` branch (no ICU runtime)
+  # Only keys whose @key.namespace is listed here sync to this platform.
+  # backend:
+  #   output: api/locales/
+  #   format: icu-json
+  #   namespaces: [common, backend]
 
 # Per-locale overrides for the length-ratio check.
 # Each value is the [min, max] multiplier of source character length.

@@ -9,6 +9,7 @@ class DialectConfig {
     required this.sourceLocale,
     required this.targetLocales,
     this.platforms = const {},
+    this.publishEnvs = const {},
     this.extras = const {},
   });
 
@@ -24,6 +25,11 @@ class DialectConfig {
   /// adapter (M5 `dialect sync`); other formats are stored verbatim
   /// here for M11 / v1.1 to consume.
   final Map<String, PlatformConfig> platforms;
+
+  /// Per-environment publish config keyed by env name (`production`,
+  /// `staging`). Read by `dialect publish` / `dialect pull` (v1.2). Empty
+  /// when no `publish:` block is configured.
+  final Map<String, PublishEnvConfig> publishEnvs;
 
   /// Other top-level keys from `dialect.yaml`, preserved verbatim.
   final Map<String, Object?> extras;
@@ -90,11 +96,36 @@ class DialectConfig {
       }
     }
 
+    final publishEnvs = <String, PublishEnvConfig>{};
+    final rawPublish = root['publish'];
+    if (rawPublish != null) {
+      if (rawPublish is! yaml.YamlMap) {
+        throw FormatException(
+          'publish must be a map of <env> blocks, got '
+          '${rawPublish.runtimeType}.',
+        );
+      }
+      for (final entry in rawPublish.entries) {
+        final envName = entry.key;
+        if (envName is! String) continue;
+        final envValue = entry.value;
+        if (envValue is! yaml.YamlMap) {
+          throw FormatException(
+            'publish.$envName must be a map, got ${envValue.runtimeType}.',
+          );
+        }
+        publishEnvs[envName] = PublishEnvConfig._fromYaml(envName, envValue);
+      }
+    }
+
     final extras = <String, Object?>{};
     for (final entry in root.entries) {
       final k = entry.key;
       if (k is! String) continue;
-      if (k == 'source_locale' || k == 'target_locales' || k == 'platforms') {
+      if (k == 'source_locale' ||
+          k == 'target_locales' ||
+          k == 'platforms' ||
+          k == 'publish') {
         continue;
       }
       extras[k] = _unwrap(entry.value);
@@ -104,6 +135,7 @@ class DialectConfig {
       sourceLocale: sourceLocale,
       targetLocales: targetLocales,
       platforms: platforms,
+      publishEnvs: publishEnvs,
       extras: extras,
     );
   }
@@ -185,6 +217,101 @@ class PlatformConfig {
       output: output,
       format: format,
       namespaces: namespaces,
+    );
+  }
+}
+
+/// One environment's publish config, read from `publish.<env>` in
+/// `dialect.yaml`. Drives `dialect publish` / `dialect pull` (v1.2) — see
+/// `dialect/spec/bundle.md`. Credentials are NEVER read from here; the
+/// `s3` target uses the standard AWS env vars / profile.
+class PublishEnvConfig {
+  PublishEnvConfig({
+    required this.name,
+    required this.target,
+    this.path,
+    this.bucket,
+    this.prefix = '',
+    this.format = 'icu-json',
+    this.namespaces = const [],
+    this.manifestUrl,
+    this.output,
+  });
+
+  /// Env key from the YAML map, e.g. `production`, `staging`.
+  final String name;
+
+  /// `local` (filesystem) or `s3` (S3-compatible: AWS, R2, MinIO).
+  final String target;
+
+  /// Filesystem prefix for `target: local`.
+  final String? path;
+
+  /// Bucket name for `target: s3`.
+  final String? bucket;
+
+  /// Key prefix within the bucket / under [path]. Defaults to `''`.
+  final String prefix;
+
+  /// Bundle format: `icu-json` (default) or `flat-json`.
+  final String format;
+
+  /// Namespace filter — empty means every key. Same semantics as
+  /// `platforms.<p>.namespaces`.
+  final List<String> namespaces;
+
+  /// Public URL of the channel head, used by `dialect pull` and by
+  /// backends reading at startup.
+  final String? manifestUrl;
+
+  /// Directory `dialect pull` writes the fetched locale files into.
+  final String? output;
+
+  static PublishEnvConfig _fromYaml(String name, yaml.YamlMap raw) {
+    final target = raw['target'];
+    if (target is! String || target.isEmpty) {
+      throw FormatException(
+        'publish.$name.target must be a non-empty string (`local` or `s3`).',
+      );
+    }
+    if (target == 'local' && (raw['path'] is! String || raw['path'] == '')) {
+      throw FormatException(
+        'publish.$name.path is required for `target: local` '
+        '(e.g. `dist/locales/`).',
+      );
+    }
+    if (target == 's3' && (raw['bucket'] is! String || raw['bucket'] == '')) {
+      throw FormatException(
+        'publish.$name.bucket is required for `target: s3`.',
+      );
+    }
+    final format = raw['format'];
+    if (format != null && format != 'icu-json' && format != 'flat-json') {
+      throw FormatException(
+        'publish.$name.format must be `icu-json` or `flat-json`.',
+      );
+    }
+    final namespaces = <String>[];
+    final rawNs = raw['namespaces'];
+    if (rawNs is yaml.YamlList) {
+      for (final v in rawNs) {
+        if (v is String) namespaces.add(v);
+      }
+    } else if (rawNs != null) {
+      throw FormatException(
+        'publish.$name.namespaces must be a list of strings.',
+      );
+    }
+    return PublishEnvConfig(
+      name: name,
+      target: target,
+      path: raw['path'] as String?,
+      bucket: raw['bucket'] as String?,
+      prefix: raw['prefix'] is String ? raw['prefix'] as String : '',
+      format: format is String ? format : 'icu-json',
+      namespaces: namespaces,
+      manifestUrl: raw['manifest_url'] as String?,
+      output: raw['output'] as String?,
     );
   }
 }

@@ -284,7 +284,7 @@ publish:
     path: dist/locales/
 ```
 
-The published bundle format is specified in [`dialect/spec/bundle.md`](../dialect/spec/) (lands v1.2). Backend libraries fetch the manifest URL at app startup — no background poller; live updates happen via `dialect pull` in CI + redeploy.
+The published bundle format is specified in [`dialect/spec/bundle.md`](../dialect/spec/bundle.md). Backend libraries fetch the manifest URL at app startup — no background poller; live updates happen via `dialect pull` in CI + redeploy.
 
 `dialect publish` against a `dialect-server` (Cloud or self-host) targets the server's `/publish` endpoint, which builds the bundle and uploads to Cloud-managed R2 (or your S3-compatible bucket in self-host). Same protocol either way.
 

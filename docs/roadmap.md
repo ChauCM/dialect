@@ -29,9 +29,11 @@
 
 ## v1.2 — Bundle format + `dialect publish`
 
-- **Bundle format spec** at [`dialect/spec/bundle.md`](../dialect/spec/) — manifest.json + per-locale JSON files, immutable content-hashed versions
-- **`dialect publish <env>`** — builds bundle and uploads to a user-configured target. Ship two targets: `local` (filesystem) and `s3` (S3-compatible, covers R2/MinIO/Cloudflare R2). Same protocol Cloud will use.
-- **`dialect pull`** — companion command that fetches the latest bundle and writes into `dialect/translations/`. Used in CI deploy scripts.
+> **Status (in progress on `main`, pre-release):** the bundle format, `dialect publish`, and `dialect pull` are implemented and tested for the **`local`** target. The **`s3`** target is the remaining slice.
+
+- **Bundle format spec** at [`dialect/spec/bundle.md`](../dialect/spec/bundle.md) — channel-head manifest + immutable content-addressed `b/<version>/` of per-locale JSON, SHA-256 integrity. ✅ *Done.*
+- **`dialect publish <env>`** — builds bundle and uploads to a user-configured target. **`local` (filesystem) ✅ done** (with `--dry-run`); **`s3` (S3-compatible: R2/MinIO/AWS) is the next slice.** Same protocol Cloud will use.
+- **`dialect pull <env>`** — fetches the latest bundle, verifies SHA-256, writes per-locale JSON into the env's `output` dir. Used in CI deploy scripts. ✅ *Done (local target).*
 - **`BundleUrl`-at-startup** (via the nice-to-have `Dialect.AspNetCore` package, or a documented snippet) — read manifest + locale JSONs at app startup, with `wwwroot/locales` fallback. No background poller — `dialect pull` + redeploy is the live-update mechanism.
 - Snippet docs for Node / Go / Python / Django — same "fetch on startup, optional `dialect pull` in deploy script" pattern.
 

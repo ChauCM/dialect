@@ -4,6 +4,27 @@ All notable changes to the Dialect CLI are tracked here.
 
 ## [Unreleased]
 
+### Added — bundle format + `dialect publish` / `dialect pull` (v1.2)
+
+- **`dialect-bundle/1` spec** (`dialect/spec/bundle.md`) — an immutable,
+  content-addressed snapshot of a project's translations for an
+  environment: a mutable channel head (`manifest.json`) pointing at an
+  immutable `b/<bundle_version>/` directory of per-locale JSON + a manifest
+  with SHA-256 integrity. The `bundle_version` is derived from content
+  only, so re-publishing identical translations is a no-op. Same shape
+  across local-only, self-host, and Cloud (v1.3 publishes it to R2).
+- **`dialect publish <env>`** — builds the bundle (in the env's `icu-json`
+  or `flat-json` format, honoring a namespace filter) and uploads it. The
+  `local` (filesystem) target ships now; `--dry-run` previews. The `s3`
+  target exits with a clear "not yet — use local + your own sync" message
+  (next slice).
+- **`dialect pull <env>`** — fetches the published bundle, **verifies each
+  locale file's SHA-256** (aborts on mismatch — corrupt data never reaches
+  a deploy), and writes the per-locale JSON into the env's `output` dir.
+  For CI deploy scripts. Does not touch the canonical ARBs.
+- New `publish:` block in `dialect.yaml` (per-env `target` / `path` /
+  `bucket` / `format` / `namespaces` / `manifest_url` / `output`).
+
 ## 1.1.0
 
 Backend sync lands — the cross-stack thesis is real. One canonical source

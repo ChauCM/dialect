@@ -232,5 +232,17 @@ platforms:
 # Each value is the [min, max] multiplier of source character length.
 # Default for locales not listed: [0.3, 2.5].
 length_ratio: {}
+
+# Publish immutable translation bundles for a backend to consume (v1.2).
+# `dialect publish <env>` builds a content-hashed bundle and uploads it;
+# `dialect pull <env>` fetches it (verifying integrity) in a deploy script.
+# `target: local` writes to the filesystem; `s3` (R2/MinIO/AWS) is coming.
+# publish:
+#   staging:
+#     target: local
+#     path: dist/locales/staging/   # where the bundle is written
+#     format: icu-json              # or flat-json
+#     namespaces: [common, backend]
+#     output: api/locales/          # where `dialect pull` writes the files
 ''';
 // dart format on

@@ -268,6 +268,10 @@ your-project/
 └── lib/l10n/                  # `dialect sync` output (Flutter convention)
 ```
 
+**Status** is the release a command shipped in. `in main, unreleased` means the
+code is on `main` but not in a tagged binary yet; a bare version number with no
+release behind it (v1.3, v1.5) is a plan, not a promise.
+
 | Command | Description | Status |
 |---|---|---|
 | `dialect init` | Scaffold the `dialect/` directory | v1.0 |
@@ -277,12 +281,17 @@ your-project/
 | `dialect check` | Validate completeness, correctness, and translation quality heuristics | v1.0 |
 | `dialect status` | Coverage overview across locales | v1.0 |
 | `dialect serve` | Local web UI for reviewing translations | v1.0 |
-| `dialect translate` | AI-pointer flow for translation (`--auto` for direct LLM call) | v1.0 |
-| `dialect publish` | Build versioned bundle (manifest + per-locale JSON) and upload to S3/R2/git/local | v1.2 |
-| `dialect pull` | Fetch latest bundle into `dialect/translations/` (use in CI deploy scripts) | v1.2 |
+| `dialect translate` | AI-pointer flow: write a plan your agent executes to translate missing keys | v1.0 |
+| `dialect translate --auto` | Call an LLM directly (BYO key) for CI, where no agent is in the loop | planned |
+| `dialect publish` | Build a versioned bundle (manifest + per-locale JSON) and write it to a `local` target | in `main`, unreleased |
+| `dialect pull` | Fetch a bundle from a `local` target into `dialect/translations/` (use in CI deploy scripts) | in `main`, unreleased |
 | `dialect login` / `link` / `push` | Talk to `dialect-server` (Cloud or self-host) — see [`docs/cloud.md`](docs/cloud.md) | v1.3 |
 | `dialect export` | Full project tarball for migration between Cloud / self-host / local | v1.3 |
 | `dialect diff` | Show translation changes for PR review | v1.5 |
+
+`publish` / `pull` upload to a `local` target today. S3/R2 upload is the next
+slice — point `target: local` at a synced directory and use your own tooling
+(`aws s3 sync`, `rclone`) until it lands.
 
 ---
 

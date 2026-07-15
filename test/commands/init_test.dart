@@ -217,6 +217,33 @@ void main() {
       },
     );
 
+    test(
+      'appends to AGENTS.md and leaves CLAUDE.md untouched when both exist',
+      () async {
+        // A real shape (stepo-mobile): AGENTS.md is a short pointer at a long
+        // CLAUDE.md. The section belongs in exactly one of them, and the file
+        // we don't pick must come back byte-identical — an agent-guidance file
+        // is hand-written, and silently rewriting one is unforgivable.
+        File(
+          p.join(tmp.path, 'AGENTS.md'),
+        ).writeAsStringSync('# Agent guidance\n\nRead CLAUDE.md too.\n');
+        const claudeBody = '# Claude guidance\n\nProject-specific rules.\n';
+        File(p.join(tmp.path, 'CLAUDE.md')).writeAsStringSync(claudeBody);
+
+        await runInit([]);
+
+        final agents = File(p.join(tmp.path, 'AGENTS.md')).readAsStringSync();
+        expect(agents, startsWith('# Agent guidance\n\nRead CLAUDE.md too.'));
+        expect(agents, contains('## Localization (Dialect)'));
+        expect(
+          File(p.join(tmp.path, 'CLAUDE.md')).readAsStringSync(),
+          claudeBody,
+          reason:
+              'CLAUDE.md must not be touched when AGENTS.md took the section',
+        );
+      },
+    );
+
     test('does not duplicate the section on re-run', () async {
       await runInit([]);
       await runInit([]);

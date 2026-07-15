@@ -41,6 +41,22 @@ intl: any
 version per Flutter SDK), so `any` lets pub pick the version that matches
 your SDK. Do not hard-pin `intl` — it will fight the SDK constraint.
 
+Then confirm `pubspec.yaml` carries `generate: true` under its `flutter:`
+section:
+
+```yaml
+flutter:
+  uses-material-design: true
+  generate: true
+```
+
+`dialect init` adds this for you, so it is normally already there — verify
+rather than duplicate it. It is what makes `flutter pub get` run `gen-l10n`
+and write `AppLocalizations`. Without it the build fails on a missing
+`app_localizations.dart` import, and the error does not name the flag. If
+it is missing (an unusual pubspec shape can make `init` skip it), add it by
+hand.
+
 Then run `flutter pub get`.
 
 ### 1.2 — Configure gen-l10n
@@ -55,17 +71,21 @@ output-localization-file: app_localizations.dart
 
 ### 1.3 — Wire MaterialApp
 
-In your top-level `MaterialApp` (usually `lib/main.dart`), add the imports:
+In your top-level `MaterialApp` (usually `lib/main.dart`), add the import:
 
 ```dart
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:{{PUBSPEC_NAME}}/l10n/app_localizations.dart';
 ```
 
-The second import comes from `lib/l10n/app_localizations.dart`, the file
+That comes from `lib/l10n/app_localizations.dart`, the file
 `flutter gen-l10n` writes from the `l10n.yaml` above. (You may see older
 docs use `package:flutter_gen/gen_l10n/…` — that's the legacy
 `synthetic-package: true` path, deprecated in modern Flutter.)
+
+Do not import `flutter_localizations` here. It belongs in `pubspec.yaml`,
+but `AppLocalizations.localizationsDelegates` already bundles the global
+Material/Cupertino/Widgets delegates and the generated file imports it for
+you, so importing it in `main.dart` only earns an `unused_import` warning.
 
 …and add these properties to `MaterialApp(...)`:
 

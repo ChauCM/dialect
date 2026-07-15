@@ -2,60 +2,147 @@
   "@@locale": "zh",
 
   "checkoutBookNow": "立即预订",
+  "@checkoutBookNow": {
+    "source_hash": "67be79359de4aa3f"
+  },
 
   "checkoutBookingConfirmed": "预订已确认。请在我的行程中查看详情。",
+  "@checkoutBookingConfirmed": {
+    "source_hash": "325d40087b6c0205"
+  },
 
   "checkoutFreeCancellation": "48小时内免费取消",
+  "@checkoutFreeCancellation": {
+    "source_hash": "abeeba7be26d17d6"
+  },
 
   "checkoutHostedBy": "房东：{hostName}",
+  "@checkoutHostedBy": {
+    "source_hash": "bf99f755eb402487"
+  },
 
   "checkoutNights": "{count, plural, =1{1晚} other{{count}晚}}",
+  "@checkoutNights": {
+    "source_hash": "49359ac951dfce76"
+  },
 
   "checkoutPolicyAgreement": "预订即表示您同意房屋规则和取消政策。",
+  "@checkoutPolicyAgreement": {
+    "source_hash": "caef0c648ccc7de4"
+  },
 
   "checkoutPricePerNight": "${pricePerNight}元/晚",
+  "@checkoutPricePerNight": {
+    "source_hash": "de2731d28c66bd0e"
+  },
 
   "checkoutTitle": "确认并付款",
+  "@checkoutTitle": {
+    "source_hash": "7dfff0469e468f37"
+  },
 
   "checkoutTotal": "总计：${total}",
+  "@checkoutTotal": {
+    "source_hash": "abf59bf9bfc4c39d"
+  },
 
   "checkoutYourTrip": "您的行程",
+  "@checkoutYourTrip": {
+    "source_hash": "d06eed3207efa469"
+  },
 
   "commonCancel": "取消",
+  "@commonCancel": {
+    "source_hash": "19766ed6ccb2f4a3"
+  },
 
   "commonLoading": "加载中...",
+  "@commonLoading": {
+    "source_hash": "47d2a515ef2f05b8"
+  },
 
   "homeOpenSettings": "打开设置",
+  "@homeOpenSettings": {
+    "source_hash": "ca381c1e76e681b6"
+  },
 
   "homeYourTrips": "我的行程",
+  "@homeYourTrips": {
+    "source_hash": "e19910469b4d820d"
+  },
 
   "settingsDarkMode": "深色模式",
+  "@settingsDarkMode": {
+    "source_hash": "9b7878aef90b527c"
+  },
 
   "settingsDeleteAccount": "删除账户",
+  "@settingsDeleteAccount": {
+    "source_hash": "a2e20a33570001ae"
+  },
 
   "settingsDeleteAccountDialogBody": "这将永久删除您的预订、行程和房东列表。此操作无法撤销。",
+  "@settingsDeleteAccountDialogBody": {
+    "source_hash": "95e527088df93694"
+  },
 
   "settingsDeleteAccountDialogConfirm": "删除",
+  "@settingsDeleteAccountDialogConfirm": {
+    "source_hash": "e2d0a54968ead24e"
+  },
 
   "settingsDeleteAccountDialogTitle": "删除账户？",
+  "@settingsDeleteAccountDialogTitle": {
+    "source_hash": "1617c15bde1ed548"
+  },
 
   "settingsEmail": "邮箱",
+  "@settingsEmail": {
+    "source_hash": "969ccbd3cf6300ec"
+  },
 
   "settingsLanguage": "语言",
+  "@settingsLanguage": {
+    "source_hash": "a4fe65264ef7dbb3"
+  },
 
   "settingsNotifications": "通知",
+  "@settingsNotifications": {
+    "source_hash": "788011833a5a0f22"
+  },
 
   "settingsNotificationsSubtitle": "行程更新、房东消息和预订提醒。",
+  "@settingsNotificationsSubtitle": {
+    "source_hash": "f1379e2cde791626"
+  },
 
   "settingsSectionAccount": "账户",
+  "@settingsSectionAccount": {
+    "source_hash": "7e1b0d5641f2640c"
+  },
 
   "settingsSectionAccountActions": "账户操作",
+  "@settingsSectionAccountActions": {
+    "source_hash": "9eb9d46a6790fc98"
+  },
 
   "settingsSectionPreferences": "偏好设置",
+  "@settingsSectionPreferences": {
+    "source_hash": "66962f72a0888373"
+  },
 
   "settingsSignOut": "退出登录",
+  "@settingsSignOut": {
+    "source_hash": "48f0d3d397d49f13"
+  },
 
   "settingsTapToEditProfile": "点击编辑您的个人资料",
+  "@settingsTapToEditProfile": {
+    "source_hash": "147bca6ebdd21b40"
+  },
 
-  "settingsTitle": "设置"
+  "settingsTitle": "设置",
+  "@settingsTitle": {
+    "source_hash": "74a883a037bc227f"
+  }
 }

@@ -354,6 +354,9 @@ jobs:
 ├── .dialect/                  # Gitignored. AI-pointer plan files land here.
 └── lib/l10n/                  # `dialect sync` output (Flutter convention)
 </code></pre>
+<p><strong>Status</strong> is the release a command shipped in. <code>in main, unreleased</code> means the
+code is on <code>main</code> but not in a tagged binary yet; a bare version number with no
+release behind it (v1.3, v1.5) is a plan, not a promise.</p>
 <table>
 <thead>
 <tr>
@@ -400,18 +403,23 @@ jobs:
 </tr>
 <tr>
 <td><code>dialect translate</code></td>
-<td>AI-pointer flow for translation (<code>--auto</code> for direct LLM call)</td>
+<td>AI-pointer flow: write a plan your agent executes to translate missing keys</td>
 <td>v1.0</td>
 </tr>
 <tr>
+<td><code>dialect translate --auto</code></td>
+<td>Call an LLM directly (BYO key) for CI, where no agent is in the loop</td>
+<td>planned</td>
+</tr>
+<tr>
 <td><code>dialect publish</code></td>
-<td>Build versioned bundle (manifest + per-locale JSON) and upload to S3/R2/git/local</td>
-<td>v1.2</td>
+<td>Build a versioned bundle (manifest + per-locale JSON) and write it to a <code>local</code> target</td>
+<td>in <code>main</code>, unreleased</td>
 </tr>
 <tr>
 <td><code>dialect pull</code></td>
-<td>Fetch latest bundle into <code>dialect/translations/</code> (use in CI deploy scripts)</td>
-<td>v1.2</td>
+<td>Fetch a bundle from a <code>local</code> target into <code>dialect/translations/</code> (use in CI deploy scripts)</td>
+<td>in <code>main</code>, unreleased</td>
 </tr>
 <tr>
 <td><code>dialect login</code> / <code>link</code> / <code>push</code></td>
@@ -430,6 +438,9 @@ jobs:
 </tr>
 </tbody>
 </table>
+<p><code>publish</code> / <code>pull</code> upload to a <code>local</code> target today. S3/R2 upload is the next
+slice — point <code>target: local</code> at a synced directory and use your own tooling
+(<code>aws s3 sync</code>, <code>rclone</code>) until it lands.</p>
 <hr>
 <h2 id="documentation">Documentation</h2>
 <table>

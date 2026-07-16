@@ -7,11 +7,13 @@ import 'semantic/stale_translation.dart';
 import 'semantic/untranslated_english.dart';
 import 'structural/empty_values.dart';
 import 'structural/key_format.dart';
+import 'structural/lock_integrity.dart';
 import 'structural/missing_keys.dart';
 import 'structural/namespace_required.dart';
 import 'structural/orphan_metadata.dart';
 import 'structural/placeholder_match.dart';
 import 'structural/plural_categories.dart';
+import 'structural/tag_balance.dart';
 
 /// The set of [Rule]s `dialect check` runs.
 ///
@@ -24,8 +26,10 @@ const List<Rule> structuralRules = [
   MissingKeysRule(),
   PlaceholderMatchRule(),
   PluralCategoriesRule(),
+  TagBalanceRule(),
   EmptyValuesRule(),
   OrphanMetadataRule(),
+  LockIntegrityRule(),
 ];
 
 /// Semantic rules (M8). Order shapes report grouping when two rules

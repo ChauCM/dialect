@@ -98,7 +98,8 @@
 
   "settingsEmail": "Email",
   "@settingsEmail": {
-    "locked": true
+    "locked": true,
+    "source_hash": "969ccbd3cf6300ec"
   },
 
   "settingsLanguage": "Ngôn ngữ",

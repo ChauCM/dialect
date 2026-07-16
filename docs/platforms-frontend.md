@@ -25,6 +25,25 @@ Dialect's keys are flat camelCase Dart identifiers (`checkoutBookNow`) by design
 
 If a project already has a `lib/l10n/` populated by a prior `gen-l10n` setup, run `dialect import --from arb --path lib/l10n/` instead of `init` — it generates an import plan that maps existing keys into the Dialect convention without clobbering work.
 
+### Rich text inside one sentence
+
+A sentence with a styled run in the middle ("When your account is private, **new followers must send a request you approve**. …") is still ONE sentence, and it stays one key. Splitting it into lead/bold/tail keys is a translation defect factory: a translator cannot translate a fragment they never see in context, and many languages will not break the sentence where English does.
+
+The recipe:
+
+- Author the styled run as an inline HTML-style tag in the ARB value:
+
+  ```json
+  "settingsPrivateAccountNote": "When your account is private, <b>new followers must send a request you approve</b>. …"
+  ```
+
+- **Tags, not braces.** `{b}…{/b}` fights the ARB parser — braces are ICU placeholder syntax and `{/b}` is not a legal placeholder name. `<b>` passes through `gen_l10n` as literal text, and every translator on earth has seen it.
+- Keep the tag set closed and small (`<b>` for emphasis; add a second tag only when a real sentence needs a second run style). Placeholders may sit inside tags (`<b>stepping with {name}</b>`); user-generated content is always a placeholder, never markup.
+- One small app-side helper parses the tag runs and rebuilds `TextSpan`s from a tag → `TextStyle` map supplied at the call site, so styles stay in the widget code where they belong. Tap targets ride the same map (a tag → `GestureRecognizer` map alongside the styles).
+- Translations move the tags to the target language's word order — the tag wraps the *meaning*, not the English position.
+
+`dialect check` enforces the contract with the `tag_balance` rule: tags in every value must balance (properly nested), and a translation must carry exactly its source key's tag set — same tags, same counts. A dropped `</b>` bolds the rest of the sentence; an invented tag renders literally in the UI; both are errors, not warnings.
+
 ### OTA
 
 Full support via the `dialect_ota` package. A custom `LocalizationsDelegate` fetches translations from any HTTP endpoint, caches locally, and falls back to bundled translations when offline. See [OTA documentation](ota.md).

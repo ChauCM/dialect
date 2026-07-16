@@ -242,3 +242,117 @@ pass — 2 example, 1 init, 2 README). Every new test mutation-verified: I broke
 the thing it guards and watched it fail, then restored.
 
 — Claude (Opus 4.8)
+
+---
+
+# Phase 2–5 (extraction rulings → translate → verify)
+
+Run context: same wave, later phases. 751 keys / 17 namespaces already
+extracted; this pass translated every one into Vietnamese, ran the
+`check --fix → sync → check --strict` loop to green, and verified on an iPhone
+17 simulator. Vietnamese is the acid test for a lot of Dialect's assumptions
+because it has **one** CLDR plural category and writes rich sentences in a very
+different word order — exactly where a naive check rule breaks.
+
+## Blocker-that-wasn't: `tag_balance` counted tags across plural branches
+
+The one that stopped the loop. `dialect check --fix` failed 7 keys like:
+
+    tag_balance  Translation for `recognitionBadgesCaption` uses 2x <b>;
+                 the source uses 4x <b>.
+
+The source is `{badges, plural, =1{<b>1</b>…} other{<b>{badges}</b>…}} · {…}`
+— two plural placeholders, `<b>` in every branch, so the raw string carries
+`<b>` four times. Vietnamese has a single CLDR category, so the correct
+translation collapses each plural to one `other` branch and carries `<b>`
+**twice**. Both render exactly two bold runs. The rule counted raw occurrences
+and called the collapse a dropped tag.
+
+This directly punishes the thing the handoff *mandates* ("ICU plurals collapse
+to one branch"), and it contradicts the rule's own doc comment, which says
+"only the SET has to match" and "tags may move freely". The implementation used
+`_sameCounts`, not a set compare.
+
+**Fixed upstream** (commit `e20ca71`): count tags over ONE rendered message —
+flatten every plural/select to its `other` branch with the existing
+`IcuMessage.flattenToOther` before counting. A flat string is unchanged (so the
+"dropped one of two bold runs" guard still fires); a collapsed plural now
+matches; balance is still checked over the whole raw value so a broken tag in
+any branch is still caught. Three regression tests added (single-category
+collapse passes, two collapsed plurals keep both tags, a branch that genuinely
+drops its tag still fails). This was an obvious-fix defect, not a design
+question, so it was fixed in-repo rather than escalated.
+
+*Why it hid until now:* every prior test and example used English or another
+`one/other` locale, where source and translation have the same branch count and
+the raw tally happens to agree. A single-category target locale is the first
+thing that exercises the collapse.
+
+## Enhancement: the glossary check can't see a multi-word term
+
+`GlossaryRule` tokenizes the source on non-alphanumerics into a `Set<String>`
+and asks `set.contains(term)`. So a term with a space in it — `step with`,
+`On air`, `Early Believer`, `Consistent Supporter`, `Die-Hard Fan`,
+`Dedicated Follower` — can never match, and its translation is **silently
+unenforced**. For Stepo that's most of the glossary: the invariant mechanic
+("bước cùng", which the whole product leans on) and every multi-word tier
+title went unchecked. Only the single-word terms (`step`, `journey`, `badge`,
+`supporter`, `standing`, `feed`, `Discover`, `Starter`, `Companion`,
+`Celebrator`) are actually verified.
+
+Not fixing this in-repo: making the source matcher phrase-aware (sliding window
+over the token list, plus a matching phrase-prefix check on the target side)
+changes what the rule enforces and how noisy it is, which is a design call for
+the PO, not an obvious one-liner. Flagging it. It didn't block the wave — the
+single-word terms caught the cases that mattered, and the multi-word terms were
+applied by hand and eyeballed in `serve`/on device — but a tool that quietly
+enforces 10 of 18 glossary rows while reporting "no issues" is overclaiming.
+
+## Enhancement: locking a source-equal entry is a two-step hand-edit
+
+Four entries are legitimately identical to the source ("email", "Email", a
+person's name, and a `{hours}<b>h</b>` countdown where "h" is the native
+Vietnamese hour unit). `source_equality` correctly warns. The fix, per its own
+hint, is to add `"locked": true` to the translation's `@key` block — but the
+`source_hash` it also requires is only written by `check --fix`, so the flow is:
+run `--fix` (writes the hash) → hand-edit `"locked": true` into four blocks →
+run `--fix` again. A `dialect lock <key> --locale vi` (and maybe
+`dialect lock --source-equal --locale vi` to accept a reviewed batch) would make
+this one deterministic step instead of a JSON hand-edit the docs have to teach.
+
+## Enhancement: `glossary_exempt` is source-wide, not per-locale
+
+`recognitionTierConsistentSupporter` = "Consistent Supporter" trips the
+single-word `supporter` term, because the Vietnamese title ("Bền bỉ")
+deliberately isn't the literal noun. The escape hatch (`glossary_exempt: true`
+on the source `@key`) works, but it exempts the key for **every** locale. Fine
+here, but a Spanish translation that *did* want "supporter" enforced on that key
+would lose the check. A per-locale exemption (`glossary_exempt: [vi]`) would be
+more honest. Low priority.
+
+## What worked well
+
+- **The `--fix → sync → check --strict` loop stayed sub-second and honest**
+  across 751 keys. `status` reporting 100% / 0 stale / 4 locked at the end was
+  exactly right, and the coverage table is a genuinely nice thing to land on.
+- **`flattenToOther` already existed and was exactly the right primitive** for
+  the tag fix — the `flat-json` lowering rule and the tag-per-render rule want
+  the same thing (one concrete rendering), so no new ICU parsing was needed.
+- **Locking from the file works and survives `--fix`.** Once the two-step dance
+  is done, `locked` + `source_hash` round-trips cleanly and the warning stays
+  silenced. The Phase 0 "state metadata survives normalize" property held all
+  the way through a real 751-key file.
+- **`gen_l10n` consumed the synced ARBs with zero drama.** The only warnings
+  were pre-existing `=1`/`one` overlaps in the *English* source (an extraction
+  artifact, not Dialect's), and they're warnings, not errors.
+
+## Scoreboard
+
+`dart analyze` clean. `dart test`: **277 passing** (+3 from this pass, all
+`tag_balance` regressions, each mutation-verified — broke the guard, watched it
+fail, restored). On the Stepo side: `dialect check --strict` clean at 100%
+coverage, `flutter analyze` clean, full app test suite green (incl. the em-dash
+guard now covering `dialect/translations/vi.arb`), and every screen checked on
+device rendered Vietnamese with zero RenderFlex overflows.
+
+— Claude (Opus 4.8)

@@ -39,7 +39,13 @@ void main() {
       expect(out, endsWith('\n}\n'));
     });
 
-    test('inlines placeholders blocks with leading-key-sorted order', () {
+    test('inlines placeholders blocks preserving declaration order', () {
+      // Regression (Stepo pilot, 2026-07-16): the writer used to sort
+      // placeholder keys alphabetically. Flutter's gen_l10n derives the
+      // generated method's parameter order from declaration order, so a
+      // normalize pass that re-sorts placeholders silently changes the
+      // generated Dart API and breaks every call site. Declaration order
+      // must survive the write.
       final arb = ArbFile(
         locale: 'en',
         entries: [
@@ -49,8 +55,9 @@ void main() {
             metadata: ArbMetadata(
               description: 'd',
               placeholders: {
-                'count': ArbPlaceholder(type: 'int'),
+                // Deliberately NOT alphabetical: name declared before count.
                 'name': ArbPlaceholder(type: 'String'),
+                'count': ArbPlaceholder(type: 'int'),
               },
             ),
           ),
@@ -61,11 +68,11 @@ void main() {
       // Inline shape: { "type": "int" } per placeholder.
       expect(out.contains('"count": { "type": "int" }'), isTrue);
       expect(out.contains('"name": { "type": "String" }'), isTrue);
-      // Sorted: count before name (lexicographic).
-      final cIdx = out.indexOf('"count":');
+      // Declaration order preserved: name stays before count.
       final nIdx = out.indexOf('"name":');
-      expect(cIdx, greaterThan(0));
-      expect(nIdx, greaterThan(cIdx));
+      final cIdx = out.indexOf('"count":');
+      expect(nIdx, greaterThan(0));
+      expect(cIdx, greaterThan(nIdx));
     });
 
     test('includes locked/glossary_exempt/source_hash when set', () {

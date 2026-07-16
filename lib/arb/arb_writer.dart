@@ -134,7 +134,11 @@ class ArbWriter {
   static String _placeholdersBlock(Map<String, ArbPlaceholder> placeholders) {
     final buf = StringBuffer();
     buf.writeln('    "placeholders": {');
-    final keys = placeholders.keys.toList()..sort();
+    // Declaration order, NEVER sorted: Flutter's gen_l10n derives the
+    // generated method's parameter order from the order placeholders are
+    // declared, so re-sorting here silently changes the generated Dart API
+    // and breaks every call site.
+    final keys = placeholders.keys.toList();
     for (var i = 0; i < keys.length; i++) {
       final k = keys[i];
       final ph = placeholders[k]!;

@@ -1,8 +1,10 @@
+import '../../arb/icu_message.dart';
 import '../../project/dialect_project.dart';
 import '../rule.dart';
 
 /// Inline rich-text tags (`<b>…</b>`, `<j>…</j>`) must balance, and a
-/// translation must carry exactly the source key's tag set.
+/// translation must carry the source key's tags in a single rendered
+/// message.
 ///
 /// The rich-text recipe (docs/platforms-frontend.md, "Rich text inside one
 /// sentence"): a styled run inside a localized sentence is authored as an
@@ -15,8 +17,18 @@ import '../rule.dart';
 ///   source — a dropped `</b>` bolds the rest of the sentence, an invented
 ///   tag renders as literal `<x>` in the UI.
 ///
-/// Tags may move freely (target-language word order wins); only the SET has
-/// to match. Values without tags are ignored.
+/// Tags may move freely (target-language word order wins). Counts are
+/// compared over ONE rendered message, not the raw string, because an ICU
+/// plural/select repeats its tags once per branch. A source
+/// `{n, plural, =1{<b>..</b>} other{<b>..</b>}}` carries `<b>` twice in the
+/// raw value, but a target locale with a single CLDR category (Vietnamese,
+/// Japanese) correctly collapses to one `other` branch and carries it once.
+/// Both render exactly one `<b>` run, so both are correct. Collapsing every
+/// plural/select to its `other` branch (via [IcuMessage.flattenToOther])
+/// before counting makes the comparison see what the user sees: the tags in
+/// a single rendering. Balance is still enforced over the WHOLE raw value,
+/// so a broken tag hiding in any branch is caught. Values without tags are
+/// ignored.
 class TagBalanceRule extends Rule {
   const TagBalanceRule();
 
@@ -46,6 +58,20 @@ class TagBalanceRule extends Rule {
     return stack.isEmpty ? counts : null;
   }
 
+  /// Tag counts of ONE rendered message: every plural/select collapses to
+  /// its `other` branch first, so branch multiplicity does not inflate the
+  /// tally. Falls back to the raw value if the message has no `other` branch
+  /// to flatten to (malformed ICU is another rule's problem, not this one's).
+  static Map<String, int>? _renderedTagCounts(String value) {
+    String rendered;
+    try {
+      rendered = IcuMessage.flattenToOther(value);
+    } on FormatException {
+      rendered = value;
+    }
+    return _tagCounts(rendered);
+  }
+
   static String _describe(Map<String, int> counts) {
     if (counts.isEmpty) return 'no tags';
     final parts = counts.entries.map((e) => '${e.value}x <${e.key}>').toList()
@@ -57,11 +83,11 @@ class TagBalanceRule extends Rule {
   List<Issue> run(DialectProject project) {
     final issues = <Issue>[];
 
-    // Source first: a broken source can't anchor any translation.
+    // Source first: a broken source can't anchor any translation. Balance is
+    // checked over the whole raw value (any branch), counts over one render.
     final sourceCounts = <String, Map<String, int>>{};
     for (final src in project.source.entries) {
-      final counts = _tagCounts(src.value);
-      if (counts == null) {
+      if (_tagCounts(src.value) == null) {
         issues.add(
           Issue(
             severity: defaultSeverity,
@@ -78,7 +104,7 @@ class TagBalanceRule extends Rule {
         );
         continue;
       }
-      sourceCounts[src.key] = counts;
+      sourceCounts[src.key] = _renderedTagCounts(src.value)!;
     }
 
     for (final entry in project.translations.entries) {
@@ -88,8 +114,7 @@ class TagBalanceRule extends Rule {
       for (final t in arb.entries) {
         final expected = sourceCounts[t.key];
         if (expected == null) continue; // missing/broken source covers it
-        final actual = _tagCounts(t.value);
-        if (actual == null) {
+        if (_tagCounts(t.value) == null) {
           issues.add(
             Issue(
               severity: defaultSeverity,
@@ -101,11 +126,12 @@ class TagBalanceRule extends Rule {
               line: arb.entryLines[t.key],
               hint:
                   'Every <tag> needs a matching </tag>, properly nested. '
-                  'The source has ${_describe(expected)}.',
+                  'The source renders ${_describe(expected)}.',
             ),
           );
           continue;
         }
+        final actual = _renderedTagCounts(t.value)!;
         if (expected.isEmpty && actual.isEmpty) continue;
         if (!_sameCounts(expected, actual)) {
           issues.add(
@@ -113,16 +139,18 @@ class TagBalanceRule extends Rule {
               severity: defaultSeverity,
               ruleName: name,
               message:
-                  'Translation for `${t.key}` uses ${_describe(actual)}; '
-                  'the source uses ${_describe(expected)}.',
+                  'Translation for `${t.key}` renders ${_describe(actual)}; '
+                  'the source renders ${_describe(expected)}.',
               locale: locale,
               key: t.key,
               file: arb.sourcePath,
               line: arb.entryLines[t.key],
               hint:
-                  'A translation carries exactly the source\'s tag set — '
-                  'move the tags to the target language\'s word order, but '
-                  'never add, drop, or rename them.',
+                  'A translation renders the same tags as its source — move '
+                  'them to the target language\'s word order, but never add, '
+                  'drop, or rename them. A plural counts once per rendering, '
+                  'so a single-category locale (vi, ja) collapses its '
+                  'branches without dropping a tag.',
             ),
           );
         }

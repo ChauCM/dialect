@@ -126,6 +126,104 @@ void main() {
       expect(issues.first.message, contains('2x <b>'));
     });
 
+    test(
+      'passes when a single-category locale collapses a tagged plural',
+      () {
+        // Vietnamese has one CLDR category (other), so a source plural whose
+        // every branch carries <b> collapses to a single `other` branch that
+        // carries <b> once. Both RENDER exactly one <b> run. The raw counts
+        // differ (source 2x, vi 1x) but must not be compared.
+        final p = project(
+          targetLocales: ['vi'],
+          source: arb(
+            locale: 'en',
+            entries: [
+              ArbEntry(
+                key: 'k',
+                value:
+                    '{count, plural, =1{<b>1</b> step} other{<b>{count}</b> steps}}',
+              ),
+            ],
+          ),
+          translations: {
+            'vi': arb(
+              locale: 'vi',
+              entries: [
+                ArbEntry(
+                  key: 'k',
+                  value: '{count, plural, other{<b>{count}</b> bước}}',
+                ),
+              ],
+            ),
+          },
+        );
+        expect(const TagBalanceRule().run(p), isEmpty);
+      },
+    );
+
+    test('passes when two collapsed plurals each keep their tag', () {
+      // Two plural placeholders joined by a separator; each branch carries one
+      // <b>. A single rendering shows two <b> runs on both sides.
+      final p = project(
+        targetLocales: ['vi'],
+        source: arb(
+          locale: 'en',
+          entries: [
+            ArbEntry(
+              key: 'k',
+              value:
+                  '{a, plural, =1{<b>1</b> badge} other{<b>{a}</b> badges}} · '
+                  '{b, plural, =1{<b>1</b> given} other{<b>{b}</b> given}}',
+            ),
+          ],
+        ),
+        translations: {
+          'vi': arb(
+            locale: 'vi',
+            entries: [
+              ArbEntry(
+                key: 'k',
+                value:
+                    '{a, plural, other{<b>{a}</b> huy hiệu}} · '
+                    '{b, plural, other{<b>{b}</b> đã trao}}',
+              ),
+            ],
+          ),
+        },
+      );
+      expect(const TagBalanceRule().run(p), isEmpty);
+    });
+
+    test('still flags a plural translation that drops a tag from its branch', () {
+      // Collapsing does not hide a genuine loss: the vi `other` branch carries
+      // no <b> at all, so the rendered counts differ (source 1x, vi 0x).
+      final p = project(
+        targetLocales: ['vi'],
+        source: arb(
+          locale: 'en',
+          entries: [
+            ArbEntry(
+              key: 'k',
+              value:
+                  '{count, plural, =1{<b>1</b> step} other{<b>{count}</b> steps}}',
+            ),
+          ],
+        ),
+        translations: {
+          'vi': arb(
+            locale: 'vi',
+            entries: [
+              ArbEntry(key: 'k', value: '{count, plural, other{{count} bước}}'),
+            ],
+          ),
+        },
+      );
+      final issues = const TagBalanceRule().run(p);
+      expect(issues, hasLength(1));
+      expect(issues.first.message, contains('no tags'));
+      expect(issues.first.message, contains('1x <b>'));
+    });
+
     test('flags an unbalanced SOURCE value on the source file', () {
       final p = project(
         targetLocales: ['vi'],

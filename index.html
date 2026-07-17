@@ -231,6 +231,21 @@ Five structural rules + four semantic heuristics. Every issue has a `file:line` 
 
 
 Flutter `gen_l10n` picks these up directly. Backend `flat-json` & `icu-json` adapters ship today — `dialect sync` writes `<locale>.json` per the canonical spec contracts under [`dialect/spec/`](dialect/spec/). iOS / Android native string-file adapters are **not on the roadmap** — Flutter generates iOS/Android-compatible output via its own build; native string files matter only for edge cases like method channels, native plugins, and launch screens. See [`docs/roadmap.md`](docs/roadmap.md).
+
+**Sync is non-destructive.** If a key was added straight to a generated file (`lib/l10n/app_en.arb`) and never round-tripped through the source, regenerating would silently delete it. `dialect sync` refuses instead — it writes nothing, lists the orphan keys, and offers two explicit choices:
+
+
+<pre><code class="language-bash">$ dialect sync
+✗ dialect sync: refusing to run — the generated output holds 2 key(s) that
+  are not in your source (dialect/source/en.arb). Regenerating would delete them.
+    …
+  dialect sync --adopt   pull them (English + any translations) back into the
+                         Dialect source, then sync
+  dialect sync --prune   confirm the deletion and regenerate without them
+</code></pre>
+
+
+`--adopt` is the recovery path — it restores the source string (with its `@key` metadata) **and** any translated values that lived only in the output, so nothing is lost. `--prune` is opt-in on purpose: it throws those strings away. `dialect sync --dry-run` reports the same drift with a non-zero exit, so CI catches a hand-edited output before it ships.
 </details>
 
 <details>

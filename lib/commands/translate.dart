@@ -5,6 +5,7 @@ import 'package:path/path.dart' as p;
 
 import '../arb/arb_file.dart';
 import '../arb/freshness.dart';
+import '../arb/icu_message.dart';
 import '../glossary/glossary_loader.dart';
 import '../project/dialect_project.dart';
 import '../templates/plan_render.dart';
@@ -304,8 +305,12 @@ class TranslateCommand extends Command<int> {
   /// substring (the tokenizer can't see across the space).
   static List<GlossaryTerm> _glossaryTermsIn(String source, Glossary glossary) {
     if (glossary.terms.isEmpty) return const [];
-    final tokens = _tokenize(source);
-    final lowerSource = source.toLowerCase();
+    // Scan literal copy only — a term that appears solely as a `{placeholder}`
+    // name (e.g. `"Step · {journey}"`) isn't in the copy, so it must not be
+    // surfaced as a term to translate. Matches the glossary check (#6).
+    final literal = IcuMessage.literalText(source);
+    final tokens = _tokenize(literal);
+    final lowerSource = literal.toLowerCase();
     final hits = <GlossaryTerm>[];
     for (final term in glossary.terms) {
       final t = term.term.toLowerCase();

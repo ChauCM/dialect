@@ -173,7 +173,12 @@ class ArbParser {
         case 'glossary_exempt':
           glossaryExempt = v == true;
         case 'source_hash':
-          sourceHash = v is String ? v : null;
+          // Normalize an empty/whitespace-only hash to null: `""` is never a
+          // real 16-hex prior hash, so it can only mean "not yet stamped".
+          // Treating it as absent (not stale) lets `check --fix` stamp it,
+          // instead of flagging it stale and sending the agent down the
+          // hand-compute-the-hash path. See feedback #5 (2026-07-18).
+          sourceHash = (v is String && v.trim().isNotEmpty) ? v : null;
         case 'placeholders':
           if (v is Map) {
             placeholders = <String, ArbPlaceholder>{};

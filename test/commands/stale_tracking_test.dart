@@ -94,6 +94,28 @@ platforms:
       expect(await run(['check', '--strict', tmp.path]), 0);
     });
 
+    test('empty source_hash is treated as absent, not stale (#5)', () async {
+      // An agent hand-adding a translation naturally writes `"source_hash":
+      // ""`. That must behave like a missing hash: not stale, and stamped by
+      // --fix — never sent down the hand-compute-the-hash path.
+      writeProject(
+        source: sourceArb('Cancel'),
+        es:
+            '{ "@@locale": "es", "commonCancel": "Cancelar", '
+            '"@commonCancel": { "source_hash": "" } }',
+      );
+
+      // Not flagged stale even under --strict.
+      expect(await run(['check', '--strict', tmp.path]), 0);
+
+      // --fix stamps the real hash in place of the empty string.
+      expect(await run(['check', '--fix', tmp.path]), 0);
+      final body = esBody();
+      expect(body, isNot(contains('"source_hash": ""')));
+      expect(body, contains('"source_hash": "'));
+      expect(await run(['check', '--strict', tmp.path]), 0);
+    });
+
     test('regression: --fix no longer wipes a lock + its hash', () async {
       // Before the fixer change, _stripMetadata rebuilt every translation
       // as bare key/value, silently destroying dashboard-written locks on

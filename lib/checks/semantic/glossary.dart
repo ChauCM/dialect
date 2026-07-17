@@ -1,4 +1,5 @@
 import '../../arb/arb_file.dart';
+import '../../arb/icu_message.dart';
 import '../../project/dialect_project.dart';
 import '../rule.dart';
 
@@ -83,9 +84,13 @@ class GlossaryRule extends Rule {
   /// Whole-word, case-insensitive match against an ASCII-tokenized
   /// source value. The term is expected to be the canonical English
   /// form; ASCII matching is enough for the v1.0 target audience.
+  ///
+  /// Scans only the *literal* copy — placeholder names are excluded
+  /// ([IcuMessage.literalText]) so a term that appears only as `{term}`
+  /// (e.g. `"Step · {journey}"`) doesn't demand translation.
   static bool _sourceContainsTerm(String source, String term) {
     final normalized = term.toLowerCase();
-    return _tokenize(source).contains(normalized);
+    return _tokenize(IcuMessage.literalText(source)).contains(normalized);
   }
 
   /// True when [translation] contains a recognizable prefix of

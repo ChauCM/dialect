@@ -107,16 +107,12 @@ void main() {
         targetLocales: ['vi'],
         source: arb(
           locale: 'en',
-          entries: [
-            ArbEntry(key: 'k', value: '<b>{n}</b> of <b>{m}</b> done'),
-          ],
+          entries: [ArbEntry(key: 'k', value: '<b>{n}</b> of <b>{m}</b> done')],
         ),
         translations: {
           'vi': arb(
             locale: 'vi',
-            entries: [
-              ArbEntry(key: 'k', value: 'Xong <b>{n}</b> trong {m}'),
-            ],
+            entries: [ArbEntry(key: 'k', value: 'Xong <b>{n}</b> trong {m}')],
           ),
         },
       );
@@ -126,40 +122,37 @@ void main() {
       expect(issues.first.message, contains('2x <b>'));
     });
 
-    test(
-      'passes when a single-category locale collapses a tagged plural',
-      () {
-        // Vietnamese has one CLDR category (other), so a source plural whose
-        // every branch carries <b> collapses to a single `other` branch that
-        // carries <b> once. Both RENDER exactly one <b> run. The raw counts
-        // differ (source 2x, vi 1x) but must not be compared.
-        final p = project(
-          targetLocales: ['vi'],
-          source: arb(
-            locale: 'en',
+    test('passes when a single-category locale collapses a tagged plural', () {
+      // Vietnamese has one CLDR category (other), so a source plural whose
+      // every branch carries <b> collapses to a single `other` branch that
+      // carries <b> once. Both RENDER exactly one <b> run. The raw counts
+      // differ (source 2x, vi 1x) but must not be compared.
+      final p = project(
+        targetLocales: ['vi'],
+        source: arb(
+          locale: 'en',
+          entries: [
+            ArbEntry(
+              key: 'k',
+              value:
+                  '{count, plural, =1{<b>1</b> step} other{<b>{count}</b> steps}}',
+            ),
+          ],
+        ),
+        translations: {
+          'vi': arb(
+            locale: 'vi',
             entries: [
               ArbEntry(
                 key: 'k',
-                value:
-                    '{count, plural, =1{<b>1</b> step} other{<b>{count}</b> steps}}',
+                value: '{count, plural, other{<b>{count}</b> bước}}',
               ),
             ],
           ),
-          translations: {
-            'vi': arb(
-              locale: 'vi',
-              entries: [
-                ArbEntry(
-                  key: 'k',
-                  value: '{count, plural, other{<b>{count}</b> bước}}',
-                ),
-              ],
-            ),
-          },
-        );
-        expect(const TagBalanceRule().run(p), isEmpty);
-      },
-    );
+        },
+      );
+      expect(const TagBalanceRule().run(p), isEmpty);
+    });
 
     test('passes when two collapsed plurals each keep their tag', () {
       // Two plural placeholders joined by a separator; each branch carries one
@@ -243,9 +236,7 @@ void main() {
         targetLocales: ['vi'],
         source: arb(
           locale: 'en',
-          entries: [
-            ArbEntry(key: 'k', value: '<b>bold <j>both</b> serif</j>'),
-          ],
+          entries: [ArbEntry(key: 'k', value: '<b>bold <j>both</b> serif</j>')],
         ),
       );
       final issues = const TagBalanceRule().run(p);

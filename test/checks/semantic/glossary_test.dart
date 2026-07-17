@@ -168,5 +168,82 @@ void main() {
       );
       expect(const GlossaryRule().run(p), isEmpty);
     });
+
+    test('does not fire when the term appears only as a placeholder name', () {
+      // Feedback #6: `{journey}` is the placeholder name, not the English
+      // word — the value passes it through untranslated, so the glossary
+      // must not demand a translation for it.
+      final journeyGlossary = Glossary(
+        terms: [
+          GlossaryTerm(
+            term: 'journey',
+            meaning: 'A tracked goal',
+            translations: const {'vi': 'hành trình'},
+          ),
+        ],
+      );
+      final p = project(
+        targetLocales: const ['vi'],
+        source: arb(
+          locale: 'en',
+          entries: [
+            ArbEntry(key: 'stepDetailCrumb', value: 'Step · {journey}'),
+          ],
+        ),
+        translations: {
+          'vi': arb(
+            locale: 'vi',
+            // Placeholder passed through; no "hành trình" needed.
+            entries: [
+              ArbEntry(key: 'stepDetailCrumb', value: 'Bước · {journey}'),
+            ],
+          ),
+        },
+        glossary: journeyGlossary,
+      );
+      expect(
+        const GlossaryRule().run(p),
+        isEmpty,
+        reason: 'a placeholder-only term is not literal copy',
+      );
+    });
+
+    test(
+      'still fires when the term is literal copy inside a plural branch',
+      () {
+        final journeyGlossary = Glossary(
+          terms: [
+            GlossaryTerm(
+              term: 'journey',
+              meaning: 'A tracked goal',
+              translations: const {'vi': 'hành trình'},
+            ),
+          ],
+        );
+        final p = project(
+          targetLocales: const ['vi'],
+          source: arb(
+            locale: 'en',
+            entries: [
+              ArbEntry(
+                key: 'journeyCount',
+                value: '{n, plural, one{1 journey} other{{n} journeys}}',
+              ),
+            ],
+          ),
+          translations: {
+            'vi': arb(
+              locale: 'vi',
+              // Vietnamese drops the canonical stem entirely.
+              entries: [ArbEntry(key: 'journeyCount', value: '{n} mục')],
+            ),
+          },
+          glossary: journeyGlossary,
+        );
+        final issues = const GlossaryRule().run(p);
+        expect(issues, hasLength(1));
+        expect(issues.first.message, contains('hành trình'));
+      },
+    );
   });
 }

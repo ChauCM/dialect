@@ -153,6 +153,88 @@ class IcuMessage {
     return '{$varName}';
   }
 
+  /// The human-visible literal text of [message], with ICU expressions
+  /// reduced to only the copy a reader actually sees.
+  ///
+  /// A placeholder variable name is NOT copy — `{journey}` interpolates a
+  /// value, it does not put the word "journey" on screen — so simple and
+  /// typed placeholders are dropped entirely. Plural / select / selectordinal
+  /// branch *bodies* ARE copy and are kept (every branch, not just `other`),
+  /// while the selector variable and keyword are dropped. Nested expressions
+  /// recurse under the same rule. Literal runs (including quoted runs) pass
+  /// through.
+  ///
+  /// Examples:
+  ///   `'Step · {journey}'` → `'Step ·  '` (placeholder gone).
+  ///   `'{n, plural, one{1 journey} other{{n} journeys}}'`
+  ///     → `' 1 journey   journeys'` (branch copy kept, `{n}` gone).
+  ///   `'Hello {name}!'` → `'Hello !'`.
+  ///
+  /// Used by the glossary check and the translate worklist so a term that
+  /// appears only as a placeholder name never demands translation
+  /// (feedback #6, 2026-07-18).
+  static String literalText(String message) {
+    final buf = StringBuffer();
+    _collectLiteral(message, buf);
+    return buf.toString();
+  }
+
+  static void _collectLiteral(String s, StringBuffer buf) {
+    var i = 0;
+    while (i < s.length) {
+      final ch = s.codeUnitAt(i);
+      if (ch == _apos) {
+        final end = _skipQuotedRun(s, i);
+        // Pass the quoted run through verbatim. Its only special content is
+        // punctuation (`{}|#`); the sole consumer tokenizes on word chars and
+        // discards it, so exact unescaping would be wasted work.
+        buf.write(s.substring(i, end));
+        i = end;
+        continue;
+      }
+      if (ch == _open) {
+        final end = _matchClose(s, i);
+        if (end == -1) {
+          // Unmatched `{` — malformed. Copy the remainder as literal; the
+          // structural checks flag the real problem upstream.
+          buf.write(s.substring(i));
+          break;
+        }
+        _collectExprLiteral(s.substring(i + 1, end), buf);
+        i = end + 1;
+        continue;
+      }
+      buf.writeCharCode(ch);
+      i++;
+    }
+  }
+
+  /// Emit the literal copy of a single `{…}` expression (braces excluded).
+  /// Simple and typed placeholders contribute nothing; plural/select branch
+  /// bodies contribute their (recursively extracted) copy.
+  static void _collectExprLiteral(String inside, StringBuffer buf) {
+    final firstComma = _findTopLevelComma(inside);
+    if (firstComma == -1) return; // `{name}` — placeholder, not copy.
+
+    final rest = inside.substring(firstComma + 1).trimLeft();
+    final secondComma = _findTopLevelComma(rest);
+    final type = (secondComma == -1 ? rest : rest.substring(0, secondComma))
+        .trim()
+        .toLowerCase();
+
+    if (type == 'plural' || type == 'selectordinal' || type == 'select') {
+      final body = secondComma == -1 ? '' : rest.substring(secondComma + 1);
+      for (final branch in _parseBranches(body)) {
+        // Separate branches so adjacent branch tokens don't fuse into one
+        // spurious word when the extracted text is later tokenized.
+        buf.write(' ');
+        _collectLiteral(branch.body, buf);
+      }
+    }
+    // Typed but not plural/select (number/date/time/…): the variable is a
+    // placeholder, not copy — contribute nothing.
+  }
+
   /// True if [message] contains any `plural`, `select`, or `selectordinal`
   /// expression at any nesting depth — i.e. anything `flat-json` would
   /// collapse. Used to count lossy events for the sync hint.

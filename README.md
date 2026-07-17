@@ -293,6 +293,7 @@ release behind it (v1.3, v1.5) is a plan, not a promise.
 | `dialect describe` | AI-pointer flow: backfill `@description` from callsites | v1.0 |
 | `dialect sync` | Generate platform-specific files from canonical ARBs | v1.0 |
 | `dialect check` | Validate completeness, correctness, and translation quality heuristics | v1.0 |
+| `dialect accept` | Re-bless a still-correct translation after the English source changed (re-stamps provenance, no re-translate) | v1.0 |
 | `dialect status` | Coverage overview across locales | v1.0 |
 | `dialect serve` | Local web UI for reviewing translations | v1.0 |
 | `dialect translate` | AI-pointer flow: write a plan your agent executes to translate missing keys | v1.0 |

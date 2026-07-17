@@ -112,6 +112,67 @@ void main() {
     });
   });
 
+  group('IcuMessage.literalText', () {
+    String words(String s) => IcuMessage.literalText(s)
+        .toLowerCase()
+        .split(RegExp(r'[^a-z0-9]+'))
+        .where((w) => w.isNotEmpty)
+        .toList()
+        .join(' ');
+
+    test('drops a simple placeholder name', () {
+      // The #6 case: "journey" is only the placeholder name.
+      expect(words('Step · {journey}'), 'step');
+    });
+
+    test('keeps literal copy around placeholders', () {
+      expect(words('Hello {name}!'), 'hello');
+      expect(words('{count} steps left'), 'steps left');
+    });
+
+    test('keeps plural branch copy, drops the selector variable', () {
+      final w = words('{n, plural, one{1 journey} other{{n} journeys}}');
+      expect(w, contains('journey'));
+      expect(w, contains('journeys'));
+      // The selector variable `n` is not copy.
+      expect(w.split(' '), isNot(contains('n')));
+    });
+
+    test('keeps select branch copy, drops the selector variable', () {
+      final w = words('{g, select, female{She stepped} other{They stepped}}');
+      expect(w, contains('she'));
+      expect(w, contains('they'));
+      expect(w, contains('stepped'));
+      expect(w.split(' '), isNot(contains('g')));
+    });
+
+    test('drops typed placeholders (number/date)', () {
+      expect(
+        words('Total {amount, number} on {date, date, yMMMd}'),
+        'total on',
+      );
+    });
+
+    test('recurses into nested plural/select', () {
+      final w = words(
+        '{n, plural, other{{g, select, female{her journey} '
+        'other{their journey}}}}',
+      );
+      expect(w, contains('journey'));
+      expect(w.split(' '), isNot(contains('n')));
+      expect(w.split(' '), isNot(contains('g')));
+    });
+
+    test('leaves plain strings untouched', () {
+      expect(IcuMessage.literalText('Just plain copy.'), 'Just plain copy.');
+    });
+
+    test('a term only inside a placeholder is not in the literal text', () {
+      // `journey` as a placeholder name must not tokenize as the word.
+      expect(words('{journey} details'), 'details');
+    });
+  });
+
   group('IcuMessage.hasExpressions', () {
     test('true for placeholders', () {
       expect(IcuMessage.hasExpressions('Hello {name}'), isTrue);

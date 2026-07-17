@@ -4,6 +4,38 @@ All notable changes to the Dialect CLI are tracked here.
 
 ## [Unreleased]
 
+### Added — `dialect accept` (re-bless a still-correct translation)
+
+- **`dialect accept <key> [locale]`** re-stamps an existing translation's
+  `source_hash` to the current source *without* re-translating it — the
+  first-class "I reviewed this, it still holds" gesture for when only the
+  English wording moved. With no `[locale]` it blesses every target locale
+  that carries the key (a no-op for those already fresh). It never touches
+  the value or the `locked` flag, and refuses to stamp a missing/empty
+  translation (that's `missing_keys`/`empty_values` to resolve). There is
+  deliberately no automatic byte-identical re-stamp: an unchanged
+  translation says nothing about whether it still matches the changed
+  English. Replaces the old manual recovery (hand-delete the stale
+  `@key.source_hash` block, then `check --fix`). The `stale_translation`
+  hint now names this path.
+
+### Fixed — empty `source_hash` is treated as absent, not stale
+
+- A translation written by hand naturally carries `"source_hash": ""`.
+  That empty string is never a real prior hash, so it's now normalized to
+  "not yet stamped": `check` no longer flags it stale, and `check --fix`
+  stamps the real hash — instead of sending an agent down the
+  hand-compute-the-hash path.
+
+### Fixed — glossary no longer fires on a placeholder-only term
+
+- The glossary check (and the `translate` worklist) scan only the **literal
+  copy** of a source string now: a term that appears solely as an ICU
+  placeholder name — e.g. `journey` in `"Step · {journey}"` — is no longer
+  demanded in the translation. Plural/select branch copy is still scanned,
+  so a term that is genuine copy inside a branch still enforces. Removes the
+  need for a `glossary_exempt: true` escape hatch on placeholder-only keys.
+
 ### Fixed — `dialect sync` is non-destructive (data-loss guard)
 
 - **`sync` no longer silently deletes keys that live only in the generated

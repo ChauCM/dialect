@@ -153,6 +153,42 @@ terms:
       expect(body, contains('glossary: journey → hành trình'));
     });
 
+    test(
+      'does not surface a glossary term that is only a placeholder (#6)',
+      () async {
+        tmp = _project(
+          source: '''
+{
+  "@@locale": "en",
+  "stepDetailCrumb": "Step · {journey}",
+  "@stepDetailCrumb": {
+    "namespace": "common",
+    "description": "Breadcrumb above a step.",
+    "placeholders": { "journey": { "type": "String" } }
+  }
+}
+''',
+          translations: const {},
+          targetLocales: ['vi'],
+          glossary: '''
+terms:
+  - term: journey
+    meaning: The user's ongoing achievement thread.
+    translations:
+      vi: hành trình
+''',
+        );
+
+        final exit = await DialectCommandRunner().run(['translate', tmp.path]);
+        expect(exit, 0);
+
+        final body = planBody();
+        expect(body, contains('- `stepDetailCrumb`'));
+        // `{journey}` is a placeholder name, not copy — no glossary line.
+        expect(body, isNot(contains('glossary:')));
+      },
+    );
+
     test('fully covered project reports nothing to do', () async {
       tmp = _project(
         source: '''

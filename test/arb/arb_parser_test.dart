@@ -168,6 +168,47 @@ void main() {
         reason: '@@locale lives on its own field, not in fileMetadata',
       );
     });
+    test('normalizes an empty source_hash to null (treated as absent)', () {
+      // Feedback #5: an agent hand-adding a translation naturally writes
+      // `"source_hash": ""`; that must be treated as "not yet stamped", not
+      // as a real (mismatching) prior hash.
+      final arb = ArbParser.parse('''
+{
+  "@@locale": "vi",
+  "greeting": "Xin chào",
+  "@greeting": {
+    "source_hash": ""
+  }
+}
+''');
+      expect(arb.entries.single.metadata?.sourceHash, isNull);
+    });
+
+    test('normalizes a whitespace-only source_hash to null', () {
+      final arb = ArbParser.parse('''
+{
+  "@@locale": "vi",
+  "greeting": "Xin chào",
+  "@greeting": {
+    "source_hash": "   "
+  }
+}
+''');
+      expect(arb.entries.single.metadata?.sourceHash, isNull);
+    });
+
+    test('keeps a real source_hash', () {
+      final arb = ArbParser.parse('''
+{
+  "@@locale": "vi",
+  "greeting": "Xin chào",
+  "@greeting": {
+    "source_hash": "abc123def4567890"
+  }
+}
+''');
+      expect(arb.entries.single.metadata?.sourceHash, 'abc123def4567890');
+    });
   });
 }
 

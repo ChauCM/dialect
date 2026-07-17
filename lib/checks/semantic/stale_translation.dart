@@ -51,8 +51,9 @@ class StaleTranslationRule extends Rule {
                 ? 'A human locked this. Unlock + re-translate, or re-lock it '
                       'against the new source in `dialect serve` if it still '
                       'reads correctly.'
-                : 'Run `dialect translate` to refresh it, or lock it in '
-                      '`dialect serve` if it is still correct as-is.',
+                : 'If the translation is still correct as-is, run '
+                      '`dialect accept ${e.key} $locale` to re-bless it. '
+                      'Otherwise run `dialect translate` to refresh it.',
           ),
         );
       }

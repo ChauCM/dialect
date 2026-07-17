@@ -114,6 +114,45 @@ void main() {
       expect(body, isNot(contains('Missing (')));
     });
 
+    test('inlines source string, description, and glossary terms', () async {
+      tmp = _project(
+        source: '''
+{
+  "@@locale": "en",
+  "journeyContinue": "Continue your journey",
+  "@journeyContinue": {
+    "namespace": "common",
+    "description": "Button that reopens an achieved journey."
+  }
+}
+''',
+        translations: const {},
+        targetLocales: ['vi'],
+        glossary: '''
+terms:
+  - term: journey
+    meaning: The user's ongoing achievement thread.
+    translations:
+      vi: hành trình
+''',
+      );
+
+      final exit = await DialectCommandRunner().run(['translate', tmp.path]);
+      expect(exit, 0);
+
+      final body = planBody();
+      expect(body, contains('- `journeyContinue`'));
+      // Source string inlined — no need to re-open the ARB.
+      expect(body, contains('source: "Continue your journey"'));
+      // Description inlined.
+      expect(
+        body,
+        contains('description: Button that reopens an achieved journey.'),
+      );
+      // Glossary term detected in the source, with its vi form.
+      expect(body, contains('glossary: journey → hành trình'));
+    });
+
     test('fully covered project reports nothing to do', () async {
       tmp = _project(
         source: '''
@@ -175,6 +214,7 @@ Directory _project({
   required String source,
   required Map<String, String> translations,
   List<String> targetLocales = const ['es', 'ja'],
+  String? glossary,
 }) {
   final tmp = Directory.systemTemp.createTempSync('dialect_translate_');
   final dialectDir = Directory(p.join(tmp.path, 'dialect'))..createSync();
@@ -191,6 +231,9 @@ platforms:
 ''');
   Directory(p.join(dialectDir.path, 'source')).createSync();
   File(p.join(dialectDir.path, 'source', 'en.arb')).writeAsStringSync(source);
+  if (glossary != null) {
+    File(p.join(dialectDir.path, 'glossary.yaml')).writeAsStringSync(glossary);
+  }
   final tDir = Directory(p.join(dialectDir.path, 'translations'))..createSync();
   for (final e in translations.entries) {
     File(p.join(tDir.path, '${e.key}.arb')).writeAsStringSync(e.value);

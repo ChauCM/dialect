@@ -4,6 +4,33 @@ All notable changes to the Dialect CLI are tracked here.
 
 ## [Unreleased]
 
+### Fixed — `dialect sync` is non-destructive (data-loss guard)
+
+- **`sync` no longer silently deletes keys that live only in the generated
+  output.** A key added straight to `lib/l10n/app_en.arb` (bypassing the
+  source) used to vanish on the next `sync` — it reported "wrote N files"
+  and `check` stayed green while live strings were gone. Sync now scans the
+  outputs for **orphan keys** (present in a generated file, absent from
+  `dialect/source`), and refuses when regenerating would drop them: it
+  writes nothing, lists them, and exits non-zero. `dialect sync --dry-run`
+  reports the same drift, so CI catches a hand-edited output.
+- **`dialect sync --adopt`** recovers orphans into the Dialect source — the
+  English value *and* its `@key` metadata into `dialect/source`, plus any
+  translated value that lived only in a translation output into
+  `dialect/translations/<locale>.arb` (so nothing is lost on regenerate).
+- **`dialect sync --prune`** is the explicit opt-in to delete orphans and
+  regenerate without them. Pruning is never the default.
+
+### Changed — the `translate` plan is more self-contained + safe-by-default
+
+- The generated `.dialect/translate-plan.md` now **inlines each key's source
+  string, its `description`/`context`, and any glossary terms detected in
+  the source** (with the target-locale form), so an agent translates from
+  the meaning without a second lookup into the source ARB.
+- The plan's finalize step now explains sync is non-destructive and warns
+  the agent **not** to reach for `--prune` to silence an orphan-drift error
+  (that deletes strings) — surface it, or `--adopt` if the keys belong.
+
 ### Added — bundle format + `dialect publish` / `dialect pull` (v1.2)
 
 - **`dialect-bundle/1` spec** (`dialect/spec/bundle.md`) — an immutable,

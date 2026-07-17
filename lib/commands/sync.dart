@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:args/command_runner.dart';
@@ -6,6 +7,8 @@ import 'package:path/path.dart' as p;
 import '../adapters/arb_adapter.dart';
 import '../adapters/json_adapter.dart';
 import '../arb/arb_file.dart';
+import '../arb/arb_parser.dart';
+import '../arb/arb_writer.dart';
 import '../config/dialect_config.dart';
 import '../project/dialect_project.dart';
 
@@ -34,6 +37,25 @@ class SyncCommand extends Command<int> {
             'Sync only the named platform from dialect.yaml (e.g. '
             '`--platform backend`). Default: every configured platform.',
         valueHelp: 'name',
+      )
+      ..addFlag(
+        'adopt',
+        negatable: false,
+        help:
+            'Recover orphan keys — keys that exist in a generated output but '
+            'not in the source (someone edited a generated file by hand). '
+            'Pull them back into dialect/source/<locale>.arb, then sync. '
+            'Without this (or --prune), sync refuses when it would delete '
+            'orphan keys.',
+      )
+      ..addFlag(
+        'prune',
+        negatable: false,
+        help:
+            'Confirm the deletion of orphan keys (present in the output, '
+            'absent from the source) and regenerate without them. Opt-in on '
+            'purpose: pruning throws away whatever strings live only in the '
+            'generated file.',
       );
   }
 
@@ -53,6 +75,8 @@ class SyncCommand extends Command<int> {
     final results = argResults!;
     final force = results['force'] as bool;
     final dryRun = results['dry-run'] as bool;
+    final adopt = results['adopt'] as bool;
+    final prune = results['prune'] as bool;
     final onlyPlatform = results.option('platform');
     final rest = results.rest;
     if (rest.length > 1) {
@@ -61,7 +85,7 @@ class SyncCommand extends Command<int> {
     }
     final root = rest.isEmpty ? Directory.current.path : rest.first;
 
-    final DialectProject project;
+    DialectProject project;
     try {
       project = DialectProject.load(root);
     } on FileSystemException catch (e) {
@@ -99,6 +123,40 @@ class SyncCommand extends Command<int> {
       platforms
         ..clear()
         ..addAll(match);
+    }
+
+    // Non-destructive guard: never silently delete keys that live in the
+    // generated output but not in the source (the out-of-band-edit trap
+    // that quietly lost 7 live keys in Dialect's first field use). Scan
+    // first; refuse, adopt, or prune — but never drop them by surprise.
+    var scan = _scanOrphans(project, platforms);
+
+    if (adopt && !dryRun && scan.adoptable.isNotEmpty) {
+      final adopted = _adoptOrphans(project, scan);
+      final names = adopted.toList()..sort();
+      stdout.writeln(
+        '✓ dialect sync --adopt: recovered ${adopted.length} orphan key(s) '
+        'into the Dialect source (plus any translations that lived only in '
+        'the output):',
+      );
+      for (final k in names) {
+        stdout.writeln('  $k');
+      }
+      stdout.writeln(
+        '  hint: run `dialect check --fix` — it stamps the recovered '
+        'translations fresh, and an adopted key still needs a '
+        '`namespace`/`description` if its @key block did not carry one.',
+      );
+      stdout.writeln('');
+      // Re-load so generation sees the newly-adopted source keys, then
+      // re-scan (adopted keys are no longer orphans).
+      project = DialectProject.load(root);
+      scan = _scanOrphans(project, platforms);
+    }
+
+    if (!scan.isEmpty && !prune) {
+      _printOrphanRefusal(project, scan, dryRun: dryRun, adoptTried: adopt);
+      return dryRun ? 1 : 65;
     }
 
     var totalWritten = 0;
@@ -160,6 +218,19 @@ class SyncCommand extends Command<int> {
         'Run `dialect sync` to write them.',
       );
       return 1;
+    }
+
+    if (prune && !scan.isEmpty) {
+      final pruned = scan.keys.toList()..sort();
+      stdout.writeln('');
+      stdout.writeln(
+        '⚠ dialect sync --prune: dropped ${pruned.length} orphan key(s) '
+        'absent from the source:',
+      );
+      for (final k in pruned) {
+        stdout.writeln('  $k');
+      }
+      stdout.writeln('');
     }
 
     if (totalWritten == 0 && totalSkipped == 0) {
@@ -394,6 +465,211 @@ class SyncCommand extends Command<int> {
     stdout.writeln('  wrote: $path');
     return true;
   }
+
+  /// Scan the on-disk outputs of [platforms] for **orphan keys**: keys that
+  /// appear in a generated output file but not in the canonical source ARB.
+  /// These almost always come from editing a generated file by hand — the
+  /// trap that silently deleted 7 live keys the first time Dialect ran on a
+  /// real project. Regenerating would drop them, so sync refuses unless the
+  /// caller opts in with `--adopt` (recover into the source) or `--prune`
+  /// (confirm the deletion). JSON outputs are scanned too. The source-locale
+  /// output yields the recoverable English value (+ any `@key` metadata); a
+  /// translation output yields the translated value, so `--adopt` can put
+  /// both back rather than silently dropping the translation on regenerate.
+  _OrphanReport _scanOrphans(
+    DialectProject project,
+    List<PlatformConfig> platforms,
+  ) {
+    final sourceKeys = {for (final e in project.source.entries) e.key};
+    final sourceLocale = project.config.sourceLocale;
+    final locales = <String>{sourceLocale, ...project.config.targetLocales};
+    final report = _OrphanReport();
+
+    for (final platform in platforms) {
+      final isArb = platform.format == 'arb';
+      final isJson = JsonAdapter.handles(platform.format);
+      // Unknown formats emit nothing (see the run loop), so they can't have
+      // orphans we'd delete. Skip them.
+      if (!isArb && !isJson) continue;
+      final outDir = p.join(project.root, platform.output);
+
+      for (final locale in locales) {
+        final filename = isArb
+            ? ArbAdapter.filenameFor(locale)
+            : JsonAdapter.filenameFor(locale);
+        final path = p.join(outDir, filename);
+        final file = File(path);
+        if (!file.existsSync()) continue;
+
+        final Map<String, ArbEntry> onDisk;
+        try {
+          onDisk = _readOutputEntries(file.readAsStringSync(), isArb: isArb);
+        } on FormatException {
+          // A malformed output isn't a data-loss concern — the next write
+          // replaces it with canonical bytes. Skip it for scanning.
+          continue;
+        }
+
+        for (final entry in onDisk.values) {
+          if (sourceKeys.contains(entry.key)) continue;
+          report._files.putIfAbsent(entry.key, () => <String>{}).add(path);
+          if (locale == sourceLocale) {
+            // The source-locale output carries the English value (+ any
+            // @key metadata) — that's what makes a key recoverable.
+            report._sourceEntries.putIfAbsent(entry.key, () => entry);
+          } else {
+            // A translation output carries a translated value that
+            // regenerate would otherwise drop. Recover it with the source.
+            report._translationEntries
+                .putIfAbsent(locale, () => <String, String>{})
+                .putIfAbsent(entry.key, () => entry.value);
+          }
+        }
+      }
+    }
+    return report;
+  }
+
+  /// Parse one output file into `key → ArbEntry`. ARB outputs keep their
+  /// `@key` metadata so `--adopt` can carry a description/namespace back into
+  /// the source; JSON outputs are flat `key → value`.
+  Map<String, ArbEntry> _readOutputEntries(
+    String content, {
+    required bool isArb,
+  }) {
+    if (isArb) {
+      final arb = ArbParser.parse(content);
+      return {for (final e in arb.entries) e.key: e};
+    }
+    final decoded = jsonDecode(content);
+    if (decoded is! Map) {
+      throw const FormatException('output JSON is not an object');
+    }
+    final out = <String, ArbEntry>{};
+    decoded.forEach((k, v) {
+      if (k is String && v is String) out[k] = ArbEntry(key: k, value: v);
+    });
+    return out;
+  }
+
+  /// Recover the orphans into the Dialect source. Returns the adopted keys.
+  ///
+  /// - **Source:** each recovered entry (value + any `@key` metadata) is
+  ///   taken verbatim from the source-locale output, so a hand-added string
+  ///   keeps whatever description/namespace it was given.
+  /// - **Translations:** any translated value that lived only in a
+  ///   translation output is written back into
+  ///   `dialect/translations/<locale>.arb` (bare, metadata-stripped by
+  ///   convention) — otherwise the next regenerate would drop it. Only keys
+  ///   we just adopted into the source qualify; an orphan with no English
+  ///   value can't become a real key. `dialect check --fix` stamps the
+  ///   `source_hash` on the finalize pass.
+  Set<String> _adoptOrphans(DialectProject project, _OrphanReport report) {
+    final sourceLocale = project.config.sourceLocale;
+    final adoptedKeys = report._sourceEntries.keys.toSet();
+
+    final sourcePath = p.join(
+      project.root,
+      'dialect',
+      'source',
+      '$sourceLocale.arb',
+    );
+    File(sourcePath).writeAsStringSync(
+      ArbWriter.encode(
+        ArbFile(
+          locale: project.source.locale,
+          entries: [...project.source.entries, ...report._sourceEntries.values],
+          fileMetadata: project.source.fileMetadata,
+        ),
+      ),
+    );
+
+    for (final locEntry in report._translationEntries.entries) {
+      final locale = locEntry.key;
+      final existing = project.translations[locale];
+      final existingKeys = {
+        if (existing != null)
+          for (final e in existing.entries) e.key,
+      };
+      final recovered = <ArbEntry>[
+        for (final e in locEntry.value.entries)
+          if (adoptedKeys.contains(e.key) && !existingKeys.contains(e.key))
+            ArbEntry(key: e.key, value: e.value),
+      ];
+      if (recovered.isEmpty) continue;
+
+      final tPath = p.join(
+        project.root,
+        'dialect',
+        'translations',
+        '$locale.arb',
+      );
+      File(tPath).parent.createSync(recursive: true);
+      File(tPath).writeAsStringSync(
+        ArbWriter.encode(
+          ArbFile(
+            locale: existing?.locale ?? locale,
+            entries: [if (existing != null) ...existing.entries, ...recovered],
+            fileMetadata: existing?.fileMetadata ?? const {},
+          ),
+        ),
+      );
+    }
+
+    return adoptedKeys;
+  }
+
+  /// Print the "won't silently delete your keys" refusal to stderr and leave
+  /// the tree untouched.
+  void _printOrphanRefusal(
+    DialectProject project,
+    _OrphanReport report, {
+    required bool dryRun,
+    required bool adoptTried,
+  }) {
+    final sourceLocale = project.config.sourceLocale;
+    final keys = report.keys.toList()..sort();
+    stderr.writeln(
+      '✗ dialect sync: refusing to run — the generated output holds '
+      '${keys.length} key(s) that are not in your source '
+      '(dialect/source/$sourceLocale.arb). Regenerating would delete them.',
+    );
+    stderr.writeln(
+      '  They were almost certainly added straight to a generated file, '
+      'bypassing Dialect:',
+    );
+    stderr.writeln('');
+    for (final k in keys) {
+      final files =
+          report._files[k]!
+              .map((f) => p.relative(f, from: project.root))
+              .toList()
+            ..sort();
+      stderr.writeln('    $k  —  ${files.join(', ')}');
+    }
+    stderr.writeln('');
+    final unadoptable = report.unadoptableKeys;
+    if (!adoptTried || report.adoptable.isNotEmpty) {
+      stderr.writeln('  Pick one:');
+      stderr.writeln(
+        '    dialect sync --adopt   pull them into '
+        'dialect/source/$sourceLocale.arb, then sync',
+      );
+      stderr.writeln(
+        '    dialect sync --prune   confirm the deletion and regenerate '
+        'without them',
+      );
+    }
+    if (adoptTried && unadoptable.isNotEmpty) {
+      stderr.writeln(
+        '  ${unadoptable.length} of these live only in a translation output '
+        '(no source-locale value to adopt). Add them to the source by hand, '
+        'or `dialect sync --prune` to drop them.',
+      );
+    }
+    stderr.writeln('');
+    stderr.writeln('  Nothing was written.');
+  }
 }
 
 class _PlatformOutcome {
@@ -410,4 +686,33 @@ class _PlatformOutcome {
   /// flat-json only: keys whose ICU plural/select was collapsed. Empty for
   /// the ARB and icu-json paths.
   final Set<String> pluralStrippedKeys;
+}
+
+/// The result of [SyncCommand._scanOrphans]: orphan keys (present in a
+/// generated output, absent from the source) grouped by which output files
+/// carry them, plus what `--adopt` would recover for each.
+class _OrphanReport {
+  /// orphan key → the output file paths it was found in.
+  final Map<String, Set<String>> _files = {};
+
+  /// orphan key → the source-locale [ArbEntry] `--adopt` writes into the
+  /// source. Absent for keys that live only in a translation output (no
+  /// English value to adopt).
+  final Map<String, ArbEntry> _sourceEntries = {};
+
+  /// locale → (orphan key → translated value) recovered from translation
+  /// outputs, so `--adopt` restores translations instead of dropping them.
+  final Map<String, Map<String, String>> _translationEntries = {};
+
+  bool get isEmpty => _files.isEmpty;
+
+  Set<String> get keys => _files.keys.toSet();
+
+  /// Keys `--adopt` can recover into the source, mapped to the entry it
+  /// would write.
+  Map<String, ArbEntry> get adoptable => _sourceEntries;
+
+  /// Orphans with no source-locale value — `--adopt` can't recover these.
+  Set<String> get unadoptableKeys =>
+      keys.difference(_sourceEntries.keys.toSet());
 }

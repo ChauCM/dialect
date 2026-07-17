@@ -431,6 +431,148 @@ void main() {
       expect(await runSync(), 0);
       expect(Directory(p.join(tmp.path, 'out')).existsSync(), isFalse);
     });
+
+    group('orphan keys (non-destructive guard)', () {
+      // Reproduce the field incident: a key gets added straight to the
+      // generated output (app_en.arb) and never round-tripped through the
+      // source. A naive regenerate would silently delete it.
+      void seedOrphan(String root) {
+        _writeProject(
+          root,
+          sourceLocale: 'en',
+          targetLocales: ['es'],
+          source: '{ "@@locale": "en", "keep": "Keep" }',
+          translations: {'es': '{ "@@locale": "es", "keep": "Mantener" }'},
+          platforms: {
+            'flutter': {'output': 'lib/l10n/', 'format': 'arb'},
+          },
+        );
+        // A human/agent edits the generated app_en.arb by hand — and, as in
+        // the real field incident, also drops a translated value straight
+        // into app_es.arb. Neither round-tripped through the source.
+        final outDir = Directory(p.join(root, 'lib', 'l10n'))
+          ..createSync(recursive: true);
+        File(p.join(outDir.path, 'app_en.arb')).writeAsStringSync(
+          '{\n'
+          '  "@@locale": "en",\n\n'
+          '  "keep": "Keep",\n\n'
+          '  "orphan": "Straight into the output",\n'
+          '  "@orphan": {\n'
+          '    "namespace": "common",\n'
+          '    "description": "Added by hand."\n'
+          '  }\n'
+          '}\n',
+        );
+        File(p.join(outDir.path, 'app_es.arb')).writeAsStringSync(
+          '{\n'
+          '  "@@locale": "es",\n\n'
+          '  "keep": "Mantener",\n\n'
+          '  "orphan": "Directo a la salida"\n'
+          '}\n',
+        );
+      }
+
+      test('refuses to sync and writes nothing (exit 65)', () async {
+        seedOrphan(tmp.path);
+        final before = File(
+          p.join(tmp.path, 'lib', 'l10n', 'app_en.arb'),
+        ).readAsStringSync();
+
+        expect(await runSync(), 65);
+
+        // The orphan is still there — nothing was deleted.
+        final after = File(
+          p.join(tmp.path, 'lib', 'l10n', 'app_en.arb'),
+        ).readAsStringSync();
+        expect(after, before, reason: 'refusal must not touch the output');
+        expect(after, contains('orphan'));
+      });
+
+      test('--dry-run also refuses (exit 1) and writes nothing', () async {
+        seedOrphan(tmp.path);
+        expect(await runSync(['--dry-run']), 1);
+        expect(
+          File(
+            p.join(tmp.path, 'lib', 'l10n', 'app_en.arb'),
+          ).readAsStringSync(),
+          contains('orphan'),
+        );
+      });
+
+      test('--adopt pulls the orphan into the source, then syncs', () async {
+        seedOrphan(tmp.path);
+
+        expect(await runSync(['--adopt']), 0);
+
+        // The key is now in the canonical source, with its @key metadata.
+        final source = File(
+          p.join(tmp.path, 'dialect', 'source', 'en.arb'),
+        ).readAsStringSync();
+        expect(source, contains('"orphan"'));
+        expect(source, contains('"@orphan"'));
+        expect(source, contains('"namespace": "common"'));
+        expect(source, contains('Added by hand.'));
+
+        // The Spanish value that lived only in app_es.arb is recovered into
+        // the translation source — not dropped on regenerate.
+        final esSource = File(
+          p.join(tmp.path, 'dialect', 'translations', 'es.arb'),
+        ).readAsStringSync();
+        expect(esSource, contains('Directo a la salida'));
+
+        // And both outputs still carry the key after regenerating.
+        expect(
+          File(
+            p.join(tmp.path, 'lib', 'l10n', 'app_en.arb'),
+          ).readAsStringSync(),
+          contains('orphan'),
+        );
+        expect(
+          File(
+            p.join(tmp.path, 'lib', 'l10n', 'app_es.arb'),
+          ).readAsStringSync(),
+          contains('Directo a la salida'),
+        );
+
+        // A follow-up sync is now clean — the trap is closed.
+        expect(await runSync(), 0);
+      });
+
+      test('--prune drops the orphan on explicit opt-in', () async {
+        seedOrphan(tmp.path);
+
+        expect(await runSync(['--prune']), 0);
+
+        final out = File(
+          p.join(tmp.path, 'lib', 'l10n', 'app_en.arb'),
+        ).readAsStringSync();
+        expect(out, isNot(contains('orphan')));
+        expect(out, contains('keep'));
+        // Source was never touched by prune.
+        expect(
+          File(
+            p.join(tmp.path, 'dialect', 'source', 'en.arb'),
+          ).readAsStringSync(),
+          isNot(contains('orphan')),
+        );
+      });
+
+      test('clean project (no orphans) still syncs normally', () async {
+        _writeProject(
+          tmp.path,
+          sourceLocale: 'en',
+          targetLocales: ['es'],
+          source: '{ "@@locale": "en", "keep": "Keep" }',
+          translations: {'es': '{ "@@locale": "es", "keep": "Mantener" }'},
+          platforms: {
+            'flutter': {'output': 'lib/l10n/', 'format': 'arb'},
+          },
+        );
+        expect(await runSync(), 0);
+        // Second sync sees the outputs it just wrote — no false orphan.
+        expect(await runSync(), 0);
+      });
+    });
   });
 }
 

@@ -3,7 +3,9 @@ import 'dart:io';
 import 'package:args/command_runner.dart';
 import 'package:path/path.dart' as p;
 
+import '../arb/arb_file.dart';
 import '../arb/freshness.dart';
+import '../glossary/glossary_loader.dart';
 import '../project/dialect_project.dart';
 import '../templates/plan_render.dart';
 import '../templates/translate_plan_md.dart';
@@ -101,7 +103,7 @@ class TranslateCommand extends Command<int> {
     final work = _computeWork(project);
     final tokens = {
       ...commonPlanTokens(project),
-      'WORKLIST': _renderWorklist(work),
+      'WORKLIST': _renderWorklist(work, project),
     };
     final rendered = renderPlanTemplate(translatePlanMdTemplate, tokens);
 
@@ -189,13 +191,23 @@ class TranslateCommand extends Command<int> {
     return work;
   }
 
-  /// Render the work list as Markdown for the `{{WORKLIST}}` token.
-  static String _renderWorklist(List<_LocaleWork> work) {
+  /// Render the work list as Markdown for the `{{WORKLIST}}` token. Each
+  /// key to translate carries its source string, description, and any
+  /// glossary terms detected in the source — inlined so the agent
+  /// translates from the meaning, not a bare string, with no second lookup.
+  static String _renderWorklist(
+    List<_LocaleWork> work,
+    DialectProject project,
+  ) {
     final hasAnything = work.any((w) => w.hasWork);
     if (!hasAnything) {
       return 'Every target locale is fully translated and nothing has gone '
           'stale. There is nothing to do — you can stop here.';
     }
+
+    final sourceByKey = <String, ArbEntry>{
+      for (final e in project.source.entries) e.key: e,
+    };
 
     final buf = StringBuffer();
     for (final w in work) {
@@ -210,7 +222,9 @@ class TranslateCommand extends Command<int> {
         buf.writeln('**Missing (${w.missing.length}) — translate these:**');
         buf.writeln();
         for (final key in w.missing) {
-          buf.writeln('- `$key`');
+          buf.write(
+            _renderKeyEntry(key, w.locale, sourceByKey, project.glossary),
+          );
         }
         buf.writeln();
       }
@@ -222,7 +236,9 @@ class TranslateCommand extends Command<int> {
         );
         buf.writeln();
         for (final key in w.staleUnlocked) {
-          buf.writeln('- `$key`');
+          buf.write(
+            _renderKeyEntry(key, w.locale, sourceByKey, project.glossary),
+          );
         }
         buf.writeln();
       }
@@ -239,6 +255,82 @@ class TranslateCommand extends Command<int> {
       }
     }
     return buf.toString().trimRight();
+  }
+
+  /// One worklist bullet with the source value, description/context, and any
+  /// glossary terms found in the source (with their target-locale form).
+  static String _renderKeyEntry(
+    String key,
+    String locale,
+    Map<String, ArbEntry> sourceByKey,
+    Glossary glossary,
+  ) {
+    final buf = StringBuffer()..writeln('- `$key`');
+    final src = sourceByKey[key];
+    // The work list is built from source keys, so this is always present;
+    // guard anyway rather than emit a half-entry.
+    if (src == null) return buf.toString();
+
+    buf.writeln('  - source: ${_inlineValue(src.value)}');
+    final description = src.metadata?.description?.trim();
+    if (description != null && description.isNotEmpty) {
+      buf.writeln('  - description: $description');
+    }
+    final context = src.metadata?.context?.trim();
+    if (context != null && context.isNotEmpty) {
+      buf.writeln('  - context: $context');
+    }
+    final terms = _glossaryTermsIn(src.value, glossary);
+    if (terms.isNotEmpty) {
+      final rendered = terms
+          .map((t) {
+            final target = t.translations[locale];
+            return target != null ? '${t.term} → $target' : t.term;
+          })
+          .join('; ');
+      buf.writeln('  - glossary: $rendered');
+    }
+    return buf.toString();
+  }
+
+  /// Collapse newlines so a multi-line ICU value stays on one bullet; keep
+  /// the ICU structure otherwise verbatim.
+  static String _inlineValue(String value) =>
+      '"${value.replaceAll('\n', '\\n')}"';
+
+  /// Glossary terms whose canonical English form appears in [source].
+  /// Single-word terms match on a word boundary (so "step" doesn't fire
+  /// inside "steps"); multi-word terms match as a case-insensitive
+  /// substring (the tokenizer can't see across the space).
+  static List<GlossaryTerm> _glossaryTermsIn(String source, Glossary glossary) {
+    if (glossary.terms.isEmpty) return const [];
+    final tokens = _tokenize(source);
+    final lowerSource = source.toLowerCase();
+    final hits = <GlossaryTerm>[];
+    for (final term in glossary.terms) {
+      final t = term.term.toLowerCase();
+      final matched = t.contains(' ')
+          ? lowerSource.contains(t)
+          : tokens.contains(t);
+      if (matched) hits.add(term);
+    }
+    return hits;
+  }
+
+  static Set<String> _tokenize(String value) {
+    final out = <String>{};
+    final buf = StringBuffer();
+    for (final c in value.toLowerCase().codeUnits) {
+      final isAlnum = (c >= 0x61 && c <= 0x7A) || (c >= 0x30 && c <= 0x39);
+      if (isAlnum) {
+        buf.writeCharCode(c);
+      } else if (buf.isNotEmpty) {
+        out.add(buf.toString());
+        buf.clear();
+      }
+    }
+    if (buf.isNotEmpty) out.add(buf.toString());
+    return out;
   }
 }
 

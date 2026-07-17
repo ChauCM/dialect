@@ -52,6 +52,12 @@ may have up to three buckets:
 - **Stale (locked)** — a human locked this translation and the source has
   since changed. **Review only — do not edit.**
 
+Each key to translate is listed with its source string, its
+`description`/`context`, and any glossary terms detected in the source
+(with the target-locale form). That inline context is enough to
+translate from — you shouldn't need to re-open the source ARB per key,
+though it remains the authority if anything looks off.
+
 Translate exactly the keys listed — don't go hunting for others, and
 don't touch keys that aren't listed.
 
@@ -140,7 +146,14 @@ root and only stop if one reports an error:
    source-equal values) with file:line hints. Fix anything it flags as
    an error, then re-run.
 2. `dialect sync` — propagate the new translations into the platform
-   outputs (Flutter ARB, backend JSON).
+   outputs (Flutter ARB, backend JSON). Sync is non-destructive: if it
+   reports that the output holds keys your source doesn't (someone edited
+   a generated file directly), it stops and writes nothing. **Do not**
+   reach for `--prune` to make that error go away — pruning *deletes*
+   those strings. Surface the list to the developer; if the keys belong
+   in the app, `dialect sync --adopt` pulls them back into the source and
+   then syncs. Only `--prune` once a human has confirmed the keys are
+   truly dead.
 3. `dialect check` — confirm a clean pass.
 
 Then report a brief summary: how many keys you translated per locale,

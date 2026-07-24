@@ -21,8 +21,9 @@ class CheckCommand extends Command<int> {
         'strict-length',
         negatable: false,
         help:
-            'Also promote length-ratio warnings to errors. Independent of '
-            '--strict because length-ratio is noisier than other heuristics.',
+            'Also promote the length-family warnings (length-ratio, '
+            'width-budget) to errors. Independent of --strict because these '
+            'length heuristics are softer conventions than the other checks.',
       )
       ..addFlag(
         'fix',
@@ -159,9 +160,9 @@ class CheckCommand extends Command<int> {
     if (!isAckableRule(rule)) {
       stderr.writeln(
         'Rule `$rule` is not acknowledgeable. Only the heuristic rules '
-        '(source_equality, glossary, untranslated_english, length_ratio) '
-        'can be acked; structural issues are correctness failures — fix '
-        'the underlying problem instead.',
+        '(source_equality, glossary, untranslated_english, length_ratio, '
+        'width_budget) can be acked; structural issues are correctness '
+        'failures — fix the underlying problem instead.',
       );
       return 64;
     }

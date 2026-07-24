@@ -233,6 +233,23 @@ platforms:
 # Default for locales not listed: [0.3, 2.5].
 length_ratio: {}
 
+# Size-aware translation: budgets for tight UI slots.
+# A key opts in by tagging its SOURCE @key block with `x-slot: <name>`
+# (policy below) or a hard `x-max-length: <n>`. Keys with neither are never
+# checked — copy and long-form text keep all the room they need.
+#   max_ratio  — translation stays within N× the source ("similar length");
+#                floored at source+grace so short labels ("Save") don't trip.
+#   max_length — an absolute character cap (a real pixel slot).
+# The check is a soft warning (like length_ratio): plain --strict leaves it
+# a warning; --strict-length opts into a hard gate. Its real leverage is the
+# `dialect translate` plan, which hands the budget to the agent so the short
+# form is produced up front.
+slots: {}
+# slots:
+#   button: { max_ratio: 1.4 }        # e.g. "Edit profile" → "Chỉnh sửa", not the full literal
+#   chip:   { max_length: 10 }
+#   tab:    { max_ratio: 1.2, grace: 2 }
+
 # Publish immutable translation bundles for a backend to consume (v1.2).
 # `dialect publish <env>` builds a content-hashed bundle and uploads it;
 # `dialect pull <env>` fetches it (verifying integrity) in a deploy script.

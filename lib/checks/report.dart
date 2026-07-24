@@ -138,7 +138,7 @@ class CheckReport {
     final promoted =
         strict &&
         issue.severity == IssueSeverity.warning &&
-        (issue.ruleName != 'length_ratio' || strictLength);
+        (!strictLengthGatedRules.contains(issue.ruleName) || strictLength);
     final effective = (issue.severity == IssueSeverity.error || promoted)
         ? IssueSeverity.error
         : IssueSeverity.warning;

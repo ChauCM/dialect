@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 import '../arb/arb_file.dart';
 import '../arb/freshness.dart';
 import '../arb/icu_message.dart';
+import '../checks/semantic/width_budget.dart';
 import '../glossary/glossary_loader.dart';
 import '../project/dialect_project.dart';
 import '../templates/plan_render.dart';
@@ -223,9 +224,7 @@ class TranslateCommand extends Command<int> {
         buf.writeln('**Missing (${w.missing.length}) — translate these:**');
         buf.writeln();
         for (final key in w.missing) {
-          buf.write(
-            _renderKeyEntry(key, w.locale, sourceByKey, project.glossary),
-          );
+          buf.write(_renderKeyEntry(key, w.locale, sourceByKey, project));
         }
         buf.writeln();
       }
@@ -237,9 +236,7 @@ class TranslateCommand extends Command<int> {
         );
         buf.writeln();
         for (final key in w.staleUnlocked) {
-          buf.write(
-            _renderKeyEntry(key, w.locale, sourceByKey, project.glossary),
-          );
+          buf.write(_renderKeyEntry(key, w.locale, sourceByKey, project));
         }
         buf.writeln();
       }
@@ -258,13 +255,14 @@ class TranslateCommand extends Command<int> {
     return buf.toString().trimRight();
   }
 
-  /// One worklist bullet with the source value, description/context, and any
-  /// glossary terms found in the source (with their target-locale form).
+  /// One worklist bullet with the source value, description/context, any
+  /// width budget the slot imposes, and any glossary terms found in the
+  /// source (with their target-locale form).
   static String _renderKeyEntry(
     String key,
     String locale,
     Map<String, ArbEntry> sourceByKey,
-    Glossary glossary,
+    DialectProject project,
   ) {
     final buf = StringBuffer()..writeln('- `$key`');
     final src = sourceByKey[key];
@@ -281,7 +279,19 @@ class TranslateCommand extends Command<int> {
     if (context != null && context.isNotEmpty) {
       buf.writeln('  - context: $context');
     }
-    final terms = _glossaryTermsIn(src.value, glossary);
+    // A tight UI slot is a hard constraint on the translation — surface it
+    // inline so the agent picks the shortest faithful form up front, rather
+    // than discovering the overflow only when `dialect check` warns.
+    final budget = widthBudgetFor(src, project);
+    if (budget != null) {
+      buf.writeln(
+        '  - budget: keep within ~${budget.maxChars} characters '
+        '(${budget.label}; source is ${budget.sourceChars}). Tight UI slot — '
+        'use the shortest faithful form, dropping context-implied words '
+        '(a profile-header "Edit profile" → "Edit"). Glossary terms stay.',
+      );
+    }
+    final terms = _glossaryTermsIn(src.value, project.glossary);
     if (terms.isNotEmpty) {
       final rendered = terms
           .map((t) {

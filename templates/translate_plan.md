@@ -78,6 +78,16 @@ For every key under **Missing** or **Stale** for a locale:
   in the source but you're using it non-literally, that's the
   developer's call — leave a note in your summary rather than silently
   diverging.
+- **Respect any `budget:` line.** A key with a budget renders in a tight
+  UI slot (a button, chip, tab), so the translation must fit — text
+  expands when translated and a faithful-but-long value breaks the
+  layout. Stay within the stated character budget by using the shortest
+  faithful form: drop context-implied words the surrounding UI already
+  makes obvious (on a profile header, "Edit profile" → "Edit"; the
+  profile is implied). Never truncate mid-word or drop a glossary term to
+  fit — shorten by *word choice*, not mutilation. If nothing faithful
+  fits, translate concisely anyway and flag it in your summary so the
+  developer can widen the slot.
 - Do **not** pass the English through unchanged. An identical-to-source
   value is the single most common failure mode and `dialect check`
   flags it.

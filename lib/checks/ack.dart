@@ -22,6 +22,7 @@ const Map<String, bool> _ackableHashesSource = {
   'glossary': true,
   'untranslated_english': false,
   'length_ratio': false,
+  'width_budget': false,
 };
 
 /// Whether [ruleName] supports acknowledgement at all.

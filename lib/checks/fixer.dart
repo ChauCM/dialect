@@ -37,13 +37,19 @@ class Fixer {
   ///
   /// Files that are already canonical are not touched. Returns a
   /// [FixReport] for terminal display.
-  static FixReport fix(DialectProject project) {
+  /// Pass [stamp] as false (`check --fix --no-stamp`) to normalize without
+  /// creating new `source_hash` entries — the authoring pass on a fresh
+  /// locale, where stamping every key at once buries the translation review.
+  static FixReport fix(DialectProject project, {bool stamp = true}) {
     final changed = <String>[];
     final sourceHashes = computeSourceHashes(project.source);
 
     _maybeRewrite(project.source, changed);
     for (final t in project.translations.values) {
-      _maybeRewrite(normalizeTranslation(t, sourceHashes), changed);
+      _maybeRewrite(
+        normalizeTranslation(t, sourceHashes, stamp: stamp),
+        changed,
+      );
     }
 
     return FixReport(changedFiles: changed);

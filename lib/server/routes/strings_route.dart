@@ -87,11 +87,20 @@ Future<Response> stringsPutHandler(
   if (lockedReq != null && lockedReq is! bool) {
     return _jsonError(400, '`locked` must be a boolean when provided.');
   }
+  // `glossary_exempt` accepts `true`/`false` (all terms / none) or a list of
+  // term names to waive individually.
   final exemptReq = body['glossary_exempt'];
-  if (exemptReq != null && exemptReq is! bool) {
+  if (exemptReq != null && exemptReq is! bool && exemptReq is! List) {
     return _jsonError(
       400,
-      '`glossary_exempt` must be a boolean when provided.',
+      '`glossary_exempt` must be a boolean or a list of term names when '
+      'provided.',
+    );
+  }
+  if (exemptReq is List && exemptReq.any((t) => t is! String)) {
+    return _jsonError(
+      400,
+      '`glossary_exempt` list entries must be term-name strings.',
     );
   }
 
@@ -113,7 +122,7 @@ Future<Response> stringsPutHandler(
           project,
           key: key,
           value: value,
-          glossaryExempt: exemptReq as bool?,
+          glossaryExempt: exemptReq,
         )
       : _applyTranslationUpdate(
           project,
@@ -140,11 +149,14 @@ Future<Response> stringsPutHandler(
   );
 }
 
+/// [glossaryExempt] is the raw request value: `null` (leave alone), a `bool`
+/// (blanket on/off), or a `List<String>` of term names to waive. Setting one
+/// shape clears the other, so the two can never disagree on disk.
 ArbFile _applySourceUpdate(
   DialectProject project, {
   required String key,
   required String value,
-  bool? glossaryExempt,
+  Object? glossaryExempt,
 }) {
   final src = project.source;
   final updated = <ArbEntry>[];
@@ -157,9 +169,18 @@ ArbFile _applySourceUpdate(
     updated.add(
       entry.copyWith(
         value: value,
-        metadata: glossaryExempt == null
-            ? meta
-            : meta.copyWith(glossaryExempt: glossaryExempt),
+        metadata: switch (glossaryExempt) {
+          null => meta,
+          final bool b => meta.copyWith(
+            glossaryExempt: b,
+            glossaryExemptTerms: const [],
+          ),
+          final List<Object?> terms => meta.copyWith(
+            glossaryExempt: false,
+            glossaryExemptTerms: [for (final t in terms) t! as String],
+          ),
+          _ => meta,
+        },
       ),
     );
   }

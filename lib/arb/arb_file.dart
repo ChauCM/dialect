@@ -94,6 +94,7 @@ class ArbMetadata {
     this.placeholders,
     this.locked = false,
     this.glossaryExempt = false,
+    this.glossaryExemptTerms = const [],
     this.sourceHash,
     this.extras = const {},
   });
@@ -116,9 +117,35 @@ class ArbMetadata {
   /// Pinned by a human reviewer; `dialect translate` skips this key.
   final bool locked;
 
-  /// Skip the glossary-enforcement check on this key. Use when the source
-  /// string uses a glossary term in a non-literal sense.
+  /// Blanket exemption: skip glossary enforcement for **every** term on this
+  /// key (`"glossary_exempt": true`). Prefer [glossaryExemptTerms] — a
+  /// blanket exemption also waives the terms the key should still honor, and
+  /// it tells a reviewer nothing about what was waived.
   final bool glossaryExempt;
+
+  /// Term-scoped exemption: the glossary terms this key is excused from
+  /// (`"glossary_exempt": ["take", "sentence"]`). Every other term still
+  /// enforces.
+  ///
+  /// One string can legitimately use two locked terms non-literally for two
+  /// different reasons while still needing the rest of the glossary applied;
+  /// naming them keeps the waiver narrow and reviewable in a diff.
+  final List<String> glossaryExemptTerms;
+
+  /// Whether this key is excused from enforcing [term] — by a blanket
+  /// exemption or by naming it. Term matching is case-insensitive, since
+  /// the glossary's canonical lemma may be capitalized differently from the
+  /// exemption a human typed.
+  bool exemptFrom(String term) {
+    if (glossaryExempt) return true;
+    if (glossaryExemptTerms.isEmpty) return false;
+    final needle = term.toLowerCase();
+    return glossaryExemptTerms.any((t) => t.toLowerCase() == needle);
+  }
+
+  /// True when the key carries any exemption at all.
+  bool get hasGlossaryExemption =>
+      glossaryExempt || glossaryExemptTerms.isNotEmpty;
 
   /// Hash of the canonical source string at lock-time. Powers `dialect
   /// status` "stale" detection (M6). Spec'd in `dialect/spec/icu-json.md`.
@@ -135,6 +162,7 @@ class ArbMetadata {
     Map<String, ArbPlaceholder>? placeholders,
     bool? locked,
     bool? glossaryExempt,
+    List<String>? glossaryExemptTerms,
     Object? sourceHash = _sentinel,
     Map<String, Object?>? extras,
   }) {
@@ -145,6 +173,7 @@ class ArbMetadata {
       placeholders: placeholders ?? this.placeholders,
       locked: locked ?? this.locked,
       glossaryExempt: glossaryExempt ?? this.glossaryExempt,
+      glossaryExemptTerms: glossaryExemptTerms ?? this.glossaryExemptTerms,
       // sourceHash uses an explicit sentinel so callers can pass `null`
       // to clear the field (unlock action) without colliding with the
       // "leave it alone" default.

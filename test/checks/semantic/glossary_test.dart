@@ -109,6 +109,131 @@ void main() {
       expect(const GlossaryRule().run(p), isEmpty);
     });
 
+    group('term-scoped glossary_exempt', () {
+      // Two locked terms in one string, each non-literal for its own reason —
+      // the Toni Speak case. A blanket exemption would waive both plus every
+      // other term; naming them keeps the rest of the glossary enforcing.
+      final twoTerms = Glossary(
+        terms: [
+          GlossaryTerm(
+            term: 'take',
+            meaning: 'Noun: a stored recording artifact',
+            translations: const {'vi': 'bản thu'},
+          ),
+          GlossaryTerm(
+            term: 'sentence',
+            meaning: 'Noun: the prompt being read',
+            translations: const {'vi': 'câu'},
+          ),
+          GlossaryTerm(
+            term: 'student',
+            meaning: 'Noun: the learner',
+            translations: const {'vi': 'học viên'},
+          ),
+        ],
+      );
+
+      dynamic p({required ArbMetadata? meta, required String vi}) => project(
+        targetLocales: const ['vi'],
+        source: arb(
+          locale: 'en',
+          entries: [
+            ArbEntry(
+              key: 'setupNoCoachingBody',
+              value: 'Let the student read the sentence, one take.',
+              metadata: meta,
+            ),
+          ],
+        ),
+        translations: {
+          'vi': arb(
+            locale: 'vi',
+            entries: [ArbEntry(key: 'setupNoCoachingBody', value: vi)],
+          ),
+        },
+        glossary: twoTerms,
+      );
+
+      test('waives only the named terms', () {
+        // Uses neither "bản thu" nor "câu" (deliberate), but does use the
+        // canonical "học viên" — so `student` must not fire either.
+        final issues = const GlossaryRule().run(
+          p(
+            meta: ArbMetadata(glossaryExemptTerms: const ['take', 'sentence']),
+            vi: 'Hãy để học viên đọc mẫu, một lượt thu.',
+          ),
+        );
+        expect(issues, isEmpty);
+      });
+
+      test('still enforces a term that was NOT named', () {
+        // Same waivers, but now the translation also drops "học viên".
+        final issues = const GlossaryRule().run(
+          p(
+            meta: ArbMetadata(glossaryExemptTerms: const ['take', 'sentence']),
+            vi: 'Hãy để người ấy đọc mẫu, một lượt thu.',
+          ),
+        );
+        expect(issues, hasLength(1));
+        expect(issues.single.message, contains('student'));
+      });
+
+      test('an unrelated waiver does not silence the real term', () {
+        final issues = const GlossaryRule().run(
+          p(
+            meta: ArbMetadata(glossaryExemptTerms: const ['take']),
+            vi: 'Hãy để học viên đọc mẫu, một lượt thu.',
+          ),
+        );
+        expect(issues, hasLength(1));
+        expect(issues.single.message, contains('sentence'));
+      });
+
+      test('term matching is case-insensitive', () {
+        final issues = const GlossaryRule().run(
+          p(
+            meta: ArbMetadata(
+              glossaryExemptTerms: const ['Take', 'SENTENCE', 'Student'],
+            ),
+            vi: 'Hãy để người ấy đọc mẫu, một lượt thu.',
+          ),
+        );
+        expect(issues, isEmpty);
+      });
+
+      test('`true` still waives everything', () {
+        final issues = const GlossaryRule().run(
+          p(
+            meta: ArbMetadata(glossaryExempt: true),
+            vi: 'Hãy để người ấy đọc mẫu, một lượt thu.',
+          ),
+        );
+        expect(issues, isEmpty);
+      });
+
+      test('no exemption: every unmatched term fires', () {
+        final issues = const GlossaryRule().run(
+          p(meta: null, vi: 'Hãy để người ấy đọc mẫu, một lượt thu.'),
+        );
+        expect(issues, hasLength(3));
+      });
+
+      test('the hint names the specific term to waive', () {
+        final issues = const GlossaryRule().run(
+          p(meta: null, vi: 'Hãy để học viên đọc mẫu, một lượt thu.'),
+        );
+        expect(
+          issues.map((i) => i.hint),
+          everyElement(contains('"glossary_exempt": [')),
+        );
+        expect(
+          issues.any((i) => i.hint!.contains('["take"]')),
+          isTrue,
+          reason: 'the hint must be copy-pasteable for the term that fired',
+        );
+      });
+    });
+
     test('only matches whole-word source occurrences', () {
       // "Bookmark" contains "book" but only as part of a longer word.
       // Whole-word match must skip.

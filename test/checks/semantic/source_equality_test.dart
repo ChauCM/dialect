@@ -25,11 +25,12 @@ void main() {
       expect(issues.first.ruleName, 'source_equality');
       expect(issues.first.locale, 'es');
       expect(issues.first.key, 'common.cancel');
-      // The hint has to name the file-based escape hatch, not just the
-      // dashboard: locking in a `@key` block is the git-friendly path, and
-      // it is the only one available to someone reading CI output.
-      expect(issues.first.hint, contains('"locked": true'));
-      expect(issues.first.hint, contains('@common.cancel'));
+      // The hint has to name a path available to someone reading CI output,
+      // not just the dashboard. `dialect lock <key> <locale>` is that path —
+      // runnable as printed, and it writes the lock and the hash together
+      // (the hand-edited `@key` block it replaced was easy to get wrong).
+      expect(issues.first.hint, contains('dialect lock common.cancel es'));
+      expect(issues.first.hint, contains('lock_integrity'));
     });
 
     test('does not warn when translation differs from source', () {

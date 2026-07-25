@@ -15,6 +15,7 @@ import 'structural/orphan_metadata.dart';
 import 'structural/placeholder_match.dart';
 import 'structural/plural_categories.dart';
 import 'structural/tag_balance.dart';
+import 'structural/toolchain_version.dart';
 
 /// The set of [Rule]s `dialect check` runs.
 ///
@@ -22,6 +23,9 @@ import 'structural/tag_balance.dart';
 /// [semanticRules] in `lib/checks/semantic/`. The runner walks both
 /// lists indistinguishably — the split is for readability, not behavior.
 const List<Rule> structuralRules = [
+  // First: if the binary is too old to be trusted with this project, that
+  // outranks anything it might report about the content.
+  ToolchainVersionRule(),
   KeyFormatRule(),
   NamespaceRequiredRule(),
   MissingKeysRule(),

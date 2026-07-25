@@ -102,8 +102,14 @@ class ArbWriter {
     if (meta.locked) {
       lines.add('    "locked": true');
     }
+    // A blanket `true` outranks a term list; emitting both would be
+    // contradictory (`true` already covers everything).
     if (meta.glossaryExempt) {
       lines.add('    "glossary_exempt": true');
+    } else if (meta.glossaryExemptTerms.isNotEmpty) {
+      lines.add(
+        '    "glossary_exempt": ${jsonEncode(meta.glossaryExemptTerms)}',
+      );
     }
     if (meta.sourceHash != null) {
       lines.add('    "source_hash": ${jsonEncode(meta.sourceHash)}');

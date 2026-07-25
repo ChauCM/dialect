@@ -156,6 +156,7 @@ class ArbParser {
     Map<String, ArbPlaceholder>? placeholders;
     var locked = false;
     var glossaryExempt = false;
+    var glossaryExemptTerms = const <String>[];
     String? sourceHash;
     final extras = <String, Object?>{};
 
@@ -171,7 +172,16 @@ class ArbParser {
         case 'locked':
           locked = v == true;
         case 'glossary_exempt':
+          // `true` waives every term; a list waives exactly the terms named
+          // (the reviewable form). Anything else — including `false` and a
+          // malformed value — is no exemption at all.
           glossaryExempt = v == true;
+          if (v is List) {
+            glossaryExemptTerms = [
+              for (final t in v)
+                if (t is String && t.trim().isNotEmpty) t.trim(),
+            ];
+          }
         case 'source_hash':
           // Normalize an empty/whitespace-only hash to null: `""` is never a
           // real 16-hex prior hash, so it can only mean "not yet stamped".
@@ -200,6 +210,7 @@ class ArbParser {
       placeholders: placeholders,
       locked: locked,
       glossaryExempt: glossaryExempt,
+      glossaryExemptTerms: glossaryExemptTerms,
       sourceHash: sourceHash,
       extras: extras,
     );

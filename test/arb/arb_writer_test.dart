@@ -1,4 +1,5 @@
 import 'package:dialect/arb/arb_file.dart';
+import 'package:dialect/arb/arb_parser.dart';
 import 'package:dialect/arb/arb_writer.dart';
 import 'package:test/test.dart';
 
@@ -94,6 +95,62 @@ void main() {
       expect(out.contains('"locked": true'), isTrue);
       expect(out.contains('"glossary_exempt": true'), isTrue);
       expect(out.contains('"source_hash": "abc123"'), isTrue);
+    });
+
+    test('emits a term-scoped glossary_exempt list', () {
+      final arb = ArbFile(
+        locale: 'en',
+        entries: [
+          ArbEntry(
+            key: 'k',
+            value: 'v',
+            metadata: ArbMetadata(
+              glossaryExemptTerms: const ['take', 'sentence'],
+            ),
+          ),
+        ],
+      );
+      final out = ArbWriter.encode(arb);
+      expect(out, contains('"glossary_exempt": ["take","sentence"]'));
+    });
+
+    test('a blanket exemption outranks a list (never emits both)', () {
+      final arb = ArbFile(
+        locale: 'en',
+        entries: [
+          ArbEntry(
+            key: 'k',
+            value: 'v',
+            metadata: ArbMetadata(
+              glossaryExempt: true,
+              glossaryExemptTerms: const ['take'],
+            ),
+          ),
+        ],
+      );
+      final out = ArbWriter.encode(arb);
+      expect(out, contains('"glossary_exempt": true'));
+      expect(out, isNot(contains('"take"')));
+    });
+
+    test('a term list survives a parse → write round trip', () {
+      const original = '''
+{
+  "@@locale": "en",
+
+  "setupBody": "Read the sentence, one take.",
+  "@setupBody": {
+    "namespace": "setup",
+    "glossary_exempt": ["take","sentence"]
+  }
+}
+''';
+      // `check --fix` re-writes every ARB, so a shape that doesn't survive
+      // the round trip would be silently erased on the next run.
+      final once = ArbWriter.encode(ArbParser.parse(original));
+      final twice = ArbWriter.encode(ArbParser.parse(once));
+      expect(once, contains('"glossary_exempt": ["take","sentence"]'));
+      expect(twice, once, reason: 'writing must be idempotent');
     });
 
     test('emits @@ file-level metadata after @@locale in sorted order', () {

@@ -44,13 +44,31 @@ bool isStaleEntry(ArbEntry entry, Map<String, String> sourceHashes) {
 ///   re-translated (which clears the hash) or locked (which re-stamps it).
 ///
 /// Locked entries are left to the lock/unlock flow — never auto-stamped.
-ArbFile normalizeTranslation(ArbFile arb, Map<String, String> sourceHashes) {
+///
+/// Set [stamp] to false to normalize formatting *without* adding hashes to
+/// entries that lack one. This is the authoring pass: the first `--fix` on a
+/// brand-new locale otherwise turns a reviewable ~280-line file of plain
+/// `"key": "value"` pairs into ~1,300 lines, because every key gains a
+/// three-line `@key` block — swamping the human review of the one file whose
+/// *content* most deserves reading. Existing hashes are always preserved;
+/// this only defers creating new ones to the next run.
+///
+/// We deliberately did **not** solve this by moving hashes to a sidecar file
+/// (`.vi.hashes.json`). The ARB would stop being self-describing, and two
+/// files that must agree about the same keys is a drift bug waiting to
+/// happen — a worse trade than one large diff on one run.
+ArbFile normalizeTranslation(
+  ArbFile arb,
+  Map<String, String> sourceHashes, {
+  bool stamp = true,
+}) {
   final entries = <ArbEntry>[];
   for (final e in arb.entries) {
     final locked = e.metadata?.locked ?? false;
     var hash = e.metadata?.sourceHash;
 
-    if (!locked &&
+    if (stamp &&
+        !locked &&
         hash == null &&
         e.value.isNotEmpty &&
         sourceHashes.containsKey(e.key)) {

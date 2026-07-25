@@ -7,7 +7,9 @@ import 'package:dialect/cli.dart';
 import 'package:dialect/templates/dialect_yaml.dart';
 import 'package:dialect/templates/gitignore_snippet.dart';
 import 'package:dialect/templates/glossary_yaml.dart';
+import 'package:dialect/templates/plan_render.dart';
 import 'package:dialect/templates/source_arb.dart';
+import 'package:dialect/version.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
@@ -53,9 +55,14 @@ void main() {
 
     test('written files are byte-identical to the templates', () async {
       await runInit([]);
+      // dialect.yaml is the one rendered scaffold file: `toolchain.
+      // min_version` is stamped with the running version, so it matches the
+      // template with that single token expanded — nothing else may differ.
       expect(
         File(p.join(tmp.path, 'dialect', 'dialect.yaml')).readAsStringSync(),
-        dialectYamlTemplate,
+        renderPlanTemplate(dialectYamlTemplate, {
+          'DIALECT_VERSION': dialectVersion.split(RegExp(r'[-+]')).first,
+        }),
       );
       expect(
         File(p.join(tmp.path, 'dialect', 'glossary.yaml')).readAsStringSync(),
@@ -67,6 +74,37 @@ void main() {
         ).readAsStringSync(),
         sourceArbTemplate,
       );
+    });
+
+    test('stamps toolchain.min_version with the running release', () async {
+      await runInit([]);
+      final yaml = File(
+        p.join(tmp.path, 'dialect', 'dialect.yaml'),
+      ).readAsStringSync();
+      final release = dialectVersion.split(RegExp(r'[-+]')).first;
+      expect(yaml, contains('toolchain:'));
+      expect(yaml, contains('min_version: $release'));
+      expect(
+        yaml,
+        isNot(contains('{{DIALECT_VERSION}}')),
+        reason: 'the token must be expanded, not shipped literally',
+      );
+      expect(
+        yaml,
+        isNot(contains('min_version: $dialectVersion-')),
+        reason: 'a -dev suffix must not be stamped as the floor',
+      );
+    });
+
+    test('the stamped floor passes its own check', () async {
+      // The floor init writes must never fail against the binary that wrote
+      // it — otherwise every fresh project starts red.
+      await runInit([]);
+      final code = await DialectCommandRunner().run(<String>[
+        'check',
+        tmp.path,
+      ]);
+      expect(code, 0);
     });
 
     test('creates .gitignore when missing', () async {
@@ -158,7 +196,9 @@ void main() {
       expect(code, 0);
       expect(
         File(p.join(tmp.path, 'dialect', 'dialect.yaml')).readAsStringSync(),
-        dialectYamlTemplate,
+        renderPlanTemplate(dialectYamlTemplate, {
+          'DIALECT_VERSION': dialectVersion.split(RegExp(r'[-+]')).first,
+        }),
       );
     });
   });
@@ -290,6 +330,83 @@ flutter:
         original,
         reason: 'must not override an explicit user choice',
       );
+    });
+
+    test('writes l10n.yaml and seeds the template ARB', () async {
+      // `generate: true` without an existing arb-dir makes `flutter pub get`
+      // fail outright, so init must own both halves of the wiring.
+      File(p.join(tmp.path, 'pubspec.yaml')).writeAsStringSync(
+        'name: stay_booking\nflutter:\n  uses-material-design: true\n',
+      );
+      await runInit([]);
+
+      final l10n = File(p.join(tmp.path, 'l10n.yaml'));
+      expect(l10n.existsSync(), isTrue);
+      expect(l10n.readAsStringSync(), contains('arb-dir: lib/l10n'));
+      expect(
+        l10n.readAsStringSync(),
+        contains('template-arb-file: app_en.arb'),
+      );
+
+      final seeded = File(p.join(tmp.path, 'lib', 'l10n', 'app_en.arb'));
+      expect(seeded.existsSync(), isTrue, reason: 'arb-dir must exist');
+      expect(seeded.readAsStringSync(), sourceArbTemplate);
+    });
+
+    test('the seed is exactly what sync would write (no orphan, no diff)', () {
+      // If the seed diverged from sync's output it would either trip the
+      // non-destructive orphan guard or show up as a phantom first diff.
+      expect(sourceArbTemplate, contains('"commonExample"'));
+      expect(sourceArbTemplate, contains('"namespace": "common"'));
+    });
+
+    test('respects an existing l10n.yaml', () async {
+      File(p.join(tmp.path, 'pubspec.yaml')).writeAsStringSync(
+        'name: stay_booking\nflutter:\n  uses-material-design: true\n',
+      );
+      const custom = 'arb-dir: lib/i18n\ntemplate-arb-file: app_en.arb\n';
+      File(p.join(tmp.path, 'l10n.yaml')).writeAsStringSync(custom);
+
+      await runInit([]);
+
+      expect(
+        File(p.join(tmp.path, 'l10n.yaml')).readAsStringSync(),
+        custom,
+        reason: 'the project may point gen-l10n somewhere deliberate',
+      );
+    });
+
+    test('l10n.yaml arb-dir follows platforms.flutter.output', () async {
+      File(p.join(tmp.path, 'pubspec.yaml')).writeAsStringSync(
+        'name: stay_booking\nflutter:\n  uses-material-design: true\n',
+      );
+      // Scaffold first, retarget the output, then re-init to wire gen-l10n.
+      await runInit([]);
+      File(p.join(tmp.path, 'l10n.yaml')).deleteSync();
+      final cfg = File(p.join(tmp.path, 'dialect', 'dialect.yaml'));
+      cfg.writeAsStringSync(
+        cfg.readAsStringSync().replaceFirst(
+          'output: lib/l10n/',
+          'output: lib/i18n/',
+        ),
+      );
+
+      await runInit([]);
+
+      expect(
+        File(p.join(tmp.path, 'l10n.yaml')).readAsStringSync(),
+        contains('arb-dir: lib/i18n'),
+      );
+      expect(
+        File(p.join(tmp.path, 'lib', 'i18n', 'app_en.arb')).existsSync(),
+        isTrue,
+      );
+    });
+
+    test('does not wire gen-l10n for a non-Flutter project', () async {
+      // No pubspec → not Flutter → l10n.yaml would be meaningless noise.
+      expect(await runInit([]), 0);
+      expect(File(p.join(tmp.path, 'l10n.yaml')).existsSync(), isFalse);
     });
 
     test('no-ops when pubspec.yaml is absent', () async {

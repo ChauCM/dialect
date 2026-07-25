@@ -34,6 +34,16 @@ class CheckCommand extends Command<int> {
             'translations (keeping locked + source_hash), stamp source_hash '
             'provenance onto unlocked translations, drop orphan @key blocks.',
       )
+      ..addFlag(
+        'stamp',
+        defaultsTo: true,
+        help:
+            'With --fix, stamp source_hash provenance onto unlocked '
+            'translations that lack it. Use --no-stamp for the authoring pass '
+            'on a brand-new locale, so the first review stays a readable diff '
+            'of translations instead of one @key block per key; the next '
+            '--fix stamps them. Existing hashes are always preserved.',
+      )
       ..addOption(
         'ack',
         help:
@@ -90,8 +100,17 @@ class CheckCommand extends Command<int> {
       return _writeAck(project, root, ackId, results.option('note'));
     }
 
+    final stamp = results.flag('stamp');
+    if (!stamp && !results.flag('fix')) {
+      // A flag that silently does nothing is worse than one that says so.
+      stdout.writeln(
+        '! --no-stamp only affects --fix; nothing to skip on a read-only '
+        'check.',
+      );
+    }
+
     if (results.flag('fix')) {
-      final report = Fixer.fix(project);
+      final report = Fixer.fix(project, stamp: stamp);
       if (report.count == 0) {
         stdout.writeln('✓ dialect check --fix: every ARB is already canonical');
       } else {
@@ -101,6 +120,12 @@ class CheckCommand extends Command<int> {
         for (final path in report.changedFiles) {
           stdout.writeln('  $path');
         }
+      }
+      if (!stamp) {
+        stdout.writeln(
+          '  (--no-stamp: left new translations unstamped — run '
+          '`dialect check --fix` once the values are reviewed.)',
+        );
       }
       // After --fix, re-load the project so the check pass runs against
       // the rewritten files. This catches issues that the fix can't

@@ -67,7 +67,13 @@ Map<String, Object?> stringsJson(DialectProject project, String locale) {
                 },
             },
       'locked': meta?.locked ?? false,
+      // Kept boolean for compatibility: `true` still means "every term is
+      // waived". Term-scoped waivers travel in the companion field so an
+      // older client's truthiness test never mistakes them for a blanket
+      // exemption.
       'glossary_exempt': src.metadata?.glossaryExempt ?? false,
+      if (src.metadata?.glossaryExemptTerms.isNotEmpty ?? false)
+        'glossary_exempt_terms': src.metadata!.glossaryExemptTerms,
       'source_hash': meta?.sourceHash,
       'current_source_hash': currentHash,
       'stale': stale,

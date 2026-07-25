@@ -34,7 +34,9 @@ void main() {
         expect(issues, hasLength(1));
         expect(issues.first.severity, IssueSeverity.error);
         expect(issues.first.message, contains('bare lock'));
-        expect(issues.first.hint, contains('source_hash'));
+        // The repair must be runnable straight from the report, with the
+        // dashboard offered as the alternative rather than the only route.
+        expect(issues.first.hint, contains('dialect lock'));
         expect(issues.first.hint, contains('dialect serve'));
       },
     );

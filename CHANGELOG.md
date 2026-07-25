@@ -4,6 +4,122 @@ All notable changes to the Dialect CLI are tracked here.
 
 ## [Unreleased]
 
+### Added — `dialect lock` (pin a deliberate translation)
+
+- **`dialect lock <key> [locale]`** marks a translation as human-approved and
+  records what was approved, writing `locked: true` **and** the current
+  `source_hash` as one gesture. That pair is what `lock_integrity` requires,
+  and hand-editing `@key` blocks to produce it was the last routine manual
+  touch in the workflow — in a file the CLI otherwise owns.
+- The common case is a translation that is *deliberately identical* to the
+  source (a brand name, an abbreviation, a borrowed term), which
+  `source_equality` flags on every run otherwise. Sibling to `accept`:
+  re-running on a locked-but-stale key re-locks it against the current
+  source.
+- `--remove` unlocks, keeping the hash so staleness is still tracked.
+- The `source_equality` and `lock_integrity` hints now print the exact
+  command, runnable straight from CI output.
+
+### Added — `toolchain.min_version` (a pin that can actually fire)
+
+- `dialect.yaml` gained a machine-readable floor, and **`dialect init` stamps
+  the version it ran as**:
+
+  ```yaml
+  toolchain:
+    min_version: 1.2.0
+  ```
+
+- The new `toolchain_version` check **fails when the binary on PATH is
+  older**. Projects previously encoded this as a prose "pinned toolchain"
+  comment, which is folklore: nobody re-derives it, it drifts from the binary
+  it names, and it cannot fire. The CLI already knows its own version.
+- Severity is **error**: running too old a binary can mean silent data loss
+  (pre-1.2 `sync` deleted keys that lived only in generated output), and a
+  warning is what scrolls past on the day it matters.
+- Pre-release suffixes are ignored, so `1.2.0-dev` satisfies a `1.2.0` floor.
+- Known ceiling, by construction: a binary older than the release that added
+  this rule doesn't contain the rule, so it can't warn about itself. It
+  guards against future skew, like npm's `engines`.
+
+### Added — `dialect init` owns the whole gen-l10n wiring
+
+- `init` already wrote `flutter: generate: true`, but left `l10n.yaml` to the
+  agent — and `generate: true` without an existing `arb-dir` makes
+  **`flutter pub get` fail**, which is the very next command anyone runs. The
+  directory wasn't created until the first `dialect sync`, which can't happen
+  until keys exist.
+- `init` now writes `l10n.yaml` (with `arb-dir` read from
+  `platforms.flutter.output`, so the two can't disagree) and seeds the
+  template ARB with the same `commonExample` entry the source scaffold
+  carries. `pub get` is green from minute one, and the seed is byte-identical
+  to what the first `sync` writes — so it neither trips the orphan guard nor
+  shows up as a phantom diff.
+- An existing `l10n.yaml` is never touched.
+
+### Changed — `glossary_exempt` can name specific terms
+
+- `@key.glossary_exempt` now accepts a **list of term names** as well as
+  `true`:
+
+  ```jsonc
+  "glossary_exempt": ["take", "sentence"]   // waive exactly these
+  "glossary_exempt": true                    // waive every term (blunt)
+  ```
+
+- One string can use two locked terms non-literally for two different and
+  both-correct reasons while still needing the rest of the glossary applied.
+  The old all-or-nothing switch waived those too — losing real coverage on
+  precisely the strings complex enough to need an exemption.
+- It also makes waivers reviewable: `glossary_exempt: true` in a diff tells a
+  reviewer nothing about *what* was waived. The check hint now names the
+  specific term, copy-pasteable.
+- `true` keeps its meaning; the API's `glossary_exempt` stays boolean and
+  term-scoped waivers travel in a new `glossary_exempt_terms` field, so
+  existing clients are unaffected.
+
+### Added — `check --fix --no-stamp` (authoring pass)
+
+- Normalizes formatting **without** stamping `source_hash` onto entries that
+  lack one. The first `--fix` on a hand-written locale otherwise turns ~280
+  reviewable lines of `"key": "value"` into ~1,300, because every key gains a
+  `@key` block — burying the review of the one file whose content most
+  deserves reading.
+- It only *defers*: existing hashes are never removed, unstamped entries are
+  *untracked* (not stale, so the check stays green), and the next plain
+  `--fix` stamps them.
+- `dialect/spec/source_hash.md` now records why hashes stay inline and a
+  hash **sidecar was rejected** — it would make the ARB no longer
+  self-describing and turn a one-time diff into permanent two-file drift
+  risk.
+
+### Added — size-aware translation (`width_budget` + `slots:`)
+
+- **A key can now declare the UI slot it renders in, and translations that
+  outgrow it are flagged.** Text expands when translated — "Edit profile"
+  (12 chars) becomes Vietnamese "Chỉnh sửa trang cá nhân" (23) — which
+  silently breaks a tight button. `length_ratio` cannot catch that: 1.9× sits
+  well inside its smell band. What was missing is a budget tied to the
+  *slot*.
+- Opt in on the **source** `@key` with `"x-slot": "button"` (a policy named
+  in the new `slots:` block of `dialect.yaml`) or a hard
+  `"x-max-length": 10`. A slot sets `max_ratio` (stay within N× the source —
+  "similar length", floored at `source + grace` so short labels like "Save"
+  never false-trip) or `max_length` (an absolute cap for a real pixel slot).
+- **Opt-in by construction:** a key with neither field is never checked, so
+  body copy, legal text and long-form prose are never policed.
+- The check also flags a **source** string that busts its own budget — the
+  slot is too tight even in English, which no translation can fix.
+- Severity is `warning`, and plain `--strict` does **not** promote it; like
+  `length_ratio` it needs the explicit `--strict-length`, and it can be
+  acked. A button running a few characters long is a nudge, not a build
+  failure.
+- The real leverage is up front: **`dialect translate` inlines the resolved
+  budget into the work list**, so the agent produces the short faithful form
+  the first time instead of discovering the overflow at check time.
+- Length is measured on literal copy in Unicode code points, so ICU
+  placeholder names never inflate the count.
+
 ### Added — `dialect accept` (re-bless a still-correct translation)
 
 - **`dialect accept <key> [locale]`** re-stamps an existing translation's

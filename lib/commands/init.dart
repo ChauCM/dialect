@@ -10,6 +10,7 @@ import '../templates/glossary_yaml.dart';
 import '../templates/init_plan_md.dart';
 import '../templates/plan_render.dart';
 import '../templates/source_arb.dart';
+import '../version.dart';
 
 /// `dialect init` — the agent-executable entry point.
 ///
@@ -100,6 +101,17 @@ class InitCommand extends Command<int> {
       if (added) {
         stdout.writeln('  pubspec.yaml (added `flutter: generate: true`)');
       }
+      final sourceLocale = _readSourceLocale(targetDir) ?? 'en';
+      final arbDir = _readFlutterOutputDir(targetDir);
+      if (_ensureL10nYaml(targetDir, sourceLocale, arbDir)) {
+        stdout.writeln('  l10n.yaml (gen-l10n config)');
+      }
+      if (_seedTemplateArb(targetDir, sourceLocale, arbDir)) {
+        stdout.writeln(
+          '  $arbDir/app_$sourceLocale.arb '
+          '(seed — keeps `flutter pub get` green before the first sync)',
+        );
+      }
     }
 
     stdout.writeln('');
@@ -128,9 +140,14 @@ class InitCommand extends Command<int> {
       p.join(dialectDir.path, 'translations'),
     ).createSync(recursive: true);
 
-    File(
-      p.join(dialectDir.path, 'dialect.yaml'),
-    ).writeAsStringSync(dialectYamlTemplate);
+    // Stamp the version we ran as into `toolchain.min_version`, so the
+    // project's floor is a fact the CLI recorded rather than a comment
+    // someone hand-copied (and later contradicted).
+    File(p.join(dialectDir.path, 'dialect.yaml')).writeAsStringSync(
+      renderPlanTemplate(dialectYamlTemplate, {
+        'DIALECT_VERSION': _minVersionFloor(dialectVersion),
+      }),
+    );
     File(
       p.join(dialectDir.path, 'glossary.yaml'),
     ).writeAsStringSync(glossaryYamlTemplate);
@@ -318,6 +335,89 @@ class InitCommand extends Command<int> {
       }
     }
     return false;
+  }
+
+  /// The floor to stamp for a binary reporting [version].
+  ///
+  /// Pre-release suffixes are dropped: a `1.2.0-dev` build stamps `1.2.0`.
+  /// Stamping `1.2.0-dev` verbatim would pin every consumer to a build that
+  /// only exists between releases; the floor the project actually depends on
+  /// is the release those features ship in.
+  static String _minVersionFloor(String version) =>
+      version.trim().split(RegExp(r'[-+]')).first;
+
+  // ---- gen-l10n wiring ---------------------------------------------------
+
+  /// The Flutter platform's `output:` directory from `dialect.yaml`, without
+  /// a trailing slash. This is where `dialect sync` writes, and therefore
+  /// what `l10n.yaml`'s `arb-dir` must point at — reading it keeps the two
+  /// in agreement instead of hardcoding the default in two places.
+  String _readFlutterOutputDir(Directory targetDir) {
+    const fallback = 'lib/l10n';
+    final file = File(p.join(targetDir.path, 'dialect', 'dialect.yaml'));
+    if (!file.existsSync()) return fallback;
+    // Match `output:` nested under the `flutter:` platform block, stopping
+    // at the next platform (a line indented by two spaces or less).
+    final match = RegExp(
+      r'^  flutter:\s*$(?:\n(?:[ ]{4,}.*)?$)*?\n[ ]{4}output:[ ]*(\S+)',
+      multiLine: true,
+    ).firstMatch(file.readAsStringSync());
+    final raw = match?.group(1);
+    if (raw == null || raw.isEmpty) return fallback;
+    final trimmed = raw.replaceAll(RegExp(r'/+$'), '');
+    return trimmed.isEmpty ? fallback : trimmed;
+  }
+
+  /// Write `l10n.yaml` if the project has none.
+  ///
+  /// `init` already writes `flutter: generate: true`; without the matching
+  /// `l10n.yaml` that flag makes `flutter pub get` *fail* rather than no-op.
+  /// Owning one half of the wiring and delegating the other put the very
+  /// next command a developer runs into an error state, so init owns both.
+  /// An existing file is never touched — the project may point gen-l10n
+  /// somewhere deliberate.
+  bool _ensureL10nYaml(
+    Directory targetDir,
+    String sourceLocale,
+    String arbDir,
+  ) {
+    final file = File(p.join(targetDir.path, 'l10n.yaml'));
+    if (file.existsSync()) return false;
+    file.writeAsStringSync(
+      'arb-dir: $arbDir\n'
+      'template-arb-file: app_$sourceLocale.arb\n'
+      'output-localization-file: app_localizations.dart\n',
+    );
+    return true;
+  }
+
+  /// Seed the generated template ARB so `flutter pub get` succeeds from
+  /// minute one.
+  ///
+  /// `arb-dir` must exist before gen-l10n will run, but the directory is
+  /// normally created by the first `dialect sync` — which can't happen until
+  /// real keys exist. That left a window where every `pub get` failed with
+  /// "The 'arb-dir' directory ... does not exist", an error that names
+  /// neither `dialect sync` nor the actual fix. Seeding the same
+  /// `commonExample` entry the source scaffold carries closes the window;
+  /// the first `sync` simply overwrites this file.
+  bool _seedTemplateArb(
+    Directory targetDir,
+    String sourceLocale,
+    String arbDir,
+  ) {
+    final file = File(p.join(targetDir.path, arbDir, 'app_$sourceLocale.arb'));
+    if (file.existsSync()) return false;
+    file.parent.createSync(recursive: true);
+    file.writeAsStringSync(
+      sourceLocale == 'en'
+          ? sourceArbTemplate
+          : sourceArbTemplate.replaceFirst(
+              '"@@locale": "en"',
+              '"@@locale": "$sourceLocale"',
+            ),
+    );
+    return true;
   }
 
   // ---- .gitignore --------------------------------------------------------

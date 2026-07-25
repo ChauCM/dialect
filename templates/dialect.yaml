@@ -87,6 +87,36 @@
 #     not translate the name itself. (`dialect check` will
 #     catch mismatches.)
 #
+# === Slot budgets (size-aware translation) ===
+#   Text expands when translated — "Edit profile" (12) becomes
+#   Vietnamese "Chỉnh sửa trang cá nhân" (23) — and a faithful
+#   but long value silently breaks a tight button or chip.
+#   - If a string renders in a CONSTRAINED slot, say so on its
+#     SOURCE `@key` block:
+#       "@editProfile": { "x-slot": "button" }   # policy below
+#       "@statusChip":  { "x-max-length": 10 }   # hard cap
+#     Slot policies live once in the `slots:` block near the
+#     bottom of this file (`max_ratio` = "stay within N× the
+#     source"; `max_length` = an absolute character cap).
+#   - This is OPT-IN. A key with neither field is never checked,
+#     so body copy, legal text and empty-state prose keep all
+#     the room they need. Only tag genuinely tight slots.
+#   - Do NOT write the constraint as prose in `description`
+#     ("must stay short", "sits in a 68px column"). A
+#     description is a hope; a budget is a check. Prose there
+#     cannot be enforced and cannot be handed to a translator.
+#   - The payoff is up front, not after the fact: `dialect
+#     translate` puts the resolved budget in the work list, so
+#     the agent writes the short faithful form the first time —
+#     shorten by WORD CHOICE (drop context-implied words: on a
+#     profile header, "Edit profile" → "Edit"), never by
+#     truncating mid-word or dropping a glossary term.
+#   - `dialect check` also flags a source string that busts its
+#     own budget — the slot is too tight even in English, which
+#     no translation can fix. Widen the slot or shorten the
+#     source. Warnings here are soft (`--strict-length` makes
+#     them fail; they can be acked).
+#
 # === Plurals ===
 #   - Use ICU plural select:
 #       "{count, plural, =1{1 item} other{{count} items}}"
@@ -138,9 +168,15 @@
 #     The `meaning` field tells you which sense applies.
 #   - If a glossary term appears in a non-literal sense in a
 #     specific key (e.g. "Book club" meaning a physical book),
-#     mark the SOURCE key with `"glossary_exempt": true` in
-#     its `@key` block and leave a brief note in the
-#     description.
+#     mark the SOURCE key with the term waived in its `@key`
+#     block, and leave a brief note in the description:
+#       "@bookClub": { "glossary_exempt": ["Book"] }
+#     Name the terms. `"glossary_exempt": true` also works but
+#     waives EVERY term on that key — including ones the string
+#     should still honor — and a diff showing `true` tells a
+#     reviewer nothing about what was actually waived. One
+#     string may need two terms waived for two different and
+#     both-correct reasons; list them.
 #
 # === What NOT to extract ===
 #   The following are NOT user-facing copy and should remain
@@ -203,6 +239,16 @@ project:
     One-line description of what your app does. Translators
     and AI assistants read this to disambiguate glossary terms.
 
+# The oldest Dialect the conventions in this file rely on. `dialect init`
+# stamps the version it ran as; `dialect check` fails when the binary on
+# PATH is older, because a stale binary can silently do the wrong thing
+# (pre-1.2 `sync` deleted keys that lived only in generated output). Raise
+# this when you adopt a feature that needs a newer release — that is the
+# one line that makes the requirement enforceable instead of folklore.
+# Pre-release suffixes are ignored: 1.2.0-dev satisfies `1.2.0`.
+toolchain:
+  min_version: {{DIALECT_VERSION}}
+
 source_locale: en
 target_locales: []  # add the locales you ship in, e.g. [es, fr, ja]
 
@@ -227,6 +273,24 @@ platforms:
 # Each value is the [min, max] multiplier of source character length.
 # Default for locales not listed: [0.3, 2.5].
 length_ratio: {}
+
+# Size-aware translation: budgets for tight, fixed-width UI slots.
+# A key OPTS IN by tagging its SOURCE @key block with `x-slot: <name>` (a
+# preset below) or a hard `x-max-length: <n>`. Keys with neither are never
+# checked — body copy and anything that auto-sizes keeps all its room.
+#   max_ratio  — stay within N× the source ("similar length"), floored at
+#                source+grace so short labels never false-trip.
+#   max_length — an absolute character cap (a real pixel-bounded slot).
+#   grace      — optional; extra characters a ratio always allows (default 4).
+# Soft by design: plain --strict leaves these warnings; --strict-length makes
+# them fail. The real payoff is `dialect translate`, which hands the budget to
+# the agent so the short faithful form is written up front.
+# See the "Slot budgets" section in the header above.
+slots: {}
+# slots:
+#   button: { max_ratio: 1.4 }   # "Edit profile" → "Chỉnh sửa", not the literal
+#   chip:   { max_length: 10 }
+#   tab:    { max_ratio: 1.2, grace: 2 }
 
 # Publish immutable translation bundles for a backend to consume (v1.2).
 # `dialect publish <env>` builds a content-hashed bundle and uploads it;

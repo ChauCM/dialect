@@ -17,7 +17,10 @@ export interface StringEntry {
   context: string | null;
   placeholders: Record<string, { type?: string; format?: string }>;
   locked: boolean;
+  /** True only for a blanket waiver of every glossary term on this key. */
   glossary_exempt: boolean;
+  /** Term-scoped waivers; absent when there are none. */
+  glossary_exempt_terms?: string[];
   source_hash: string | null;
   current_source_hash: string;
   stale: boolean;
@@ -78,7 +81,8 @@ export interface PutStringBody {
   locale: string;
   value: string;
   locked?: boolean;
-  glossary_exempt?: boolean;
+  /** `true`/`false` waives all/none; a list waives only the named terms. */
+  glossary_exempt?: boolean | string[];
 }
 
 export async function putString(key: string, body: PutStringBody): Promise<void> {

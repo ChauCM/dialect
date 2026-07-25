@@ -82,6 +82,22 @@ A locked entry with no `source_hash` is likewise untracked (a pre-spec lock) —
 
 ---
 
+## Why hashes live in the ARB, not a sidecar
+
+**Decision: hashes stay inline in the `@key` block. Rejected: a sidecar file** (e.g. `dialect/translations/.vi.hashes.json`).
+
+The cost of inline is real and lands at one specific moment. A hand-authored locale starts as ~280 reviewable lines of flat `"key": "value"` pairs; the first `check --fix` stamps every key and the file becomes ~1,300 lines, because each key gains a three-line `@key` block. That is a diff no human can meaningfully review, on the one file whose *content* most deserves review — the first pass of a new language.
+
+A sidecar would keep that diff small, and was rejected anyway:
+
+- **The ARB stops being self-describing.** Today a translation file carries its own provenance; anyone can read one file and know whether an entry is tracked, locked, and current. Splitting that puts half the truth somewhere else.
+- **Two files that must agree about the same key set is a drift bug waiting to happen.** Rename a key, hand-edit a value, resolve a merge conflict in one file but not the other — and the hashes now describe a state that never existed. Staleness detection is exactly the feature that must not silently lie.
+- **It is a permanent cost to avoid a one-time one.** The big diff happens once per locale, on the run *after* the values are written. Sidecar drift is available on every run, forever.
+
+The affordance instead is `dialect check --fix --no-stamp`: normalize formatting on the authoring pass without creating hashes, review the translations as a clean diff, then run a plain `--fix` to stamp. It defers stamping; it never removes an existing hash, and an unstamped entry stays *untracked* (not stale), so the intermediate state is green rather than red.
+
+---
+
 ## Out of scope for v1.0
 
 - Hashing across multiple sources (multi-source-ARB projects don't exist in v1.0).

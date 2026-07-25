@@ -6,6 +6,7 @@ import 'commands/check.dart';
 import 'commands/describe.dart';
 import 'commands/import.dart';
 import 'commands/init.dart';
+import 'commands/lock.dart';
 import 'commands/publish.dart';
 import 'commands/pull.dart';
 import 'commands/serve.dart';
@@ -31,6 +32,7 @@ class DialectCommandRunner extends CommandRunner<int> {
     addCommand(StatusCommand());
     addCommand(TranslateCommand());
     addCommand(AcceptCommand());
+    addCommand(LockCommand());
     addCommand(PublishCommand());
     addCommand(PullCommand());
     addCommand(ServeCommand());

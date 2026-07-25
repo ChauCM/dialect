@@ -63,6 +63,39 @@ void main() {
       final meta = arb.entryFor('checkout.bookNow')!.metadata!;
       expect(meta.locked, isTrue);
       expect(meta.glossaryExempt, isTrue);
+      expect(meta.glossaryExemptTerms, isEmpty);
+      expect(meta.exemptFrom('anything'), isTrue);
+    });
+
+    test('parses a term-scoped glossary_exempt list', () {
+      final arb = ArbParser.parse('''
+{
+  "@@locale": "en",
+  "setupBody": "Read the sentence, one take.",
+  "@setupBody": { "glossary_exempt": ["take", "sentence"] }
+}
+''');
+      final meta = arb.entryFor('setupBody')!.metadata!;
+      expect(meta.glossaryExempt, isFalse, reason: 'a list is not blanket');
+      expect(meta.glossaryExemptTerms, ['take', 'sentence']);
+      expect(meta.exemptFrom('take'), isTrue);
+      expect(meta.exemptFrom('student'), isFalse);
+    });
+
+    test('ignores malformed glossary_exempt values', () {
+      final arb = ArbParser.parse('''
+{
+  "@@locale": "en",
+  "a": "A", "@a": { "glossary_exempt": false },
+  "b": "B", "@b": { "glossary_exempt": [1, "", "  ", "take"] },
+  "c": "C", "@c": { "glossary_exempt": "take" }
+}
+''');
+      expect(arb.entryFor('a')!.metadata!.hasGlossaryExemption, isFalse);
+      // Non-strings and blanks are dropped; the real term survives.
+      expect(arb.entryFor('b')!.metadata!.glossaryExemptTerms, ['take']);
+      // A bare string is not a supported shape — no exemption, not a crash.
+      expect(arb.entryFor('c')!.metadata!.hasGlossaryExemption, isFalse);
     });
 
     test('preserves unknown metadata fields in extras', () {

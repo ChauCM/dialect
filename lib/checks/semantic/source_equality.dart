@@ -51,9 +51,9 @@ class SourceEqualityRule extends Rule {
             line: arb.entryLines[t.key],
             hint:
                 'If this is intentional (brand name, code, untranslatable '
-                'token), lock it in `dialect serve`, or add `"locked": true` '
-                'plus the current `"source_hash"` to the `@${t.key}` block '
-                'in this file (a bare lock fails lock_integrity). '
+                'token), run `dialect lock ${t.key} $locale` — it records the '
+                'lock and the source_hash together (a bare lock fails '
+                'lock_integrity). You can also lock it in `dialect serve`. '
                 'Otherwise translate the value.',
           ),
         );

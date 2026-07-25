@@ -5,9 +5,23 @@ import '../rule.dart';
 
 /// For each entry whose source value contains a glossary term, every
 /// target translation must contain a recognizable form of the canonical
-/// translation. Honors `@key.glossary_exempt: true` on the SOURCE entry
-/// (the escape hatch for non-literal uses, e.g. "Book club" where
-/// "Book" means a physical book, not the verb).
+/// translation.
+///
+/// The escape hatch for non-literal uses (e.g. "Book club", where "Book"
+/// means a physical book rather than the verb) is `@key.glossary_exempt`
+/// on the SOURCE entry, in either of two shapes:
+///
+/// ```jsonc
+/// "glossary_exempt": ["take", "sentence"]   // waive exactly these terms
+/// "glossary_exempt": true                    // waive every term (blunt)
+/// ```
+///
+/// The list form is preferred and is what the hint suggests. One string can
+/// use two locked terms non-literally for two different, both-correct
+/// reasons while still needing the rest of the glossary applied — the
+/// blanket `true` silently waives those too, and it tells a reviewer
+/// nothing about *what* was waived, which is precisely what a waiver should
+/// make visible.
 ///
 /// Match strategy (deliberately a heuristic — this is a warning):
 ///   - Source side: whole-word case-insensitive match of `term` against
@@ -20,7 +34,8 @@ import '../rule.dart';
 ///     with little suffix inflection (CJK) get the full canonical.
 ///
 /// The match is intentionally permissive. False positives are dismissed
-/// by setting `@key.glossary_exempt: true`; the warning hint says so.
+/// per-term via `@key.glossary_exempt`; the warning hint says so, and
+/// names the specific term to add.
 class GlossaryRule extends Rule {
   const GlossaryRule();
 
@@ -47,9 +62,11 @@ class GlossaryRule extends Rule {
       for (final t in arb.entries) {
         final src = sourceByKey[t.key];
         if (src == null) continue;
-        if (src.metadata?.glossaryExempt == true) continue;
 
         for (final term in project.glossary.terms) {
+          // Exemptions are per-term: a key excused from "take" still has to
+          // honor every other locked term in the same string.
+          if (src.metadata?.exemptFrom(term.term) ?? false) continue;
           if (!_sourceContainsTerm(src.value, term.term)) continue;
           final canonical = term.translations[locale];
           if (canonical == null) continue; // glossary doesn't cover this locale
@@ -70,8 +87,11 @@ class GlossaryRule extends Rule {
               hint:
                   'Glossary defines "${term.term}" → "$canonical" in `$locale`. '
                   'If this key uses "${term.term}" in a non-literal sense, '
-                  'add `"glossary_exempt": true` to the @key block in the '
-                  'source ARB.',
+                  'add `"glossary_exempt": ["${term.term}"]` to the @key '
+                  'block in the source ARB — a list waives only the terms it '
+                  'names, so the rest of the glossary still enforces here. '
+                  '(`true` waives every term on this key; prefer the list, '
+                  'since a diff can then show what was actually waived.)',
             ),
           );
         }

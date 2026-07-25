@@ -54,15 +54,26 @@ hand.
 
 Then run `flutter pub get`.
 
-### 1.2 — Configure gen-l10n
+### 1.2 — Verify gen-l10n config
 
-Create `l10n.yaml` at the project root:
+`dialect init` writes `l10n.yaml` at the project root and seeds the
+template ARB it points at, so this should already be in place:
 
 ```yaml
 arb-dir: lib/l10n
 template-arb-file: app_{{SOURCE_LOCALE}}.arb
 output-localization-file: app_localizations.dart
 ```
+
+Both halves matter together: `generate: true` without an `arb-dir` that
+exists makes `flutter pub get` fail outright ("The 'arb-dir' directory …
+does not exist"), and that directory is otherwise not created until the
+first `dialect sync`. The seeded `app_{{SOURCE_LOCALE}}.arb` holds the same
+`commonExample` entry as `dialect/source/{{SOURCE_LOCALE}}.arb`; the first
+`dialect sync` overwrites it. Do not hand-edit it — it is generated output.
+
+If `l10n.yaml` was already present, `init` left it alone; check that its
+`arb-dir` matches `platforms.flutter.output` in `dialect/dialect.yaml`.
 
 ### 1.3 — Wire MaterialApp
 
@@ -115,7 +126,7 @@ will add real strings shortly.
 
 Tell the developer:
 
-- Deps added, `l10n.yaml` created, `MaterialApp` wired, locale switcher in
+- Deps added, gen-l10n config verified, `MaterialApp` wired, switcher in
   place.
 - Smoke test passed: one string flows through `AppLocalizations`.
 - A rough count of user-facing strings still to extract (grep

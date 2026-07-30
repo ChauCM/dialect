@@ -52,7 +52,7 @@ class StaleTranslationRule extends Rule {
                       'against the new source in `dialect serve` if it still '
                       'reads correctly.'
                 : 'If the translation is still correct as-is, run '
-                      '`dialect accept ${e.key} $locale` to re-bless it. '
+                      '`dialect accept ${e.key} --locale $locale` to re-bless it. '
                       'Otherwise run `dialect translate` to refresh it.',
           ),
         );

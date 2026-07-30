@@ -108,7 +108,7 @@ platforms:
 ''');
       final current = computeSourceHash('Hello there');
 
-      expect(await runAccept(['greeting', 'vi']), 0);
+      expect(await runAccept(['greeting', '--locale', 'vi']), 0);
 
       expect(hashOf('vi', 'greeting'), current); // vi blessed
       expect(hashOf('es', 'greeting'), isNot(current)); // es untouched
@@ -121,7 +121,42 @@ platforms:
 
     test('errors when the locale is not a target', () async {
       seedStale();
-      expect(await runAccept(['greeting', 'fr']), 64);
+      expect(await runAccept(['greeting', '--locale', 'fr']), 64);
+    });
+
+    test('accepts a whole namespace at once', () async {
+      // An English edit that touches a screen leaves a screen's worth of
+      // stale translations; blessing them should not be a shell loop.
+      seedStale();
+      File(p.join(tmp.path, 'dialect', 'source', 'en.arb')).writeAsStringSync(
+        '''
+{
+  "@@locale": "en",
+  "greeting": "Hello there",
+  "@greeting": { "namespace": "web", "description": "Greeting." },
+  "farewell": "See you",
+  "@farewell": { "namespace": "web", "description": "Farewell." }
+}
+''',
+      );
+      final stale = computeSourceHash('Hello');
+      File(
+        p.join(tmp.path, 'dialect', 'translations', 'vi.arb'),
+      ).writeAsStringSync('''
+{
+  "@@locale": "vi",
+  "greeting": "Xin chào",
+  "@greeting": { "source_hash": "$stale" },
+  "farewell": "Hẹn gặp lại",
+  "@farewell": { "source_hash": "$stale" }
+}
+''');
+
+      expect(await runAccept(['--namespace', 'web']), 0);
+
+      expect(hashOf('vi', 'greeting'), computeSourceHash('Hello there'));
+      expect(hashOf('vi', 'farewell'), computeSourceHash('See you'));
+      expect(valueOf('vi', 'farewell'), 'Hẹn gặp lại');
     });
 
     test('errors when the translation is missing/empty', () async {

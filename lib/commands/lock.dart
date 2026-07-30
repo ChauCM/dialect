@@ -6,9 +6,10 @@ import '../arb/arb_file.dart';
 import '../arb/arb_writer.dart';
 import '../arb/source_hash.dart';
 import '../project/dialect_project.dart';
+import 'key_selection.dart';
 
-/// `dialect lock <key> [locale]` — mark a translation as human-approved so
-/// nothing rewrites it, and record what was approved.
+/// `dialect lock <key>...` — mark translations as human-approved so nothing
+/// rewrites them, and record what was approved.
 ///
 /// A lock is the answer to "this value is deliberate, leave it alone" — most
 /// often a translation that is *intentionally identical* to the source (a
@@ -31,6 +32,10 @@ import '../project/dialect_project.dart';
 ///
 /// `--remove` is the inverse (unlock), keeping the hash so the entry's
 /// freshness is still tracked.
+///
+/// The subject is a set, not a key: hand-authored copy arrives as a page or a
+/// screen, so `dialect lock a b c` and `dialect lock --namespace web` both
+/// work. Locale selection is `--locale` (see [resolveSelection]).
 class LockCommand extends Command<int> {
   LockCommand() {
     argParser
@@ -40,6 +45,26 @@ class LockCommand extends Command<int> {
             'Project root (the directory containing dialect/). '
             'Defaults to the current directory.',
         valueHelp: 'path',
+      )
+      ..addOption(
+        'namespace',
+        abbr: 'n',
+        help:
+            'Act on every source key in this namespace, instead of (or as '
+            'well as) the keys named on the command line. Hand-authored copy '
+            'arrives a page at a time, and a namespace is how the source '
+            'already groups a page. A lock asserts a human approved the '
+            'value, so this asserts it for every key in the namespace — read '
+            'the count it reports back.',
+        valueHelp: 'name',
+      )
+      ..addOption(
+        'locale',
+        abbr: 'l',
+        help:
+            'Act on one target locale. Default: every target locale that '
+            'carries the key.',
+        valueHelp: 'locale',
       )
       ..addFlag(
         'remove',
@@ -60,23 +85,13 @@ class LockCommand extends Command<int> {
 
   @override
   String get invocation =>
-      'dialect lock <key> [locale]   # [locale] '
-      'defaults to every target locale';
+      'dialect lock <key>... [--namespace <name>] [--locale <locale>]';
 
   @override
   Future<int> run() async {
-    final rest = argResults!.rest;
     final remove = argResults!.flag('remove');
-    if (rest.isEmpty || rest.length > 2) {
-      stderr.writeln('lock takes <key> and an optional [locale].');
-      stderr.writeln('  e.g. dialect lock brandTagline');
-      stderr.writeln('       dialect lock brandTagline vi');
-      stderr.writeln('       dialect lock brandTagline vi --remove');
-      return 64;
-    }
-    final key = rest.first;
-    final onlyLocale = rest.length == 2 ? rest[1] : null;
     final root = argResults!.option('root') ?? Directory.current.path;
+    final verb = remove ? 'unlock' : 'lock';
 
     final DialectProject project;
     try {
@@ -91,66 +106,75 @@ class LockCommand extends Command<int> {
       return 65;
     }
 
-    final sourceEntry = project.source.entryFor(key);
-    if (sourceEntry == null) {
-      stderr.writeln(
-        'Key `$key` is not in the source ARB — nothing to lock against. '
-        'Add it to dialect/source first.',
+    final KeySelection selection;
+    try {
+      selection = resolveSelection(
+        project: project,
+        command: 'lock',
+        positionals: argResults!.rest,
+        namespace: argResults!.option('namespace'),
+        locale: argResults!.option('locale'),
       );
-      return 65;
+    } on SelectionFailure catch (f) {
+      f.lines.forEach(stderr.writeln);
+      return f.code;
     }
-    final hash = computeSourceHash(sourceEntry.value);
 
-    final Iterable<String> locales;
-    if (onlyLocale != null) {
-      if (!project.translations.containsKey(onlyLocale)) {
-        stderr.writeln(
-          'Locale `$onlyLocale` is not a configured target locale. '
-          'Targets: ${project.translations.keys.join(', ')}.',
+    // key -> locales, per outcome. Grouping this way keeps the report the
+    // same shape for one key and for a whole namespace.
+    // locale -> (key -> rewritten entry). Collected first and flushed once
+    // per file: writing inside the loop re-serialized the stale in-memory ARB
+    // each time, so with more than one key only the last one survived.
+    final pending = <String, Map<String, ArbEntry>>{};
+
+    final changed = <String, Set<String>>{};
+    final unchanged = <String, Set<String>>{};
+    final skipped = <String, Set<String>>{};
+
+    for (final key in selection.keys) {
+      final hash = computeSourceHash(project.source.entryFor(key)!.value);
+      for (final locale in selection.locales) {
+        final arb = project.translations[locale]!;
+        final entry = arb.entryFor(key);
+        if (entry == null || entry.value.isEmpty) {
+          // Locking asserts a human approved a specific value; there is no
+          // value here to approve. That's missing_keys / empty_values.
+          skipped.putIfAbsent(key, () => <String>{}).add(locale);
+          continue;
+        }
+        final wasLocked = entry.metadata?.locked ?? false;
+        final hashCurrent = entry.metadata?.sourceHash == hash;
+        if (remove) {
+          if (!wasLocked) {
+            unchanged.putIfAbsent(key, () => <String>{}).add(locale);
+            continue;
+          }
+        } else {
+          // Already locked against the *current* source — nothing to restate.
+          // A locked-but-stale entry falls through and is re-locked.
+          if (wasLocked && hashCurrent) {
+            unchanged.putIfAbsent(key, () => <String>{}).add(locale);
+            continue;
+          }
+        }
+        pending.putIfAbsent(locale, () => <String, ArbEntry>{})[key] = ArbEntry(
+          key: key,
+          value: entry.value,
+          metadata: ArbMetadata(locked: !remove, sourceHash: hash),
         );
-        return 64;
+        changed.putIfAbsent(key, () => <String>{}).add(locale);
       }
-      locales = [onlyLocale];
-    } else {
-      locales = project.translations.keys;
     }
 
-    final changed = <String>[];
-    final unchanged = <String>[];
-    final skipped = <String>[];
-
-    for (final locale in locales) {
-      final arb = project.translations[locale]!;
-      final entry = arb.entryFor(key);
-      if (entry == null || entry.value.isEmpty) {
-        // Locking asserts a human approved a specific value; there is no
-        // value here to approve. That's missing_keys / empty_values.
-        skipped.add(locale);
-        continue;
-      }
-      final wasLocked = entry.metadata?.locked ?? false;
-      final hashCurrent = entry.metadata?.sourceHash == hash;
-      if (remove) {
-        if (!wasLocked) {
-          unchanged.add(locale);
-          continue;
-        }
-      } else {
-        // Already locked against the *current* source — nothing to restate.
-        // A locked-but-stale entry falls through and is re-locked.
-        if (wasLocked && hashCurrent) {
-          unchanged.add(locale);
-          continue;
-        }
-      }
-      _write(arb, key, locked: !remove, hash: hash);
-      changed.add(locale);
+    for (final e in pending.entries) {
+      _flush(project.translations[e.key]!, e.value);
     }
 
     if (changed.isEmpty && unchanged.isEmpty && skipped.isNotEmpty) {
       stderr.writeln(
-        'Key `$key` has no translation to ${remove ? 'unlock' : 'lock'} in '
-        '${skipped.join(', ')} (missing or empty). Translate it first.',
+        'Nothing to $verb: ${describeKeyCount(skipped.length)} '
+        '(${previewKeys(skipped.keys)}) have no translation yet in '
+        '${selection.locales.join(', ')}. Translate them first.',
       );
       return 65;
     }
@@ -158,49 +182,46 @@ class LockCommand extends Command<int> {
     if (changed.isNotEmpty) {
       stdout.writeln(
         remove
-            ? '✓ unlocked `$key` — ${changed.join(', ')} '
-                  '(source_hash kept, so staleness is still tracked).'
-            : '✓ locked `$key` — ${changed.join(', ')} '
-                  'approved against the current source.',
+            ? '✓ unlocked ${describeKeyCount(changed.length)} '
+                  '(source_hash kept, so staleness is still tracked):'
+            : '✓ locked ${describeKeyCount(changed.length)} against the '
+                  'current source:',
       );
+      stdout.writeln('    ${previewKeys(changed.keys)}');
+      stdout.writeln('    in ${_localesOf(changed).join(', ')}');
     }
     if (unchanged.isNotEmpty) {
       stdout.writeln(
         remove
-            ? '  already unlocked: ${unchanged.join(', ')}'
-            : '  already locked and current: ${unchanged.join(', ')}',
+            ? '  already unlocked: ${describeKeyCount(unchanged.length)}'
+            : '  already locked and current: '
+                  '${describeKeyCount(unchanged.length)}',
       );
     }
     if (skipped.isNotEmpty) {
-      stdout.writeln('  skipped (no translation yet): ${skipped.join(', ')}');
+      stdout.writeln(
+        '  skipped (no translation yet): '
+        '${describeKeyCount(skipped.length)} — ${previewKeys(skipped.keys)}',
+      );
     }
     return 0;
   }
 
-  /// Rewrite [key]'s metadata in [arb], setting the lock flag and stamping
-  /// [hash]. The value is never touched. Writing the hash alongside the lock
-  /// is what keeps `lock_integrity` satisfied — the two are one gesture, and
-  /// splitting them is precisely the mistake that rule exists to catch.
-  void _write(
-    ArbFile arb,
-    String key, {
-    required bool locked,
-    required String hash,
-  }) {
-    final entries = <ArbEntry>[];
-    for (final e in arb.entries) {
-      if (e.key != key) {
-        entries.add(e);
-        continue;
-      }
-      entries.add(
-        ArbEntry(
-          key: e.key,
-          value: e.value,
-          metadata: ArbMetadata(locked: locked, sourceHash: hash),
-        ),
-      );
-    }
+  /// Every locale touched across [byKey], sorted — so the summary can say
+  /// "in vi" once instead of repeating it per key.
+  List<String> _localesOf(Map<String, Set<String>> byKey) {
+    final locales = <String>{for (final s in byKey.values) ...s}.toList()
+      ..sort();
+    return locales;
+  }
+
+  /// Apply every [replacements] entry to [arb] and re-emit the file once.
+  /// Values are never touched — the replacement carries the original value and
+  /// only its metadata differs. Writing the lock flag and the hash together is
+  /// what keeps `lock_integrity` satisfied; splitting them is precisely the
+  /// mistake that rule exists to catch.
+  void _flush(ArbFile arb, Map<String, ArbEntry> replacements) {
+    final entries = [for (final e in arb.entries) replacements[e.key] ?? e];
     final rewritten = ArbFile(
       locale: arb.locale,
       entries: entries,

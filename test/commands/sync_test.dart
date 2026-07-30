@@ -28,6 +28,19 @@ void main() {
       return code ?? 0;
     }
 
+    /// Run sync and hand back everything it printed, so a test can assert on
+    /// the warnings a person actually reads.
+    Future<String> runSyncCapturingStdout([
+      List<String> extraArgs = const [],
+    ]) async {
+      final buffer = StringBuffer();
+      await IOOverrides.runZoned(
+        () => runSync(extraArgs),
+        stdout: () => _CapturingStdout(buffer),
+      );
+      return buffer.toString();
+    }
+
     test('writes app_<locale>.arb files per the Flutter convention', () async {
       _writeProject(
         tmp.path,
@@ -538,6 +551,67 @@ void main() {
         expect(await runSync(), 0);
       });
 
+      test(
+        '--adopt says nothing is left to do when metadata came back too',
+        () async {
+          // Every orphan here carries namespace + description, so the correct
+          // response is "nothing further" — and the operator should not have to
+          // open the source and read @key blocks by hand to learn that.
+          seedOrphan(tmp.path);
+
+          final out = await runSyncCapturingStdout(['--adopt']);
+
+          expect(out, contains('All 1 key came back'));
+          expect(
+            out,
+            isNot(contains('re-run `dialect sync`')),
+            reason: 'this same run regenerates the outputs',
+          );
+          expect(out, isNot(contains('still need')));
+        },
+      );
+
+      test('--adopt names the adopted keys that still need metadata', () async {
+        seedOrphan(tmp.path);
+        // A second orphan with no @key block at all: this is the one that
+        // will be dropped from every filtering platform until it gets a
+        // namespace, and it must not hide inside a list of complete keys.
+        final outPath = p.join(tmp.path, 'lib', 'l10n', 'app_en.arb');
+        File(outPath).writeAsStringSync(
+          File(outPath).readAsStringSync().replaceFirst(
+            '  "orphan": "Straight into the output",',
+            '  "bare": "No metadata at all",\n'
+                '  "orphan": "Straight into the output",',
+          ),
+        );
+
+        final out = await runSyncCapturingStdout(['--adopt']);
+
+        expect(out, contains('1 of 2 keys still needs'));
+        expect(out, contains('bare'));
+        expect(
+          out,
+          isNot(contains('All 2 keys came back')),
+          reason: 'silence must mean "complete", so it cannot be printed here',
+        );
+      });
+
+      test(
+        'the refusal names --adopt as the migration off the old habit',
+        () async {
+          // A project that learned to avoid `sync` back when it deleted keys
+          // meets this refusal exactly once, caused by its own workaround.
+          seedOrphan(tmp.path);
+          final err = StringBuffer();
+          await IOOverrides.runZoned(
+            runSync,
+            stderr: () => _CapturingStdout(err),
+          );
+
+          expect(err.toString(), contains('one-time migration'));
+        },
+      );
+
       test('--prune drops the orphan on explicit opt-in', () async {
         seedOrphan(tmp.path);
 
@@ -573,7 +647,135 @@ void main() {
         expect(await runSync(), 0);
       });
     });
+
+    group('namespace routing warnings', () {
+      // One source feeding an app, a backend and a website is the shape the
+      // tool exists for, and in it every platform excludes most namespaces on
+      // purpose. Warning per-platform meant three paragraphs on every healthy
+      // sync, which buries the one line that would matter.
+      const threeStacks = '''
+{
+  "@@locale": "en",
+  "commonCancel": "Cancel",
+  "@commonCancel": { "namespace": "common", "description": "Back out." },
+  "pushNewStep": "New step",
+  "@pushNewStep": { "namespace": "push", "description": "Push body." },
+  "landingHero": "Share the journey",
+  "@landingHero": { "namespace": "landing", "description": "Landing hero." }
+}
+''';
+
+      Map<String, Map<String, Object>> platformsFor({
+        List<String> flutter = const ['common'],
+        List<String> backend = const ['push'],
+        List<String> web = const ['landing'],
+      }) => {
+        'flutter': {
+          'output': 'lib/l10n/',
+          'format': 'arb',
+          'namespaces': flutter,
+        },
+        'backend': {
+          'output': 'api/locales/',
+          'format': 'flat-json',
+          'namespaces': backend,
+        },
+        'web': {
+          'output': 'web/locales/',
+          'format': 'icu-json',
+          'namespaces': web,
+        },
+      };
+
+      test('stays quiet when every namespace reaches some platform', () async {
+        _writeProject(
+          tmp.path,
+          sourceLocale: 'en',
+          targetLocales: const [],
+          source: threeStacks,
+          platforms: platformsFor(),
+        );
+
+        final out = await runSyncCapturingStdout();
+        expect(out, isNot(contains('reach no platform')));
+        expect(out, contains('dialect sync: wrote'));
+      });
+
+      test('names a namespace that reaches no platform at all', () async {
+        _writeProject(
+          tmp.path,
+          sourceLocale: 'en',
+          targetLocales: const [],
+          source: threeStacks,
+          // Nobody claims `landing`, so those keys are emitted nowhere.
+          platforms: platformsFor(web: const ['marketing']),
+        );
+
+        final out = await runSyncCapturingStdout();
+        expect(out, contains('reach no platform'));
+        expect(out, contains('landing'));
+        expect(out, contains('1 key(s)'));
+        // The namespaces other platforms DO claim are not the complaint.
+        expect(out, isNot(contains('    push  —')));
+        expect(out, isNot(contains('    common  —')));
+      });
+
+      test(
+        'judges coverage across every platform, not just --platform',
+        () async {
+          _writeProject(
+            tmp.path,
+            sourceLocale: 'en',
+            targetLocales: const [],
+            source: threeStacks,
+            platforms: platformsFor(),
+          );
+
+          // Syncing one platform must not call the other two's namespaces
+          // homeless — they have a home, this run just is not writing it.
+          final out = await runSyncCapturingStdout(['--platform', 'backend']);
+          expect(out, isNot(contains('reach no platform')));
+        },
+      );
+
+      test('an unfiltered platform means nothing can be unrouted', () async {
+        _writeProject(
+          tmp.path,
+          sourceLocale: 'en',
+          targetLocales: const [],
+          source: threeStacks,
+          platforms: {
+            'flutter': {
+              'output': 'lib/l10n/',
+              'format': 'arb',
+              'namespaces': <String>[],
+            },
+          },
+        );
+
+        final out = await runSyncCapturingStdout();
+        expect(out, isNot(contains('reach no platform')));
+      });
+    });
   });
+}
+
+/// A [Stdout] stand-in that collects what a command writes. Only `write` and
+/// `writeln` are real; anything else a command reached for would be a surprise
+/// worth failing on, which is what the inherited [noSuchMethod] does.
+class _CapturingStdout implements Stdout {
+  _CapturingStdout(this._buffer);
+
+  final StringBuffer _buffer;
+
+  @override
+  void write(Object? object) => _buffer.write(object);
+
+  @override
+  void writeln([Object? object = '']) => _buffer.writeln(object);
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 Map<String, DateTime> _outputMtimes(String root) {

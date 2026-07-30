@@ -58,9 +58,20 @@
 #   `@@locale` to the top, places each `@key` block after its
 #   own key, strips any `@key` blocks accidentally added to
 #   translation files, and validates placeholder/plural shape.
+#   It also warns (`output_drift`) when a generated file holds
+#   keys the source does not — the one condition that makes the
+#   `sync` in step two refuse — so step one tells you whether
+#   this repo is in a state where sync can run.
 #   Spend your effort on the SEMANTIC parts (good descriptions,
 #   good translations, glossary application). The CLI handles
 #   the rest.
+#
+#   If that warning fires on a project that used to add keys
+#   straight to the generated files: that habit made sense when
+#   `sync` deleted them, and `dialect sync --adopt` is the
+#   one-time migration back. It recovers each key's English,
+#   its `@key` metadata, and any translation that lived only in
+#   the output, then regenerates.
 #
 # === @key metadata (semantic part — your responsibility) ===
 #   - Every key in the SOURCE ARB MUST have a "namespace" and a
@@ -193,8 +204,22 @@
 #     - Brand/product names you would not translate verbally
 #     - Demo or placeholder content that exists only to make
 #       the app look populated (sample listings, lorem ipsum)
+#     - LONG-FORM DOCUMENTS: privacy policies, terms of service,
+#       community guidelines, licences, changelogs. A document is
+#       a document, not a string catalogue. Shredding one into
+#       keys gives you meaningless key names, unreadable diffs,
+#       and clauses that drift apart between locales — and in a
+#       legal document a drifted clause is worse than no
+#       translation at all. Keep them as per-locale files
+#       (Markdown, MDX, one template per language), translate them
+#       as documents, and state on the page which language
+#       governs. Extract the CHROME around a document (nav labels,
+#       an "available in English only" notice); leave the body of
+#       it alone.
 #   If in doubt: ask whether the string would change for a
-#   different user. If yes, it's data, not copy.
+#   different user. If yes, it's data, not copy. Then ask whether
+#   it is a sentence in a UI or a section of a document. If it's a
+#   document, it doesn't belong here either.
 #
 # === Workflow you should follow ===
 #   1. Read dialect/dialect.yaml (this file) and dialect/glossary.yaml.

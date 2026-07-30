@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:args/command_runner.dart';
@@ -7,10 +6,11 @@ import 'package:path/path.dart' as p;
 import '../adapters/arb_adapter.dart';
 import '../adapters/json_adapter.dart';
 import '../arb/arb_file.dart';
-import '../arb/arb_parser.dart';
 import '../arb/arb_writer.dart';
 import '../config/dialect_config.dart';
 import '../project/dialect_project.dart';
+import '../project/output_scan.dart';
+import 'key_selection.dart';
 
 class SyncCommand extends Command<int> {
   SyncCommand() {
@@ -129,32 +129,21 @@ class SyncCommand extends Command<int> {
     // generated output but not in the source (the out-of-band-edit trap
     // that quietly lost 7 live keys in Dialect's first field use). Scan
     // first; refuse, adopt, or prune — but never drop them by surprise.
-    var scan = _scanOrphans(project, platforms);
+    var scan = OutputScan.run(project, platforms: platforms);
 
     if (adopt && !dryRun && scan.adoptable.isNotEmpty) {
+      // Read the metadata split BEFORE adopting: once the keys are in the
+      // source, they are no longer orphans and the scan forgets them.
+      final incomplete = scan.keysNeedingMetadata.toList()..sort();
       final adopted = _adoptOrphans(project, scan);
-      final names = adopted.toList()..sort();
-      stdout.writeln(
-        '✓ dialect sync --adopt: recovered ${adopted.length} orphan key(s) '
-        'into the Dialect source (plus any translations that lived only in '
-        'the output):',
-      );
-      for (final k in names) {
-        stdout.writeln('  $k');
-      }
-      stdout.writeln(
-        '  hint: run `dialect check --fix` — it stamps the recovered '
-        'translations fresh, and an adopted key still needs a '
-        '`namespace`/`description` if its @key block did not carry one.',
-      );
-      stdout.writeln('');
+      _reportAdoption(adopted, incomplete);
       // Re-load so generation sees the newly-adopted source keys, then
       // re-scan (adopted keys are no longer orphans).
       project = DialectProject.load(root);
-      scan = _scanOrphans(project, platforms);
+      scan = OutputScan.run(project, platforms: platforms);
     }
 
-    if (!scan.isEmpty && !prune) {
+    if (scan.isNotEmpty && !prune) {
       _printOrphanRefusal(project, scan, dryRun: dryRun, adoptTried: adopt);
       return dryRun ? 1 : 65;
     }
@@ -162,7 +151,6 @@ class SyncCommand extends Command<int> {
     var totalWritten = 0;
     var totalSkipped = 0;
     final unnamespacedPerPlatform = <String, Set<String>>{};
-    final excludedPerPlatform = <String, Set<String>>{};
 
     for (final platform in platforms) {
       final _PlatformOutcome outcome;
@@ -197,16 +185,13 @@ class SyncCommand extends Command<int> {
       if (outcome.unnamespacedKeys.isNotEmpty) {
         unnamespacedPerPlatform[platform.name] = outcome.unnamespacedKeys;
       }
-      if (outcome.excludedNamespaces.isNotEmpty) {
-        excludedPerPlatform[platform.name] = outcome.excludedNamespaces;
-      }
       if (outcome.pluralStrippedKeys.isNotEmpty) {
         _warnPluralStripped(platform, outcome.pluralStrippedKeys);
       }
     }
 
     _maybeWarnUnnamespaced(unnamespacedPerPlatform);
-    _maybeWarnExcludedNamespaces(excludedPerPlatform);
+    _maybeWarnUnroutedNamespaces(project);
 
     if (dryRun) {
       if (totalWritten == 0) {
@@ -220,7 +205,7 @@ class SyncCommand extends Command<int> {
       return 1;
     }
 
-    if (prune && !scan.isEmpty) {
+    if (prune && scan.isNotEmpty) {
       final pruned = scan.keys.toList()..sort();
       stdout.writeln('');
       stdout.writeln(
@@ -247,6 +232,57 @@ class SyncCommand extends Command<int> {
     return 0;
   }
 
+  /// Report what `--adopt` recovered, and — the part that decides whether the
+  /// operator has work left — which of those keys came back without
+  /// `namespace`/`description`.
+  ///
+  /// The hint used to be unconditional, so a run where all 16 keys came back
+  /// complete still ended in a paragraph about adding metadata and re-running
+  /// sync: the only way to learn there was nothing to do was to open the
+  /// source and read 16 `@key` blocks by hand. Inverted, one genuinely bare
+  /// key could hide inside a list of twenty complete ones. Naming the
+  /// incomplete keys makes the warning a work list and makes silence mean
+  /// something.
+  void _reportAdoption(Set<String> adopted, List<String> incomplete) {
+    final names = adopted.toList()..sort();
+    stdout.writeln(
+      '✓ dialect sync --adopt: recovered ${adopted.length} orphan key(s) '
+      'into the Dialect source (plus any translations that lived only in '
+      'the output):',
+    );
+    for (final k in names) {
+      stdout.writeln('  $k');
+    }
+    stdout.writeln(
+      '  hint: run `dialect check --fix` — it stamps the recovered '
+      'translations fresh.',
+    );
+    if (incomplete.isEmpty) {
+      // Nothing further is needed, and this same run regenerates every
+      // output — so don't send the caller off to re-run sync.
+      stdout.writeln(
+        '  All ${describeKeyCount(adopted.length)} came back with '
+        '`namespace` + `description`; '
+        'the outputs are regenerated below and nothing further is needed.',
+      );
+    } else {
+      stdout.writeln(
+        '  ⚠ ${incomplete.length} of ${describeKeyCount(adopted.length)} '
+        'still ${incomplete.length == 1 ? 'needs' : 'need'} '
+        '`namespace`/`description`:',
+      );
+      for (final k in incomplete) {
+        stdout.writeln('      $k');
+      }
+      stdout.writeln(
+        '    UNTIL A KEY HAS A NAMESPACE it is excluded from every platform '
+        'that filters — including the output it was just recovered from. Add '
+        'the metadata, then re-run `dialect sync`.',
+      );
+    }
+    stdout.writeln('');
+  }
+
   /// Sync one `arb`-format platform. Returns ([_PlatformOutcome.filesWritten]
   /// + [_PlatformOutcome.unnamespacedKeys]) — files whose on-disk bytes
   /// already match are touched not at all, preserving mtime.
@@ -261,7 +297,6 @@ class SyncCommand extends Command<int> {
 
     var written = 0;
     final unnamespacedKeys = <String>{};
-    final excludedNamespaces = <String>{};
 
     // Source ARB — keep metadata.
     final preparedSource = ArbAdapter.prepare(
@@ -270,7 +305,6 @@ class SyncCommand extends Command<int> {
       isSource: true,
     );
     unnamespacedKeys.addAll(preparedSource.keysMissingNamespace);
-    excludedNamespaces.addAll(preparedSource.keysExcludedByNamespace.keys);
     if (_maybeWrite(
       outDir.path,
       ArbAdapter.filenameFor(project.config.sourceLocale),
@@ -292,9 +326,6 @@ class SyncCommand extends Command<int> {
         source: project.source,
       );
       unnamespacedKeys.addAll(prepared.keysMissingNamespace);
-      // Excluded namespaces will mirror the source; re-collecting is a
-      // no-op for the set but keeps the contract symmetric.
-      excludedNamespaces.addAll(prepared.keysExcludedByNamespace.keys);
       if (_maybeWrite(
         outDir.path,
         ArbAdapter.filenameFor(locale),
@@ -309,7 +340,6 @@ class SyncCommand extends Command<int> {
     return _PlatformOutcome(
       filesWritten: written,
       unnamespacedKeys: unnamespacedKeys,
-      excludedNamespaces: excludedNamespaces,
     );
   }
 
@@ -330,7 +360,6 @@ class SyncCommand extends Command<int> {
     final stripPlurals = platform.format == 'flat-json';
     var written = 0;
     final unnamespacedKeys = <String>{};
-    final excludedNamespaces = <String>{};
     final pluralStrippedKeys = <String>{};
 
     void emit(ArbFile arb, String locale, {required bool isSource}) {
@@ -341,7 +370,6 @@ class SyncCommand extends Command<int> {
         source: isSource ? null : project.source,
       );
       unnamespacedKeys.addAll(prepared.keysMissingNamespace);
-      excludedNamespaces.addAll(prepared.keysExcludedByNamespace.keys);
 
       final result = JsonAdapter.encode(
         prepared.arb,
@@ -367,7 +395,6 @@ class SyncCommand extends Command<int> {
     return _PlatformOutcome(
       filesWritten: written,
       unnamespacedKeys: unnamespacedKeys,
-      excludedNamespaces: excludedNamespaces,
       pluralStrippedKeys: pluralStrippedKeys,
     );
   }
@@ -415,27 +442,51 @@ class SyncCommand extends Command<int> {
     );
   }
 
-  /// Emit one summary warning per platform whose `namespaces:` allowlist
-  /// excluded keys that *did* have a namespace. The pilot case for this:
-  /// `dialect.yaml` ships with `namespaces: [common]`, the developer adds
-  /// keys in `home`/`checkout`/`settings` namespaces, and sync silently
-  /// drops every non-`common` key. Visible warning > silent truncation.
-  void _maybeWarnExcludedNamespaces(
-    Map<String, Set<String>> excludedPerPlatform,
-  ) {
-    if (excludedPerPlatform.isEmpty) return;
+  /// Warn about namespaces that reach **no** platform — keys that exist in the
+  /// source and are emitted nowhere.
+  ///
+  /// The pilot case: `dialect.yaml` ships with `namespaces: [common]`, the
+  /// developer adds keys under `home`/`checkout`, and sync silently drops every
+  /// one of them. Visible warning > silent truncation.
+  ///
+  /// What this deliberately does NOT warn about is a namespace one platform
+  /// excludes and another claims. That is the whole point of an allowlist: on a
+  /// project with a Flutter app, a backend and a website reading one source, every
+  /// platform excludes most namespaces on purpose, and warning per-platform meant
+  /// three paragraphs of noise on every successful sync — which trains people to
+  /// stop reading the output, including the line that matters.
+  ///
+  /// Coverage is computed over EVERY configured platform, not just the ones this
+  /// run touched, so `dialect sync --platform backend` does not report the app's
+  /// namespaces as homeless.
+  void _maybeWarnUnroutedNamespaces(DialectProject project) {
+    final platforms = project.config.platforms.values;
+    if (platforms.isEmpty) return;
+    // A platform with no allowlist takes everything, so nothing is unrouted.
+    if (platforms.any((p) => p.namespaces.isEmpty)) return;
+
+    final covered = {for (final p in platforms) ...p.namespaces};
+    final unrouted = <String, int>{};
+    for (final entry in project.source.entries) {
+      final ns = entry.namespace;
+      if (ns == null || covered.contains(ns)) continue;
+      unrouted[ns] = (unrouted[ns] ?? 0) + 1;
+    }
+    if (unrouted.isEmpty) return;
+
+    final names = unrouted.keys.toList()..sort();
     stdout.writeln('');
-    for (final entry in excludedPerPlatform.entries) {
-      final names = entry.value.toList()..sort();
-      stdout.writeln(
-        '⚠ ${entry.key}: skipped keys in namespace(s) not listed in '
-        '`platforms.${entry.key}.namespaces`: ${names.join(", ")}',
-      );
+    stdout.writeln(
+      '⚠ ${names.length} namespace(s) reach no platform, so their keys are '
+      'emitted nowhere:',
+    );
+    for (final name in names) {
+      stdout.writeln('    $name  —  ${unrouted[name]} key(s)');
     }
     stdout.writeln(
-      '  hint: add these namespaces to '
-      '`platforms.<p>.namespaces` in dialect.yaml, or set '
-      '`namespaces: []` to include every namespace.',
+      '  hint: add each one to a `platforms.<p>.namespaces` list in '
+      'dialect.yaml, or set `namespaces: []` on the platform that should take '
+      'everything.',
     );
   }
 
@@ -466,92 +517,6 @@ class SyncCommand extends Command<int> {
     return true;
   }
 
-  /// Scan the on-disk outputs of [platforms] for **orphan keys**: keys that
-  /// appear in a generated output file but not in the canonical source ARB.
-  /// These almost always come from editing a generated file by hand — the
-  /// trap that silently deleted 7 live keys the first time Dialect ran on a
-  /// real project. Regenerating would drop them, so sync refuses unless the
-  /// caller opts in with `--adopt` (recover into the source) or `--prune`
-  /// (confirm the deletion). JSON outputs are scanned too. The source-locale
-  /// output yields the recoverable English value (+ any `@key` metadata); a
-  /// translation output yields the translated value, so `--adopt` can put
-  /// both back rather than silently dropping the translation on regenerate.
-  _OrphanReport _scanOrphans(
-    DialectProject project,
-    List<PlatformConfig> platforms,
-  ) {
-    final sourceKeys = {for (final e in project.source.entries) e.key};
-    final sourceLocale = project.config.sourceLocale;
-    final locales = <String>{sourceLocale, ...project.config.targetLocales};
-    final report = _OrphanReport();
-
-    for (final platform in platforms) {
-      final isArb = platform.format == 'arb';
-      final isJson = JsonAdapter.handles(platform.format);
-      // Unknown formats emit nothing (see the run loop), so they can't have
-      // orphans we'd delete. Skip them.
-      if (!isArb && !isJson) continue;
-      final outDir = p.join(project.root, platform.output);
-
-      for (final locale in locales) {
-        final filename = isArb
-            ? ArbAdapter.filenameFor(locale)
-            : JsonAdapter.filenameFor(locale);
-        final path = p.join(outDir, filename);
-        final file = File(path);
-        if (!file.existsSync()) continue;
-
-        final Map<String, ArbEntry> onDisk;
-        try {
-          onDisk = _readOutputEntries(file.readAsStringSync(), isArb: isArb);
-        } on FormatException {
-          // A malformed output isn't a data-loss concern — the next write
-          // replaces it with canonical bytes. Skip it for scanning.
-          continue;
-        }
-
-        for (final entry in onDisk.values) {
-          if (sourceKeys.contains(entry.key)) continue;
-          report._files.putIfAbsent(entry.key, () => <String>{}).add(path);
-          if (locale == sourceLocale) {
-            // The source-locale output carries the English value (+ any
-            // @key metadata) — that's what makes a key recoverable.
-            report._sourceEntries.putIfAbsent(entry.key, () => entry);
-          } else {
-            // A translation output carries a translated value that
-            // regenerate would otherwise drop. Recover it with the source.
-            report._translationEntries
-                .putIfAbsent(locale, () => <String, String>{})
-                .putIfAbsent(entry.key, () => entry.value);
-          }
-        }
-      }
-    }
-    return report;
-  }
-
-  /// Parse one output file into `key → ArbEntry`. ARB outputs keep their
-  /// `@key` metadata so `--adopt` can carry a description/namespace back into
-  /// the source; JSON outputs are flat `key → value`.
-  Map<String, ArbEntry> _readOutputEntries(
-    String content, {
-    required bool isArb,
-  }) {
-    if (isArb) {
-      final arb = ArbParser.parse(content);
-      return {for (final e in arb.entries) e.key: e};
-    }
-    final decoded = jsonDecode(content);
-    if (decoded is! Map) {
-      throw const FormatException('output JSON is not an object');
-    }
-    final out = <String, ArbEntry>{};
-    decoded.forEach((k, v) {
-      if (k is String && v is String) out[k] = ArbEntry(key: k, value: v);
-    });
-    return out;
-  }
-
   /// Recover the orphans into the Dialect source. Returns the adopted keys.
   ///
   /// - **Source:** each recovered entry (value + any `@key` metadata) is
@@ -564,9 +529,9 @@ class SyncCommand extends Command<int> {
   ///   we just adopted into the source qualify; an orphan with no English
   ///   value can't become a real key. `dialect check --fix` stamps the
   ///   `source_hash` on the finalize pass.
-  Set<String> _adoptOrphans(DialectProject project, _OrphanReport report) {
+  Set<String> _adoptOrphans(DialectProject project, OutputScan scan) {
     final sourceLocale = project.config.sourceLocale;
-    final adoptedKeys = report._sourceEntries.keys.toSet();
+    final adoptedKeys = scan.adoptable.keys.toSet();
 
     final sourcePath = p.join(
       project.root,
@@ -578,13 +543,13 @@ class SyncCommand extends Command<int> {
       ArbWriter.encode(
         ArbFile(
           locale: project.source.locale,
-          entries: [...project.source.entries, ...report._sourceEntries.values],
+          entries: [...project.source.entries, ...scan.adoptable.values],
           fileMetadata: project.source.fileMetadata,
         ),
       ),
     );
 
-    for (final locEntry in report._translationEntries.entries) {
+    for (final locEntry in scan.translationValues.entries) {
       final locale = locEntry.key;
       final existing = project.translations[locale];
       final existingKeys = {
@@ -623,7 +588,7 @@ class SyncCommand extends Command<int> {
   /// the tree untouched.
   void _printOrphanRefusal(
     DialectProject project,
-    _OrphanReport report, {
+    OutputScan report, {
     required bool dryRun,
     required bool adoptTried,
   }) {
@@ -641,7 +606,8 @@ class SyncCommand extends Command<int> {
     stderr.writeln('');
     for (final k in keys) {
       final files =
-          report._files[k]!
+          report
+              .filesFor(k)
               .map((f) => p.relative(f, from: project.root))
               .toList()
             ..sort();
@@ -658,6 +624,17 @@ class SyncCommand extends Command<int> {
       stderr.writeln(
         '    dialect sync --prune   confirm the deletion and regenerate '
         'without them',
+      );
+      // Before the guard existed, `sync` really did delete these keys, so
+      // projects that met it rationally adopted "edit the generated file by
+      // hand, never run sync" — and that habit is what produces this pile of
+      // orphans. Such a project hits this refusal exactly once, with no way to
+      // know its own defensive workaround is the cause.
+      stderr.writeln('');
+      stderr.writeln(
+        '  If this project avoided `sync` because it used to delete keys: '
+        'that reason is gone (sync refuses now instead), and `--adopt` is the '
+        'one-time migration back onto Dialect.',
       );
     }
     if (adoptTried && unadoptable.isNotEmpty) {
@@ -676,43 +653,12 @@ class _PlatformOutcome {
   _PlatformOutcome({
     required this.filesWritten,
     required this.unnamespacedKeys,
-    required this.excludedNamespaces,
     this.pluralStrippedKeys = const {},
   });
   final int filesWritten;
   final Set<String> unnamespacedKeys;
-  final Set<String> excludedNamespaces;
 
   /// flat-json only: keys whose ICU plural/select was collapsed. Empty for
   /// the ARB and icu-json paths.
   final Set<String> pluralStrippedKeys;
-}
-
-/// The result of [SyncCommand._scanOrphans]: orphan keys (present in a
-/// generated output, absent from the source) grouped by which output files
-/// carry them, plus what `--adopt` would recover for each.
-class _OrphanReport {
-  /// orphan key → the output file paths it was found in.
-  final Map<String, Set<String>> _files = {};
-
-  /// orphan key → the source-locale [ArbEntry] `--adopt` writes into the
-  /// source. Absent for keys that live only in a translation output (no
-  /// English value to adopt).
-  final Map<String, ArbEntry> _sourceEntries = {};
-
-  /// locale → (orphan key → translated value) recovered from translation
-  /// outputs, so `--adopt` restores translations instead of dropping them.
-  final Map<String, Map<String, String>> _translationEntries = {};
-
-  bool get isEmpty => _files.isEmpty;
-
-  Set<String> get keys => _files.keys.toSet();
-
-  /// Keys `--adopt` can recover into the source, mapped to the entry it
-  /// would write.
-  Map<String, ArbEntry> get adoptable => _sourceEntries;
-
-  /// Orphans with no source-locale value — `--adopt` can't recover these.
-  Set<String> get unadoptableKeys =>
-      keys.difference(_sourceEntries.keys.toSet());
 }

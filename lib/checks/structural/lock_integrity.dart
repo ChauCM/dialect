@@ -43,7 +43,7 @@ class LockIntegrityRule extends Rule {
             file: arb.sourcePath,
             line: arb.entryLines[t.key],
             hint:
-                'Run `dialect lock ${t.key} $locale` to re-lock it with the '
+                'Run `dialect lock ${t.key} --locale $locale` to re-lock it with the '
                 'hash stamped (or re-lock in `dialect serve`), so later '
                 'source edits surface as locked + stale instead of shipping '
                 'silently.',

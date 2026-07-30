@@ -154,7 +154,8 @@ root and only stop if one reports an error:
 1. `dialect check --fix` — normalize formatting and surface structural
    problems (missing placeholders, missing plural categories,
    source-equal values) with file:line hints. Fix anything it flags as
-   an error, then re-run.
+   an error, then re-run. An `output_drift` warning here means step 2
+   will refuse — read it now rather than meeting it at the end.
 2. `dialect sync` — propagate the new translations into the platform
    outputs (Flutter ARB, backend JSON). Sync is non-destructive: if it
    reports that the output holds keys your source doesn't (someone edited

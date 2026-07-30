@@ -26,10 +26,13 @@ void main() {
       expect(issues.first.locale, 'es');
       expect(issues.first.key, 'common.cancel');
       // The hint has to name a path available to someone reading CI output,
-      // not just the dashboard. `dialect lock <key> <locale>` is that path —
+      // not just the dashboard. `dialect lock <key> --locale <l>` is that path —
       // runnable as printed, and it writes the lock and the hash together
       // (the hand-edited `@key` block it replaced was easy to get wrong).
-      expect(issues.first.hint, contains('dialect lock common.cancel es'));
+      expect(
+        issues.first.hint,
+        contains('dialect lock common.cancel --locale es'),
+      );
       expect(issues.first.hint, contains('lock_integrity'));
     });
 

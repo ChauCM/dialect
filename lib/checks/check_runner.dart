@@ -12,6 +12,7 @@ import 'structural/lock_integrity.dart';
 import 'structural/missing_keys.dart';
 import 'structural/namespace_required.dart';
 import 'structural/orphan_metadata.dart';
+import 'structural/output_drift.dart';
 import 'structural/placeholder_match.dart';
 import 'structural/plural_categories.dart';
 import 'structural/tag_balance.dart';
@@ -35,6 +36,10 @@ const List<Rule> structuralRules = [
   EmptyValuesRule(),
   OrphanMetadataRule(),
   LockIntegrityRule(),
+  // Last of the structural set: it reports on the generated outputs rather
+  // than on the canonical files, and it answers "can sync run?" rather than
+  // "is this content correct?".
+  OutputDriftRule(),
 ];
 
 /// Semantic rules (M8). Order shapes report grouping when two rules

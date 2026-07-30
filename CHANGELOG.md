@@ -4,6 +4,110 @@ All notable changes to the Dialect CLI are tracked here.
 
 ## [Unreleased]
 
+### Added — `check` reports output drift, so it can answer "can sync run?"
+
+- New warning rule **`output_drift`**: a generated output holds keys the source
+  does not, which is exactly the condition `dialect sync` refuses on.
+- `check` previously read `dialect/source` + `dialect/translations` and nothing
+  else, so this was invisible to it. The prescribed order is
+  `check --fix → sync → check`, which meant a repo carrying orphans reported
+  **clean** through the first command, stayed clean through every edit made
+  after it, and refused at the last step — on a condition that was already true
+  before any of that work began. Nothing had to be redone; half an hour passed
+  between knowable and known.
+- It is a warning, not an error: orphans are strings in the wrong file, and
+  everything still builds. `--strict` promotes it, which is where a pipeline
+  that regenerates outputs wants to meet it. The fix is never automatic —
+  choosing between `sync --adopt` and `sync --prune` is a data-loss decision
+  that belongs to a person.
+- The scan itself moved to `lib/project/output_scan.dart`, so `sync` and
+  `check` answer this question from one implementation.
+
+### Changed — `lock` and `accept` take a set of keys
+
+- Both are the same gesture ("a human reviewed this") and both took exactly one
+  key, which is the wrong unit: hand-authored copy arrives as a page, a screen,
+  a namespace. Blessing one About page cost a 13-iteration shell loop.
+- Both now accept any number of keys, plus `--namespace <name>` to take
+  everything in a namespace: `dialect lock --namespace web`.
+- **Breaking:** the trailing positional locale is now `--locale`. A variadic
+  subject cannot also carry an optional trailing locale without guessing what a
+  bare `vi` means. Passing one positionally says so by name rather than
+  reporting "no such key `vi`", and the hints that print a runnable command
+  (`source_equality`, `stale_translation`, `lock_integrity`) emit the new form.
+- `--prefix webAbout` was considered and rejected: a prefix groups keys only
+  when someone named them consistently, while a namespace is the grouping the
+  source declares and sync already routes on.
+- Both commands now write each ARB once per invocation instead of once per key.
+
+### Changed — `sync --adopt` reports what it left for you to do
+
+- The closing hint was unconditional, so a run where every adopted key came
+  back with `namespace` + `description` still ended in a paragraph about adding
+  metadata and re-running sync. The only way to establish "nothing to do" was to
+  open the source and read the `@key` blocks by hand — and, inverted, one
+  genuinely bare key could hide inside a list of twenty complete ones.
+- It now reports the split: `All 16 keys came back with namespace +
+  description` when there is nothing left, or the incomplete keys **by name**
+  when there is. The warning became a work list, and silence became meaningful.
+- The "then re-run `dialect sync`" instruction is gone from the complete case —
+  that same invocation already regenerates every output.
+- The refusal message names `--adopt` as the **one-time migration** for a
+  project that learned to avoid `sync` back when it deleted keys. That habit is
+  what produces the orphans, and such a project meets the refusal exactly once,
+  with no way to know its own workaround is the cause.
+
+### Changed — `sync` only warns about namespaces that reach NO platform
+
+- The old warning fired **per platform**, listing every namespace that
+  platform's allowlist excluded. On a project with one platform reading most of
+  the source, that is useful. On a project with three — a Flutter app, a
+  backend, a website — every platform excludes most namespaces *on purpose*, so
+  a completely healthy `dialect sync` ended in three paragraphs of warnings
+  naming twenty namespaces. Output that is noisy when nothing is wrong trains
+  people to stop reading it, including on the day something is.
+- It now warns once, about the thing that is actually a mistake: **a namespace
+  no configured platform claims**, whose keys are therefore generated nowhere.
+  Each is listed with how many keys it strands.
+
+  ```
+  ⚠ 1 namespace(s) reach no platform, so their keys are emitted nowhere:
+      landing  —  43 key(s)
+    hint: add each one to a `platforms.<p>.namespaces` list in dialect.yaml, …
+  ```
+
+- Coverage is judged across **every configured platform**, not just the ones a
+  given run touched, so `dialect sync --platform backend` no longer calls the
+  app's namespaces homeless.
+- Found by dogfooding: Stepo's source now feeds a Flutter app, an ASP.NET
+  backend, and a SvelteKit website. The old warning had no test coverage at
+  all, which is how it shipped; the new behaviour has four tests.
+
+### Documented — a web front end is a supported consumer
+
+- [`docs/platforms-frontend.md`](docs/platforms-frontend.md) gained a
+  **JavaScript / TypeScript web** section. A SvelteKit / Next / Nuxt front end
+  reads `icu-json` directly; there is no adapter and there will not be one.
+  It covers the `Intl.PluralRules` renderer, deriving compile-time key safety
+  from `keyof typeof en`, locale negotiation on an edge runtime, and the
+  escaping contract for messages carrying inline tags.
+- The 2026-05 scope notice said React/web was secondary because "i18next covers
+  their needs". That is right for a *web-only* team and wrong for a Flutter-led
+  team whose website is the third consumer of one source — the exact shape
+  Dialect exists for. Corrected rather than left to be re-derived.
+- **Web frameworks are struck from the v2.0+ sponsored-adapters list.** Verified
+  unnecessary rather than deferred.
+
+### Documented — long-form documents are not keys
+
+- `templates/dialect.yaml`'s "What NOT to extract" list now names privacy
+  policies, terms of service, community guidelines, licences, and changelogs.
+  A document is a document: shredding one into keys produces meaningless key
+  names, unreadable diffs, and clauses that drift between locales, and in a
+  legal document a drifted clause is worse than no translation. The convention
+  never said so, so an agent extracting a page of prose would have been
+  following instructions.
+
 ### Added — `dialect lock` (pin a deliberate translation)
 
 - **`dialect lock <key> [locale]`** marks a translation as human-approved and

@@ -171,6 +171,8 @@ See [Frontend Platforms](platforms-frontend.md) and [Backend Platforms](platform
 
 **Ergonomics:** `dialect sync --dry-run` (list what would change without writing; exits non-zero if anything is out of date) and `--platform <name>` (sync one configured platform) ship today. `--watch` (foreground re-sync on file change) is still planned. A `flat-json` platform prints a per-platform lossy-event line listing the keys whose ICU plurals were collapsed to the `other` branch.
 
+**Sync reports where it left you.** Every write ends with one line — `check: no issues.` or a count of errors and warnings — because the trailing `dialect check` in the documented loop asks a question sync already knows the answer to. The report is unconditional and free; the *exit code* is not, unless you pass `--verify`, which makes any remaining error a non-zero exit and turns CI into one command. Without it the exit code is unchanged: the files are on disk by then either way, and a report on the project's state is not a verdict on whether the write succeeded. `--dry-run` wrote nothing, so it reports nothing. Acknowledgements apply here exactly as in `dialect check`.
+
 ### `dialect check`
 
 Validates translation completeness and correctness:
@@ -195,6 +197,8 @@ $ dialect check
 - **Length ratio.** Flag translations outside `[0.3×, 2.5×]` of source character length. Configurable per-locale in `dialect.yaml` (German runs long, Japanese can run short). Warning severity — false positives are common, so this never escalates to error in strict mode without explicit opt-in.
 - **Untranslated English fragments.** Regex for English-looking word sequences in non-English locale files. Catches partial translations where the model translated some clauses but left others in English.
 - **Glossary enforcement.** For every glossary term that appears in a source string, check the corresponding translation contains the prescribed translation from `glossary.yaml`. Escape hatch: `@key.glossary_exempt: true` for keys where the term is used non-literally. This is what makes `glossary.yaml` load-bearing instead of decorative.
+- **Plural shape.** Flag a source string that interpolates a count straight in front of a plural noun — `"{count} people"`, which renders "1 people". `plural_categories` checks that a plural is *complete* once one exists; this checks that one exists at all. Source-side only: once the source is a plural, every translation inherits the shape. A placeholder is read as a count from its declared `type` (`int` / `num` / `double` / `number`) or from a conventional name, and the rule fires only when the noun it governs is already plural — which is precisely the disagreement, and what keeps it quiet enough to default on.
+- **Banned patterns.** Flag any value, source included, containing copy the project has ruled out — the inverse of glossary enforcement, read from the `banned:` block of `glossary.yaml`. See [copy policy](#copy-policy-glossaryyaml).
 - **Stale translations.** Flag any translation whose recorded `@key.source_hash` no longer matches the current English source — i.e. the source changed after the translation was written, so the translation is potentially out of date (locked *or* unlocked). This is the change-half of the sync loop. `dialect check --fix` stamps the hash onto unlocked translations as provenance; the warning is resolved by re-translating (`dialect translate` refreshes it) or by locking the value if it's still correct (locking re-stamps it). Not `--ack`-able — it's a fact about provenance, not a heuristic, so the fix is to refresh, not silence. See [`dialect/spec/source_hash.md`](../dialect/spec/source_hash.md).
 
 ```bash
@@ -215,7 +219,28 @@ $ dialect check
 dialect check --ack source_equality:vi:settingsEmailLabel --note "Email is canonical in vi"
 ```
 
-This writes `.dialect/state.json` (workspace-local, gitignored), fingerprinting the source/translation value at ack-time per [`dialect/spec/state.md`](../dialect/spec/state.md). The warning stays hidden until that value changes — at which point it re-fires and the report flags the ack as stale (`⚠ stale-ack …`) so you can re-ack or delete it. Only the four heuristic rules (`source_equality`, `glossary`, `untranslated_english`, `length_ratio`) are ack-able; structural rules are correctness failures and can't be silenced.
+This writes `.dialect/state.json` (workspace-local, gitignored), fingerprinting the source/translation value at ack-time per [`dialect/spec/state.md`](../dialect/spec/state.md). The warning stays hidden until that value changes — at which point it re-fires and the report flags the ack as stale (`⚠ stale-ack …`) so you can re-ack or delete it. Only the heuristic rules (`banned_pattern`, `glossary`, `length_ratio`, `plural_shape`, `source_equality`, `untranslated_english`, `width_budget`) are ack-able; structural rules are correctness failures and can't be silenced. Passing an unknown rule to `--ack` prints the current list, read from the same map the suppression logic uses, so the message can't drift from what is actually ack-able.
+
+### Copy policy (`glossary.yaml`)
+
+`glossary.yaml` is the project's copy policy, and it carries both directions of the same question. `terms:` says *always say this* and is enforced by the `glossary` rule. `banned:` says *never say that* and is enforced by `banned_pattern`, across the source as well as every translation — a rule about a turn of phrase is usually written about the original language, so scoping it to translations would leave the locale it was written for unchecked.
+
+```yaml
+banned:
+  - pattern: "—"
+    reason: "Use a comma, a colon, or two sentences."
+    except: [pushBodyJourneyFirstStep]
+  - pattern: '\b(utilize|leverage)\b'
+    regex: true
+    reason: "Prefer the plain verb: 'use'."
+    locales: [en]
+```
+
+`pattern` is literal by default so punctuation needs no escaping; `regex: true` opts in. `reason` is required, because it is printed as the hint and is the whole value of the finding. Both rules are warnings, so `--strict` is what turns a copy convention into a CI gate.
+
+**Two kinds of exception, because copy policy has two.** `dialect check --ack banned_pattern:LOCALE:KEY` waives one use and expires when that value is edited, which is right for "this particular sentence is fine." A house style that *rules* a set of keys exempt is not that — it has to survive a typo fix — so those keys go in `except:`. A standing list is the artefact that rots, so the rule audits its own: a name in `except:` whose value no longer contains the pattern is reported, and the list can only shrink.
+
+Both blocks are per-project and read by every consumer of the source, which is the point — a copy rule enforced by a test in one stack does not protect the app, the backend, and the website that all render the same strings.
 
 ### `dialect status`
 
@@ -351,7 +376,8 @@ A developer points their AI at this file: *"read dialect/dialect.yaml and then e
 #     target locale in the same turn — translators review, they
 #     don't fill blanks
 #   - After editing ARB files, run:
-#       dialect check --fix && dialect sync && dialect check
+#       dialect check --fix && dialect sync
+#     (sync re-checks and reports; --verify makes it the gate)
 # ============================================================
 
 source_locale: en

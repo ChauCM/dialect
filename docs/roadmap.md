@@ -1,6 +1,8 @@
 # Roadmap
 
-> **Last updated: 2026-05-25.** This is the public roadmap. Items past v1.0 are planned, not shipped. The phased plan reflects current direction; specifics may shift as v1.1 and v1.2 land and dogfood feedback surfaces.
+> **Last updated: 2026-07-31.** This is the public roadmap: themes in the order they are intended, not a release schedule.
+>
+> **The phase headings below are themes, and they have drifted from the version numbers attached to them.** Releases are driven by what field use turns up, so `1.2.0` shipped as a field-hardening release and `1.3.0` as a copy-policy release — neither is the phase carrying its number here. [`CHANGELOG.md`](../CHANGELOG.md) is the authority on what actually shipped in each version; read a `v1.x` heading below as "the phase after the one above it."
 
 ## Shipped — v1.0
 

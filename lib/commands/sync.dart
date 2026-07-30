@@ -7,9 +7,13 @@ import '../adapters/arb_adapter.dart';
 import '../adapters/json_adapter.dart';
 import '../arb/arb_file.dart';
 import '../arb/arb_writer.dart';
+import '../checks/ack.dart';
+import '../checks/check_runner.dart';
+import '../checks/rule.dart';
 import '../config/dialect_config.dart';
 import '../project/dialect_project.dart';
 import '../project/output_scan.dart';
+import '../state/state_store.dart';
 import 'key_selection.dart';
 
 class SyncCommand extends Command<int> {
@@ -56,6 +60,15 @@ class SyncCommand extends Command<int> {
             'absent from the source) and regenerate without them. Opt-in on '
             'purpose: pruning throws away whatever strings live only in the '
             'generated file.',
+      )
+      ..addFlag(
+        'verify',
+        negatable: false,
+        help:
+            'Exit non-zero if the project still has check errors after '
+            'syncing. Sync always reports the post-sync state in one line; '
+            'this makes CI fail on it, so `dialect sync --verify` is the '
+            'whole gate.',
       );
   }
 
@@ -77,6 +90,7 @@ class SyncCommand extends Command<int> {
     final dryRun = results['dry-run'] as bool;
     final adopt = results['adopt'] as bool;
     final prune = results['prune'] as bool;
+    final verify = results['verify'] as bool;
     final onlyPlatform = results.option('platform');
     final rest = results.rest;
     if (rest.length > 1) {
@@ -229,7 +243,57 @@ class SyncCommand extends Command<int> {
     } else {
       stdout.writeln('✓ dialect sync: wrote $totalWritten file(s).');
     }
-    return 0;
+
+    return _reportPostState(root, verify: verify);
+  }
+
+  /// Say where the project stands now that the outputs have been written.
+  ///
+  /// `check → sync → check` was the documented ritual, and the trailing
+  /// `check` was three keystrokes asking a question sync already knows the
+  /// answer to. Sync reports it unconditionally, because a run that ends
+  /// "and it is clean" is worth more than a run that ends silently, and
+  /// `--verify` turns that report into the exit code so CI needs one command
+  /// rather than two.
+  ///
+  /// The project is re-loaded rather than reused: sync may have adopted
+  /// orphans into the source, and the answer has to describe the files as
+  /// they are on disk now. Acknowledgements apply here exactly as they do in
+  /// `dialect check`, so an acked warning does not reappear at the end of
+  /// every sync.
+  int _reportPostState(String root, {required bool verify}) {
+    final CheckResult result;
+    try {
+      final reloaded = DialectProject.load(root);
+      result = applyAcks(
+        runChecks(reloaded),
+        reloaded,
+        StateStore.load(root),
+      ).result;
+    } on FileSystemException catch (e) {
+      // The outputs are already written; a failure to re-read the project
+      // is worth saying out loud but is not a reason to call the sync bad.
+      stdout.writeln('  check: could not re-read the project (${e.message}).');
+      return 0;
+    } on FormatException catch (e) {
+      stdout.writeln('  check: could not re-read the project (${e.message}).');
+      return 0;
+    }
+
+    final errors = result.issues
+        .where((i) => i.severity == IssueSeverity.error)
+        .length;
+    final warnings = result.issues.length - errors;
+
+    if (errors == 0 && warnings == 0) {
+      stdout.writeln('  check: no issues.');
+      return 0;
+    }
+    stdout.writeln(
+      '  check: $errors error(s), $warnings warning(s) — run `dialect check` '
+      'for detail.',
+    );
+    return verify && errors > 0 ? 65 : 0;
   }
 
   /// Report what `--adopt` recovered, and — the part that decides whether the

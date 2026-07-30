@@ -164,8 +164,10 @@ root and only stop if one reports an error:
    those strings. Surface the list to the developer; if the keys belong
    in the app, `dialect sync --adopt` pulls them back into the source and
    then syncs. Only `--prune` once a human has confirmed the keys are
-   truly dead.
-3. `dialect check` — confirm a clean pass.
+   truly dead. Sync finishes by re-checking and printing one line, so a
+   `check: no issues.` there **is** the confirming pass. There is no third
+   command; if it reports a count instead, run `dialect check` to read the
+   detail.
 
 Then report a brief summary: how many keys you translated per locale,
 any glossary terms you used non-literally (and why), and any **Stale

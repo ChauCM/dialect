@@ -57,8 +57,13 @@ const String dialectYamlTemplate = r'''# =======================================
 #   indentation rules. Add or edit entries in any reasonable
 #   shape, then run:
 #       dialect check --fix     # normalizes + flags issues
-#       dialect sync            # generates platform outputs
-#       dialect check           # confirms clean pass
+#       dialect sync            # generates outputs, then reports
+#                               # the state it left you in
+#   Two commands, not three: `sync` ends by re-checking and
+#   printing one line ("check: no issues." or a count), so the
+#   confirming pass is already done. `dialect sync --verify` also
+#   makes any remaining error the exit code, which is the whole
+#   CI gate in one command.
 #   `dialect check --fix` deterministically sorts keys, moves
 #   `@@locale` to the top, places each `@key` block after its
 #   own key, strips any `@key` blocks accidentally added to
@@ -77,6 +82,16 @@ const String dialectYamlTemplate = r'''# =======================================
 #   one-time migration back. It recovers each key's English,
 #   its `@key` metadata, and any translation that lived only in
 #   the output, then regenerates.
+#
+# === Copy policy lives in glossary.yaml ===
+#   `terms:` says what a translation must always say; `banned:`
+#   says what no value may say (checked in the source too). Both
+#   are warnings, so `dialect check --strict` is what makes them
+#   a gate. See dialect/glossary.yaml.
+#   `plural_shape` warns when a count is interpolated straight in
+#   front of a plural noun ("{count} people" renders "1 people").
+#   Wrap it in an ICU plural in the SOURCE — every translation
+#   inherits the shape from there.
 #
 # === @key metadata (semantic part — your responsibility) ===
 #   - Every key in the SOURCE ARB MUST have a "namespace" and a

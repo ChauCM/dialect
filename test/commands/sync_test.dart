@@ -757,6 +757,116 @@ void main() {
         expect(out, isNot(contains('reach no platform')));
       });
     });
+
+    group('post-sync state', () {
+      const clean =
+          '{ "@@locale": "en", "commonCancel": "Cancel", '
+          '"@commonCancel": { "namespace": "common", '
+          '"description": "The cancel button." } }';
+
+      // A second source key that `es` never translates, so the post-sync
+      // check has a real `missing_keys` error to report.
+      const withGap =
+          '{ "@@locale": "en", "commonCancel": "Cancel", '
+          '"@commonCancel": { "namespace": "common", '
+          '"description": "The cancel button." }, '
+          '"commonSave": "Save", '
+          '"@commonSave": { "namespace": "common", '
+          '"description": "The save button." } }';
+
+      const flutter = {
+        'flutter': {
+          'output': 'lib/l10n/',
+          'format': 'arb',
+          'namespaces': ['common'],
+        },
+      };
+
+      test(
+        'a clean project says so, ending the check → sync → check ritual',
+        () async {
+          _writeProject(
+            tmp.path,
+            sourceLocale: 'en',
+            targetLocales: ['es'],
+            source: clean,
+            translations: {
+              'es': '{ "@@locale": "es", "commonCancel": "Cancelar" }',
+            },
+            platforms: flutter,
+          );
+
+          final out = await runSyncCapturingStdout();
+          expect(out, contains('check: no issues.'));
+        },
+      );
+
+      test('counts what is still wrong without failing the sync', () async {
+        _writeProject(
+          tmp.path,
+          sourceLocale: 'en',
+          targetLocales: ['es'],
+          source: withGap,
+          translations: {
+            'es': '{ "@@locale": "es", "commonCancel": "Cancelar" }',
+          },
+          platforms: flutter,
+        );
+
+        final out = await runSyncCapturingStdout();
+        expect(out, contains('check: 1 error(s)'));
+        expect(out, contains('run `dialect check` for detail'));
+        // The files were written; reporting the state is not a verdict on
+        // whether the write succeeded.
+        expect(await runSync(), 0);
+      });
+
+      test('--verify turns that count into the exit code', () async {
+        _writeProject(
+          tmp.path,
+          sourceLocale: 'en',
+          targetLocales: ['es'],
+          source: withGap,
+          translations: {
+            'es': '{ "@@locale": "es", "commonCancel": "Cancelar" }',
+          },
+          platforms: flutter,
+        );
+
+        expect(await runSync(['--verify']), 65);
+      });
+
+      test('--verify passes on a clean project', () async {
+        _writeProject(
+          tmp.path,
+          sourceLocale: 'en',
+          targetLocales: ['es'],
+          source: clean,
+          translations: {
+            'es': '{ "@@locale": "es", "commonCancel": "Cancelar" }',
+          },
+          platforms: flutter,
+        );
+
+        expect(await runSync(['--verify']), 0);
+      });
+
+      test('--dry-run wrote nothing, so it reports no post-state', () async {
+        _writeProject(
+          tmp.path,
+          sourceLocale: 'en',
+          targetLocales: ['es'],
+          source: withGap,
+          translations: {
+            'es': '{ "@@locale": "es", "commonCancel": "Cancelar" }',
+          },
+          platforms: flutter,
+        );
+
+        final out = await runSyncCapturingStdout(['--dry-run']);
+        expect(out, isNot(contains('check:')));
+      });
+    });
   });
 }
 

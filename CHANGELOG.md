@@ -4,6 +4,76 @@ All notable changes to the Dialect CLI are tracked here.
 
 ## [Unreleased]
 
+## 1.3.0
+
+Copy-policy release. The 1.2 data-loss guard came back verified in anger — an
+agent deleted four keys through the source path, `check` named all four,
+`sync` refused, and `--prune` printed what it dropped — and the round of
+feedback that confirmed it asked for the next layer up: not "are the files
+consistent?" but "is the copy right?"
+
+Two new rules answer that, and `sync` stopped making you type the question.
+
+### Added — `plural_shape`: a count in front of a plural noun
+
+- New warning rule. `plural_categories` checked that a plural was *complete*;
+  nothing checked that one should have existed. That is how a shipping app put
+  "1 people" on screen twice.
+- Fires on the **source**, because that is where the defect is born: once the
+  source is a plural, every translation inherits the shape and
+  `plural_categories` holds each locale to its categories. A fix applied to one
+  translation leaves the source wrong for all the others.
+- A placeholder counts as a count by its declared
+  `@key.placeholders.<name>.type` (`int`, `num`, `double`, `number`) or by a
+  conventional name (`count`, `n`, `total`, `qty`, anything ending in `Count`).
+  Both signals earn their place: on the first real corpus the declared type was
+  the only thing that caught a bare `{others}` hiding inside the `other` branch
+  of an existing plural.
+- It fires only when the noun the count governs is **already plural**, which is
+  exactly the disagreement. On a ~900-key shipping corpus that is four
+  warnings, all four genuine. Without that test it was nine, five of them a
+  count in front of a verb, an adjective, or a unit ("{count} stepped with
+  you", "{liveCount} live now", "{seconds} s").
+
+### Added — `banned_pattern`: copy the project has ruled out
+
+- New warning rule, reading a `banned:` block in `dialect/glossary.yaml`. Each
+  entry is a `pattern` (literal by default, `regex: true` to opt in), a
+  required `reason` that becomes the hint, and optional `locales:` scoping.
+- It lives beside `terms:` because it is the same question inverted: a glossary
+  says *always say this*, `banned:` says *never say that*. `dialect.yaml` stays
+  plumbing — locales, platforms, publish targets.
+- It checks the **source** too. A ban on a turn of phrase is usually written
+  about the original language, and scoping it to translations would leave the
+  locale it was written for unchecked.
+- **Two kinds of exception, because copy policy has two.**
+  `dialect check --ack banned_pattern:LOCALE:KEY` waives one use and expires
+  when that value is edited. `except:` on the pattern names keys ruled exempt
+  for good, which has to survive a typo fix. The standing list is the one that
+  can rot, so the rule audits it: a name in `except:` whose copy no longer
+  holds the pattern is reported, and the list can only shrink.
+- This replaces a hand-rolled test — both halves of one, in eight lines of
+  YAML, for every consumer of the source rather than the one stack the test was
+  written in.
+
+### Added — `sync` reports where the project stands
+
+- `check → sync → check` was the documented ritual, and every operator ran the
+  trailing `check` by hand to ask a question sync already knew the answer to.
+  Sync now ends with one line: `check: no issues.` or a count.
+- `--verify` turns that count into the exit code, so CI is one command instead
+  of two. Without it the exit code is unchanged: a report is not a verdict on
+  whether the write succeeded, and the files are on disk by then either way.
+- Acknowledgements apply exactly as in `dialect check`, so an acked warning
+  does not reappear at the end of every sync.
+
+### Changed
+
+- Ack subjects are three-way now (`source` / `translation` / the side the issue
+  was found on) rather than a boolean, which is what lets `banned_pattern` be
+  ack-able on both sides. `--ack` lists the ack-able rules from that map, so
+  the error text cannot drift from what is actually ack-able.
+
 ## 1.2.0
 
 Field-hardening release. Two projects and four feedback rounds put every

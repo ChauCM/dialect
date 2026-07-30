@@ -185,9 +185,8 @@ class CheckCommand extends Command<int> {
     if (!isAckableRule(rule)) {
       stderr.writeln(
         'Rule `$rule` is not acknowledgeable. Only the heuristic rules '
-        '(source_equality, glossary, untranslated_english, length_ratio, '
-        'width_budget) can be acked; structural issues are correctness '
-        'failures — fix the underlying problem instead.',
+        '(${ackableRuleNames.join(", ")}) can be acked; structural issues '
+        'are correctness failures — fix the underlying problem instead.',
       );
       return 64;
     }
@@ -221,7 +220,8 @@ class CheckCommand extends Command<int> {
     if (note != null) stdout.writeln('  note: $note');
     stdout.writeln(
       '  This warning stays hidden until the '
-      '${isSourceHashed(rule) ? 'source' : 'translation'} value changes.',
+      '${isSourceHashed(rule, locale: locale) ? 'source' : 'translation'} '
+      'value changes.',
     );
     return 0;
   }

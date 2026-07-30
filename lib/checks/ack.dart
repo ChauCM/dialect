@@ -10,28 +10,51 @@ import 'rule.dart';
 /// `acknowledged` fingerprint still matches the recomputed value. When the
 /// fingerprint has drifted (source or translation edited since the ack),
 /// the issue surfaces again and the ack is reported as **stale** so the
-/// reviewer can re-ack or delete it. Only the four heuristic rules are
-/// ack-able; structural rules are correctness failures and are never
-/// suppressed.
+/// reviewer can re-ack or delete it. Only the heuristic rules are ack-able;
+/// structural rules are correctness failures and are never suppressed.
+
+/// Which value a rule's ack is fingerprinted against.
+///
+/// The fingerprint decides when a waiver expires, so it has to name the text
+/// the reviewer actually looked at. A `glossary` warning is a judgement about
+/// the English; a `width_budget` warning is a judgement about the
+/// translation; a `banned_pattern` warning is a judgement about whichever
+/// side the banned text appeared on, since that rule scans both.
+enum AckSubject { source, translation, sideOfIssue }
 
 /// Rules whose warnings may be acknowledged, and what each fingerprints.
-/// `true` → hash the **source** value; `false` → hash the **translation**
-/// value. Anything not in this map is not ack-able (structural rules).
-const Map<String, bool> _ackableHashesSource = {
-  'source_equality': true,
-  'glossary': true,
-  'untranslated_english': false,
-  'length_ratio': false,
-  'width_budget': false,
+/// Anything not in this map is not ack-able (structural rules).
+const Map<String, AckSubject> _ackSubjects = {
+  'source_equality': AckSubject.source,
+  'glossary': AckSubject.source,
+  'plural_shape': AckSubject.source,
+  'untranslated_english': AckSubject.translation,
+  'length_ratio': AckSubject.translation,
+  'width_budget': AckSubject.translation,
+  'banned_pattern': AckSubject.sideOfIssue,
 };
 
 /// Whether [ruleName] supports acknowledgement at all.
-bool isAckableRule(String ruleName) =>
-    _ackableHashesSource.containsKey(ruleName);
+bool isAckableRule(String ruleName) => _ackSubjects.containsKey(ruleName);
+
+/// Every ack-able rule name, sorted — so the error text that lists them
+/// cannot drift from the map itself.
+List<String> get ackableRuleNames => _ackSubjects.keys.toList()..sort();
 
 /// Whether [ruleName] fingerprints the source value (vs. the translation
-/// value). Only meaningful for ack-able rules.
-bool isSourceHashed(String ruleName) => _ackableHashesSource[ruleName] ?? false;
+/// value) for an ack in [locale]. Only meaningful for ack-able rules; drives
+/// the sentence `dialect check --ack` prints back.
+bool isSourceHashed(String ruleName, {String? locale}) {
+  switch (_ackSubjects[ruleName]) {
+    case AckSubject.source:
+      return true;
+    case AckSubject.sideOfIssue:
+      return locale == null || locale == 'source';
+    case AckSubject.translation:
+    case null:
+      return false;
+  }
+}
 
 /// The `<rule>:<locale>:<key>` identifier for an issue, or `null` if the
 /// issue lacks the parts an ack needs (key is always required; a
@@ -52,10 +75,9 @@ String? ackFingerprint(
   String key,
   DialectProject project,
 ) {
-  final hashesSource = _ackableHashesSource[ruleName];
-  if (hashesSource == null) return null;
+  if (!isAckableRule(ruleName)) return null;
 
-  if (hashesSource) {
+  if (isSourceHashed(ruleName, locale: locale)) {
     final entry = project.source.entryFor(key);
     if (entry == null) return null;
     return computeSourceHash(entry.value);

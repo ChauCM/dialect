@@ -1,7 +1,9 @@
 import '../project/dialect_project.dart';
 import 'rule.dart';
+import 'semantic/banned_pattern.dart';
 import 'semantic/glossary.dart';
 import 'semantic/length_ratio.dart';
+import 'semantic/plural_shape.dart';
 import 'semantic/source_equality.dart';
 import 'semantic/stale_translation.dart';
 import 'semantic/untranslated_english.dart';
@@ -51,7 +53,11 @@ const List<Rule> semanticRules = <Rule>[
   LengthRatioRule(),
   WidthBudgetRule(),
   UntranslatedEnglishRule(),
+  // The two copy-policy rules, in the order a reviewer asks them: the source
+  // sentence has to be well-formed before its wording is worth arguing about.
+  PluralShapeRule(),
   GlossaryRule(),
+  BannedPatternRule(),
   StaleTranslationRule(),
 ];
 

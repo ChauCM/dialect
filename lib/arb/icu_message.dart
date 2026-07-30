@@ -60,6 +60,27 @@ class IcuMessage {
     return found;
   }
 
+  /// Variable names that select a `plural` or `selectordinal` expression
+  /// anywhere in [message], at any nesting depth.
+  ///
+  /// This answers "is this count already pluralized?", which is the question
+  /// `plural_shape` asks of every count-like placeholder it finds. A name
+  /// that appears both as a selector and as a bare `{n}` inside a branch
+  /// (the usual `other{{n} items}` shape) counts as pluralized.
+  ///
+  /// `select` is deliberately excluded: it branches on a category such as
+  /// gender, so it says nothing about whether a number was handled.
+  static Set<String> pluralSelectors(String message) {
+    final result = <String>{};
+    _walk(message, (expr) {
+      if (expr.type == 'plural' || expr.type == 'selectordinal') {
+        final name = expr.varName;
+        if (name != null) result.add(name);
+      }
+    });
+    return result;
+  }
+
   /// True if [message] contains any ICU expression (`{name}` or
   /// `{var, …, …}`). False for plain strings (no `{}` at all, or only
   /// escaped braces).

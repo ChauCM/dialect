@@ -4,6 +4,19 @@ All notable changes to the Dialect CLI are tracked here.
 
 ## [Unreleased]
 
+## 1.2.0
+
+Field-hardening release. Two projects and four feedback rounds put every
+command through real use, and this is what came back: a `sync` that cannot
+silently delete your strings, a `check` that can tell you so before you start,
+`lock` / `accept` as first-class review gestures, and a website joining the
+Flutter app and the backend as a consumer of one canonical source.
+
+**Breaking:** `lock` and `accept` take a set of keys, so the trailing positional
+locale moved to `--locale` (`dialect lock brand --locale vi`). Passing one
+positionally reports the migration by name. The `icu-json` / `flat-json` output
+contracts are unchanged.
+
 ### Added — `check` reports output drift, so it can answer "can sync run?"
 
 - New warning rule **`output_drift`**: a generated output holds keys the source

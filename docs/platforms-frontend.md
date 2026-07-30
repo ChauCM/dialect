@@ -1,8 +1,10 @@
 # Frontend Platforms
 
-How Dialect integrates with frontend frameworks. **Flutter is the only first-class frontend target.**
+How Dialect integrates with frontend frameworks. **Flutter is the first-class frontend target; a web front end alongside it is supported through the `icu-json` contract.**
 
-> **Scope notice (2026-05).** Native iOS `.strings`/`.stringsdict` and native Android `strings.xml`/`<plurals>` adapters are **not on the roadmap**. Flutter generates iOS/Android-compatible output from `AppLocalizations` via its own build pipeline; standalone native string files only matter for edge cases (method channels, native plugins, launch screens). The sections below remain for reference — they describe the conversion patterns if you need to hand-write native files for those cases — but Dialect does not generate them automatically. See [`roadmap.md`](roadmap.md). React Native and React-web are likewise secondary; `i18next` alone covers their needs.
+> **Scope notice (2026-05, revised 2026-07).** Native iOS `.strings`/`.stringsdict` and native Android `strings.xml`/`<plurals>` adapters are **not on the roadmap**. Flutter generates iOS/Android-compatible output from `AppLocalizations` via its own build pipeline; standalone native string files only matter for edge cases (method channels, native plugins, launch screens). The sections below remain for reference — they describe the conversion patterns if you need to hand-write native files for those cases — but Dialect does not generate them automatically. See [`roadmap.md`](roadmap.md).
+>
+> **Web is a different case, and the 2026-05 text got it wrong.** "React web is secondary, `i18next` covers it" is the right answer for a *web-only* team choosing a localization tool. It is the wrong answer for a Flutter-led team whose marketing site or share pages are the third consumer of the same strings — which is the exact shape Dialect exists for. That team does not need a per-framework adapter; it needs the `icu-json` contract and about forty lines of runtime. See [JavaScript / TypeScript web](#javascript--typescript-web) below.
 
 ---
 
@@ -241,37 +243,85 @@ platforms:
 
 ---
 
-## React Native (Secondary)
+## JavaScript / TypeScript web
 
-Dialect generates i18next-compatible JSON for React Native via the `i18next-json` adapter. React Native teams already have a mature ecosystem with i18next, so Dialect is useful primarily when RN is part of a larger stack that includes Flutter, iOS/Android native, or backend services.
+**Priority: supported, no adapter.** A web front end — SvelteKit, Next, Nuxt, Astro, plain Vite — reads `icu-json` directly. There is no `svelte-json`, `paraglide`, or `typesafe-i18n` adapter and there will not be one: those tools carry their own message formats and compilers, so an adapter would either lose ICU or fork the convention. This is [Backend Humility](platforms-backend.md#the-principle-backend-humility) applied to the front end.
+
+### Config
 
 ```yaml
 platforms:
-  react-native:
-    output: src/locales/
-    format: i18next-json
-    key_style: nested_dot
-    namespaces: [common, mobile]
+  web:
+    output: src/lib/locales/
+    format: icu-json          # flat-json if the web slice has no plurals
+    namespaces: [web, landing]
 ```
 
-The adapter converts ARB to i18next JSON: namespace prefixes become nested keys, ICU plurals become i18next suffixes (`_one`, `_other`), and placeholders convert from `{var}` to `{{var}}`. Basic plurals and interpolation are supported. `select`, `selectordinal`, plural `offset`, and nested ICU expressions are not supported and will error during conversion.
+`dialect sync` writes `en.json`, `vi.json`, … as flat `key → value` objects. That is the entire integration on Dialect's side.
 
-For OTA, use `i18next-http-backend` with `loadPath` pointing at per-locale JSON files. Persistent caching on-device requires `i18next-async-storage-backend` or a chained backend.
+### Key safety without codegen
+
+Flutter gets compile-time key checking from `gen-l10n`. The web gets the same thing from TypeScript, free, because the catalogue is a JSON module:
+
+```ts
+import en from '$lib/locales/en.json';
+
+export type MessageKey = keyof typeof en;
+```
+
+A typo is now a compile error with a suggestion attached:
+
+```
+error TS2820: Type '"navFeeed"' is not assignable to type '"navFeed" | ... '.
+Did you mean '"navFeed"'?
+```
+
+Shipping a `.d.ts` generator for this would be Dialect duplicating a compiler feature. Requires `"resolveJsonModule": true`, which every SvelteKit / Next / Vite tsconfig already sets.
+
+### Formatting
+
+Two lossless options, in order of preference:
+
+1. **`Intl.PluralRules` and about forty lines.** Cardinal and ordinal plural selection is in every JavaScript runtime, browsers and edge workers included, and it is CLDR-correct for every locale the platform knows. A renderer covering `{placeholder}`, `plural`, `selectordinal`, `select`, `#`, and ICU's reduced apostrophe quoting fits in one small file with no dependency. Reference implementation: [`stepo-web/src/lib/i18n/format.ts`](https://github.com/ChauCM/dialect) (see the worked example below).
+2. **`intl-messageformat`.** The reference ICU implementation, ~40 KB. Reach for it when messages use date/number skeletons or deeply nested expressions.
+
+Do not hand-roll a formatter that "just does `{name}` replacement" over an `icu-json` catalogue. If the source carries plurals, that quietly renders the raw ICU expression to a user. Either implement the branches or configure the platform as `flat-json`, which collapses them deliberately and tells you which keys it collapsed.
+
+### Tags become real HTML, and that is a hazard
+
+The [rich-text convention](#rich-text-inside-one-sentence) puts inline tags like `<b>` inside a message so a styled run stays part of one translatable sentence. On Flutter those tags pass through a `TextSpan` parser that cannot execute anything. On the web, rendering them means `innerHTML` / `{@html}` / `dangerouslySetInnerHTML` — and many such messages interpolate somebody else's words: a display name, a journey title, a comment.
+
+**The rule: format to a stream, not to a string.** The renderer must know which runs of output came from the message (yours, trusted, may carry tags) and which came from the arguments (not yours, always escaped). Concretely, give the formatter two hooks:
+
+```ts
+formatMessage(message, args, {
+  locale,
+  value:   escapeHtml,                              // arguments: always escaped
+  literal: (text) => unwrapTags(escapeHtml(text)),  // message text: escaped, then the closed tag set restored
+});
+```
+
+The tempting shortcut — concatenate everything, escape the result, then un-escape `&lt;b&gt;` back into `<b>` — is wrong, and wrong in a way tests rarely catch: a user whose display name is literally `<b>` gets their name turned into markup. Today that only breaks your layout. The day the tag set grows an attribute, it is an injection.
+
+Keep the tag set closed and small, map each tag to an element plus a class supplied at the call site (the web equivalent of Flutter's tag → `TextStyle` map), and render anything outside the set as visible text. `dialect check`'s `tag_balance` rule already guarantees a translation carries exactly its source's tags, so the renderer can trust the shape and needs to police only the values.
+
+### Choosing a language
+
+Dialect has no opinion here, but three things are worth writing down because every web team meets them:
+
+- **Negotiate once, on the server.** Resolve the locale in one place (a hook / middleware) and hand it to both the data layer and the render. The `<title>`, the `og:description` and the page body have to agree; a link preview in one language over a page in another is a visible bug.
+- **`Vary: Accept-Language, Cookie`** on anything a CDN might cache, if one URL can answer in more than one language. Without it the first visitor's language is served to everyone behind that edge.
+- **Never put the locale in module scope on an edge runtime.** Cloudflare Workers and similar share module state between concurrent requests, so a mutable "current locale" lets one request change another's language mid-render. Pass it through the request context (Svelte context, React context, an `AsyncLocalStorage`), not a module variable.
+
+### Long-form documents are not keys
+
+A privacy policy, terms of service, or community guidelines document is a document, not a string catalogue. Do not extract it into ARB keys: the key names are meaningless, the diffs are unreadable, and a clause that drifts between locales is worse than no translation. Keep them as per-locale files, translate them as documents, and say on the page which language governs. This belongs in the "What NOT to extract" list of your `dialect.yaml`.
 
 ---
 
-## React Web (Secondary)
+## React Native
 
-Same adapter as React Native. Dialect generates i18next JSON. If your stack is React web without mobile apps, i18next's own ecosystem likely covers your needs without Dialect.
-
-```yaml
-platforms:
-  react:
-    output: web/public/locales/
-    format: i18next-json
-    key_style: nested_dot
-    namespaces: [common, web]
-```
+**Priority: out of scope.** React Native teams already have a mature `i18next` ecosystem. If RN sits alongside Flutter in one stack, the JavaScript guidance above applies unchanged — `icu-json` plus a formatter, no adapter.
 
 ---
 
@@ -281,7 +331,7 @@ platforms:
 |---|---|---|---|---|
 | **Primary** | Flutter | ✓ ARB copy | Deferred to v2.0+ (`dialect_ota`) | ARB is the universal source format; Flutter consumes it natively. Flutter's build produces iOS/Android binaries. |
 | **Primary** | Backends | ✓ `icu-json` / `flat-json` (v1.1) | N/A — `dialect pull` + redeploy | Cross-stack Flutter ↔ backend sync is the core value prop |
+| **Supported** | JS/TS web (SvelteKit, Next, Nuxt, …) | ✓ `icu-json` — the same one backends read | N/A — build-time import or `dialect pull` | A Flutter-led team's website is the third consumer of one source. No per-framework adapter needed: `Intl.PluralRules` + `keyof typeof` cover it. |
 | Out of v1 scope | iOS (Swift) native | ✗ Not shipped | No (ships with binary) | Flutter handles iOS strings via its own build; only edge cases need hand-written `.strings`. See section above. |
 | Out of v1 scope | Android (Kotlin) native | ✗ Not shipped | No (ships with binary) | Same as iOS. |
 | Out of v1 scope | React Native | ✗ Not shipped | n/a | Existing `i18next` ecosystem already covers these teams |
-| Out of v1 scope | React Web | ✗ Not shipped | n/a | Same — `i18next` alone covers; revisit if demand surfaces |

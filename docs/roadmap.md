@@ -22,6 +22,7 @@
 
 - **Backend adapters land:** `icu-json` and `flat-json` formats fully implemented (specs already locked in v1.0). ✅ *Done — `dialect sync` emits `<locale>.json`; `flat-json` collapses ICU to the `other` branch and prints a lossy-event hint.*
 - **Backend consumption is documented snippets, not packages.** Every stack (ASP.NET, Django, Flask/FastAPI, Node, Go) consumes `icu-json` via a small lossless snippet — see [`platforms-backend.md`](platforms-backend.md). The ASP.NET `JsonStringLocalizer` keeps `IStringLocalizer<T>` callsites unchanged in ~30 lines.
+- **A web front end reads the same `icu-json`.** Same principle, same contract: a Flutter-led team's marketing site and share pages are a third consumer of one source, served by a ~40-line `Intl.PluralRules` renderer rather than an adapter. See [`platforms-frontend.md`](platforms-frontend.md#javascript--typescript-web).
 - **`Dialect.AspNetCore` NuGet — nice-to-have, not release-blocking.** A polished package that wraps the documented `JsonStringLocalizer` behind `dotnet add package` + `AddDialectLocalization(...)`. Pure install ergonomics; the snippet is already complete, so this ships later if demand justifies it. (Same for a `BundleUrl`-at-startup option in v1.2.)
 - **`dialect serve` auto-resync** — dashboard edits trigger sync automatically, push diff over websocket
 - **Sync CLI ergonomics:** `--dry-run`, `--platform <name>` ✅ *done*; `--watch` and an end-of-run lossy-event summary still open
@@ -78,7 +79,7 @@ Self-host exists as a trust anchor (Cloud users can leave anytime) and as an opt
 
 - **Flutter OTA** via the `dialect_ota` package — same bundle format as v1.2, different client (offline layering, app-store bypass framing). Reuses the publish pipeline.
 - **Multi-environment publishing** — `dialect publish staging`, `dialect publish prod`
-- **Sponsored adapters** for native iOS / Android / React / Vue / Svelte / etc., if community demand and contribution capacity materialize. Mechanical conversion from ARB to each target's format; the architecture supports them, the work is bounded.
+- **Sponsored adapters** for native iOS / Android, if community demand and contribution capacity materialize. Mechanical conversion from ARB to each target's format; the architecture supports them, the work is bounded. **Web frameworks are off this list as of 2026-07** — dogfooding a SvelteKit front end proved a per-framework adapter buys nothing: `icu-json` plus `Intl.PluralRules` plus `keyof typeof` already gives a web app plural correctness and compile-time key safety. See [`platforms-frontend.md`](platforms-frontend.md#javascript--typescript-web).
 - **Translation memory** if real-user signal asks for it
 
 ---

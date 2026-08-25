@@ -2,7 +2,20 @@
 
 All notable changes to the Dialect CLI are tracked here.
 
-## [Unreleased]
+## 1.4.0
+
+The release a field report bought. `--prune` printed a deletion it had not
+made — for a whole class of orphan it structurally could not reach — so the
+key regenerated on the next `sync`, `check` reported the same drift forever,
+and the only way out was hand-editing a Dialect-managed file. That is the one
+failure mode this tool exists to prevent, arriving through the command whose
+name is a promise.
+
+1.4.0 and not 1.3.1: no argument grammar moves and nothing became automatic,
+but `--prune` now deletes from `dialect/translations/`, a canonical file it
+never touched before, and `--prune --dry-run` exits 1 where it used to exit 0.
+A patch number would say *nothing you do changes*, and for anyone who has
+scripted `--prune`, something does.
 
 ### Fixed — `sync --prune` performs the prune it reports
 

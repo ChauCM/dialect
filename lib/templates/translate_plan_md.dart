@@ -128,6 +128,9 @@ Overwriting a lock silently is never allowed.
 - You don't have to match sort order or formatting by hand — write the
   entries in any reasonable shape, then run `dialect check --fix` and
   the CLI normalizes them.
+- Edit these files **by key, never by line range.** `check --fix` sorts
+  every file by key, so a scripted "delete the text between key A and
+  key B" silently takes whatever now sorts between them.
 
 ---
 
@@ -161,7 +164,8 @@ root and only stop if one reports an error:
    reports that the output holds keys your source doesn't (someone edited
    a generated file directly), it stops and writes nothing. **Do not**
    reach for `--prune` to make that error go away — pruning *deletes*
-   those strings. Surface the list to the developer; if the keys belong
+   those strings, from `dialect/translations/` as well as from the
+   generated output. Surface the list to the developer; if the keys belong
    in the app, `dialect sync --adopt` pulls them back into the source and
    then syncs. Only `--prune` once a human has confirmed the keys are
    truly dead. Sync finishes by re-checking and printing one line, so a

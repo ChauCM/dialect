@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:args/command_runner.dart';
@@ -57,9 +58,12 @@ class SyncCommand extends Command<int> {
         negatable: false,
         help:
             'Confirm the deletion of orphan keys (present in the output, '
-            'absent from the source) and regenerate without them. Opt-in on '
-            'purpose: pruning throws away whatever strings live only in the '
-            'generated file.',
+            'absent from the source) and regenerate without them. An orphan '
+            'that also lives in dialect/translations/<locale>.arb is deleted '
+            'from there too — otherwise the next sync regenerates it and the '
+            'orphan never clears. Opt-in on purpose: pruning throws those '
+            'strings away. Pair it with --dry-run to read the exact list '
+            'first; nothing is written then.',
       )
       ..addFlag(
         'verify',
@@ -162,6 +166,21 @@ class SyncCommand extends Command<int> {
       return dryRun ? 1 : 65;
     }
 
+    // Pruning happens BEFORE generation, not after it. An orphan that is
+    // still in dialect/translations/<locale>.arb is regenerated straight back
+    // into the output, so a prune that ran afterwards reported a deletion it
+    // had not performed and the next `check` reported the same drift forever.
+    var pruneRemovals = const <String, Map<String, String>>{};
+    if (prune && scan.isNotEmpty) {
+      pruneRemovals = _translationBackedOrphans(project, scan);
+      _reportPrune(project, scan, pruneRemovals, dryRun: dryRun);
+      if (!dryRun && pruneRemovals.isNotEmpty) {
+        _pruneTranslations(project, pruneRemovals);
+        // Re-load so generation reads the translations as they are now.
+        project = DialectProject.load(root);
+      }
+    }
+
     var totalWritten = 0;
     var totalSkipped = 0;
     final unnamespacedPerPlatform = <String, Set<String>>{};
@@ -208,28 +227,29 @@ class SyncCommand extends Command<int> {
     _maybeWarnUnroutedNamespaces(project);
 
     if (dryRun) {
-      if (totalWritten == 0) {
+      // A pending translation deletion is work even when every output file
+      // happens to match on disk — under --dry-run the orphan is still in
+      // the translations, so generation reproduces the bytes already there.
+      // Reporting "up to date" then would be the same lie in a new place.
+      final pendingRemovals = pruneRemovals.values.fold<int>(
+        0,
+        (a, m) => a + m.length,
+      );
+      if (totalWritten == 0 && pendingRemovals == 0) {
         stdout.writeln('✓ dialect sync --dry-run: every output is up to date.');
         return 0;
       }
+      final parts = <String>[
+        if (totalWritten > 0) '$totalWritten file(s) would change',
+        if (pendingRemovals > 0)
+          '$pendingRemovals translation entr'
+              '${pendingRemovals == 1 ? 'y' : 'ies'} would be deleted',
+      ];
       stdout.writeln(
-        '✗ dialect sync --dry-run: $totalWritten file(s) would change. '
-        'Run `dialect sync` to write them.',
+        '✗ dialect sync --dry-run: ${parts.join(', ')}. '
+        'Run `dialect sync${prune ? ' --prune' : ''}` to apply.',
       );
       return 1;
-    }
-
-    if (prune && scan.isNotEmpty) {
-      final pruned = scan.keys.toList()..sort();
-      stdout.writeln('');
-      stdout.writeln(
-        '⚠ dialect sync --prune: dropped ${pruned.length} orphan key(s) '
-        'absent from the source:',
-      );
-      for (final k in pruned) {
-        stdout.writeln('  $k');
-      }
-      stdout.writeln('');
     }
 
     if (totalWritten == 0 && totalSkipped == 0) {
@@ -648,6 +668,138 @@ class SyncCommand extends Command<int> {
     return adoptedKeys;
   }
 
+  /// Orphan keys that are ALSO carried by `dialect/translations/<locale>.arb`,
+  /// as `locale → (key → translated value)`.
+  ///
+  /// This is the population that made `--prune` a lie. `OutputScan` reads the
+  /// generated outputs, so it sees a key that is absent from the source — but
+  /// it cannot see *why* the key keeps coming back. If the key is still in a
+  /// translation file, regeneration writes it into the output again, and the
+  /// only thing `--prune` used to do was print that it had dropped it.
+  Map<String, Map<String, String>> _translationBackedOrphans(
+    DialectProject project,
+    OutputScan scan,
+  ) {
+    final orphans = scan.keys;
+    final out = <String, Map<String, String>>{};
+    for (final entry in project.translations.entries) {
+      final hits = <String, String>{};
+      for (final e in entry.value.entries) {
+        if (orphans.contains(e.key)) hits[e.key] = e.value;
+      }
+      if (hits.isNotEmpty) out[entry.key] = hits;
+    }
+    return out;
+  }
+
+  /// Say exactly what `--prune` is about to do, split by what actually
+  /// happens to each key — and print it BEFORE anything is written, so the
+  /// strings that are about to be deleted are on screen while they still
+  /// exist. `--dry-run --prune` prints this same list and writes nothing.
+  ///
+  /// Two populations, two different fates, and lumping them together is what
+  /// produced the original defect:
+  ///
+  /// - **output-only** — the key lives only in a generated file, so
+  ///   regenerating drops it and no canonical file is touched.
+  /// - **translation-backed** — the key is in `dialect/translations/`, so it
+  ///   has to be deleted from there or the next sync puts it straight back.
+  void _reportPrune(
+    DialectProject project,
+    OutputScan scan,
+    Map<String, Map<String, String>> removals, {
+    required bool dryRun,
+  }) {
+    final all = scan.keys.toList()..sort();
+    final backed = {for (final m in removals.values) ...m.keys};
+    final outputOnly = all.where((k) => !backed.contains(k)).toList();
+
+    stdout.writeln('');
+    stdout.writeln(
+      '⚠ dialect sync --prune: ${all.length} orphan key(s) absent from '
+      'dialect/source/${project.config.sourceLocale}.arb.',
+    );
+
+    if (outputOnly.isNotEmpty) {
+      stdout.writeln('');
+      stdout.writeln(
+        '  ${dryRun ? 'Would be dropped' : 'Dropped'} by regenerating — they '
+        'live only in a generated file:',
+      );
+      for (final k in outputOnly) {
+        final files =
+            scan
+                .filesFor(k)
+                .map((f) => p.relative(f, from: project.root))
+                .toList()
+              ..sort();
+        stdout.writeln('    $k  —  ${files.join(', ')}');
+      }
+    }
+
+    if (removals.isNotEmpty) {
+      final locales = removals.keys.toList()..sort();
+      stdout.writeln('');
+      stdout.writeln(
+        '  ${dryRun ? 'WOULD BE DELETED' : 'DELETED'} from the Dialect '
+        'translation source — regenerating alone would put these back, so '
+        'the entries themselves ${dryRun ? 'would go' : 'are gone'}:',
+      );
+      for (final locale in locales) {
+        stdout.writeln(
+          '    ${p.join('dialect', 'translations', '$locale.arb')}',
+        );
+        final keys = removals[locale]!.keys.toList()..sort();
+        for (final k in keys) {
+          stdout.writeln('      $k: ${jsonEncode(removals[locale]![k])}');
+        }
+      }
+      stdout.writeln('');
+      stdout.writeln(
+        '  Recover with `git diff -- dialect/translations` if this was not '
+        'what you meant; `dialect sync --adopt` was the other option.',
+      );
+    }
+    stdout.writeln('');
+  }
+
+  /// Delete the pruned keys from `dialect/translations/<locale>.arb`.
+  ///
+  /// Only the named keys go. Everything else — including each surviving
+  /// entry's `@key` block (`source_hash`, `locked`) and the file's `@@`
+  /// metadata — is written back through [ArbWriter], the same canonical
+  /// writer `--adopt` already uses on these files.
+  void _pruneTranslations(
+    DialectProject project,
+    Map<String, Map<String, String>> removals,
+  ) {
+    for (final entry in removals.entries) {
+      final locale = entry.key;
+      final arb = project.translations[locale];
+      if (arb == null) continue;
+      final drop = entry.value.keys.toSet();
+      final kept = [
+        for (final e in arb.entries)
+          if (!drop.contains(e.key)) e,
+      ];
+      final path = p.join(
+        project.root,
+        'dialect',
+        'translations',
+        '$locale.arb',
+      );
+      File(path).writeAsStringSync(
+        ArbWriter.encode(
+          ArbFile(
+            locale: arb.locale,
+            entries: kept,
+            fileMetadata: arb.fileMetadata,
+          ),
+        ),
+      );
+    }
+  }
+
   /// Print the "won't silently delete your keys" refusal to stderr and leave
   /// the tree untouched.
   void _printOrphanRefusal(
@@ -668,6 +820,11 @@ class SyncCommand extends Command<int> {
       'bypassing Dialect:',
     );
     stderr.writeln('');
+    // Naming the translation file matters as much as naming the output: an
+    // orphan that is still in dialect/translations/ is not a stray line in a
+    // generated file, it is a live entry that regeneration keeps restoring.
+    // Someone who decides NOT to prune has to know where the second copy is.
+    final backed = _translationBackedOrphans(project, report);
     for (final k in keys) {
       final files =
           report
@@ -676,6 +833,17 @@ class SyncCommand extends Command<int> {
               .toList()
             ..sort();
       stderr.writeln('    $k  —  ${files.join(', ')}');
+      final homes =
+          backed.entries
+              .where((e) => e.value.containsKey(k))
+              .map((e) => p.join('dialect', 'translations', '${e.key}.arb'))
+              .toList()
+            ..sort();
+      if (homes.isNotEmpty) {
+        stderr.writeln(
+          '           also in ${homes.join(', ')} — regenerating puts it back',
+        );
+      }
     }
     stderr.writeln('');
     final unadoptable = report.unadoptableKeys;
@@ -687,7 +855,7 @@ class SyncCommand extends Command<int> {
       );
       stderr.writeln(
         '    dialect sync --prune   confirm the deletion and regenerate '
-        'without them',
+        'without them (also deleting them from dialect/translations/)',
       );
       // Before the guard existed, `sync` really did delete these keys, so
       // projects that met it rationally adopted "edit the generated file by

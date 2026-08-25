@@ -2,6 +2,17 @@
 
 This project uses [Dialect](https://dialect.tools) for localization.
 
+**Running the CLI.** `dialect` is a standalone binary on PATH, not a package
+dependency — it is in no `pubspec.yaml`, and `dart run dialect` fails with
+`Could not find package "dialect"`. If the command is missing, install it once:
+`brew install ChauCM/tap/dialect`, or
+`curl -fsSL https://dialect.tools/install.sh | sh`.
+
+**Editing the ARB files.** Edit them **by key, never by line range.**
+`dialect check --fix` sorts every file by key, so the obvious scripted edit —
+delete the text between key A and key B — silently takes whatever now sorts
+between them. Read the file, change or drop the entry you mean, write it back.
+
 **When the developer asks you to add or update translations:**
 
 1. Read `dialect/dialect.yaml` for the convention — key naming

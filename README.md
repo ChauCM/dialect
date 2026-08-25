@@ -33,6 +33,8 @@ One chat message. One source. Flutter + backend in sync. 60 seconds.
 
 ## Install
 
+Dialect is a **standalone CLI on your PATH, not a package dependency**. Nothing goes into `pubspec.yaml`, and there is no `dart run dialect` — that fails with `Could not find package "dialect"`. Install it once, globally, then run `dialect` from the project root.
+
 ```bash
 # macOS / Linux — official installer
 curl -fsSL https://dialect.tools/install.sh | sh
@@ -179,8 +181,10 @@ $ dialect sync
   dialect sync --prune   confirm the deletion and regenerate without them
 ```
 
-`--adopt` is the recovery path — it restores the source string (with its `@key` metadata) **and** any translated values that lived only in the output, so nothing is lost. `--prune` is opt-in on purpose: it throws those strings away. `dialect sync --dry-run` reports the same drift with a non-zero exit, so CI catches a hand-edited output before it ships.
+`--adopt` is the recovery path — it restores the source string (with its `@key` metadata) **and** any translated values that lived only in the output, so nothing is lost. `--prune` is opt-in on purpose: it throws those strings away — including the key's entry in `dialect/translations/<locale>.arb`, because an orphan the translations still carry is regenerated straight back into the output and would otherwise never clear. Run `dialect sync --prune --dry-run` first: it prints every file, key and exact string it would delete, and writes nothing. `dialect sync --dry-run` on its own reports the drift with a non-zero exit, so CI catches a hand-edited output before it ships.
 </details>
+
+> **Edit the ARB files by key, never by line range.** `dialect check --fix` sorts every file by key, so the obvious scripted edit — *delete the text between key A and key B* — takes whatever now sorts between them. In one field report that silently cost a live key, caught only because `--prune` listed two dropped keys where one was expected. Read the file, drop the entry you mean, write it back.
 
 <details>
 <summary><code>dialect serve</code> — local review UI for non-engineers</summary>

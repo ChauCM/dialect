@@ -631,6 +631,101 @@ void main() {
         );
       });
 
+      // The second shape of orphan, and the one that made `--prune` a lie:
+      // the key was translated normally and then retired from the source.
+      // The translation entry survives, so every regenerate writes it back
+      // into the output. `--prune` printed "dropped 1 orphan key(s)" and
+      // changed nothing; `check` reported the same drift forever; the loop
+      // only broke by hand-editing dialect/translations/es.arb.
+      void seedRetiredKey(String root) {
+        _writeProject(
+          root,
+          sourceLocale: 'en',
+          targetLocales: ['es'],
+          source: '{ "@@locale": "en", "keep": "Keep" }',
+          translations: {
+            'es':
+                '{ "@@locale": "es", "keep": "Mantener", '
+                '"retired": "Retirado" }',
+          },
+          platforms: {
+            'flutter': {'output': 'lib/l10n/', 'format': 'arb'},
+          },
+        );
+      }
+
+      test('--prune clears a translation-backed orphan for good', () async {
+        seedRetiredKey(tmp.path);
+        // Nothing is generated yet, so there is nothing to scan and this sync
+        // writes the outputs — `retired` among them, carried by the
+        // translation alone. That is how the orphan is born, not a fixture.
+        expect(await runSync(), 0);
+        final esOut = p.join(tmp.path, 'lib', 'l10n', 'app_es.arb');
+        expect(File(esOut).readAsStringSync(), contains('retired'));
+        // Now it IS an orphan, and sync refuses.
+        expect(await runSync(), 65);
+
+        expect(await runSync(['--prune']), 0);
+
+        // Assert on the files, never the exit code: the entire defect was a
+        // success report printed over an unchanged tree.
+        expect(
+          File(
+            p.join(tmp.path, 'dialect', 'translations', 'es.arb'),
+          ).readAsStringSync(),
+          isNot(contains('retired')),
+          reason: 'the entry that keeps regenerating it must be gone',
+        );
+        final after = File(esOut).readAsStringSync();
+        expect(after, isNot(contains('retired')));
+        expect(after, contains('Mantener'), reason: 'only the orphan goes');
+
+        // And it stays gone: no refusal, and nothing left to write.
+        expect(await runSync(), 0);
+      });
+
+      test('--prune --dry-run shows the string and writes nothing', () async {
+        seedRetiredKey(tmp.path);
+        expect(await runSync(), 0);
+        final tPath = p.join(tmp.path, 'dialect', 'translations', 'es.arb');
+        final before = File(tPath).readAsStringSync();
+
+        final out = await runSyncCapturingStdout(['--prune', '--dry-run']);
+
+        // Seen before it happens: the file, the key, and the exact value.
+        expect(out, contains(p.join('dialect', 'translations', 'es.arb')));
+        expect(out, contains('retired'));
+        expect(out, contains('Retirado'));
+        expect(out, contains('WOULD BE DELETED'));
+        expect(
+          File(tPath).readAsStringSync(),
+          before,
+          reason: '--dry-run must not delete a translation',
+        );
+
+        // Pending deletions are work, so the gate must not read "up to date"
+        // just because the outputs happen to match the un-pruned generation.
+        expect(await runSync(['--prune', '--dry-run']), 1);
+      });
+
+      test('the refusal names the file that keeps the orphan alive', () async {
+        seedRetiredKey(tmp.path);
+        expect(await runSync(), 0);
+
+        final err = StringBuffer();
+        await IOOverrides.runZoned(
+          runSync,
+          stderr: () => _CapturingStdout(err),
+        );
+
+        expect(
+          err.toString(),
+          contains(p.join('dialect', 'translations', 'es.arb')),
+          reason: 'the output file alone is half the orphan\'s address',
+        );
+        expect(err.toString(), contains('regenerating puts it back'));
+      });
+
       test('clean project (no orphans) still syncs normally', () async {
         _writeProject(
           tmp.path,

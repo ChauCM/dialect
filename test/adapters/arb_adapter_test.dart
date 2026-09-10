@@ -87,11 +87,10 @@ void main() {
         isSource: false,
         source: source,
       );
-      expect(
-        out.arb.entries.map((e) => e.key),
-        ['commonGreet', 'checkoutBookNow'],
-        reason: 'both keys must pass; namespace comes from source ARB',
-      );
+      expect(out.arb.entries.map((e) => e.key), [
+        'commonGreet',
+        'checkoutBookNow',
+      ], reason: 'both keys must pass; namespace comes from source ARB');
       expect(out.keysMissingNamespace, isEmpty);
     });
 
@@ -154,13 +153,9 @@ void main() {
         isSource: true,
       );
       expect(out.arb.entries.map((e) => e.key), ['commonGreet']);
-      expect(
-        out.keysExcludedByNamespace,
-        {
-          'checkout': ['checkoutBookNow'],
-        },
-        reason: 'excluded-by-namespace keys are grouped by their namespace',
-      );
+      expect(out.keysExcludedByNamespace, {
+        'checkout': ['checkoutBookNow'],
+      }, reason: 'excluded-by-namespace keys are grouped by their namespace');
     });
 
     test('empty namespaces list means no filtering', () {

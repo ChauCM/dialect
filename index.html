@@ -305,6 +305,8 @@ jobs:
 
 
 `--strict` promotes warnings to errors, so a missing placeholder, an orphan `@key` block, or a glossary violation fails the build.
+
+Commit `.dialect/state.json`. It is the acknowledgement ledger — the record of which warnings a reviewer has already ruled on — and `--strict` reads it, so a build that checks out the branch without it fails on warnings someone already adjudicated. `dialect init` ignores `.dialect/*-plan.md` and nothing else. Run `dialect check --list-acks` now and then: an ack whose warning has stopped firing is invisible to a normal run and reads exactly like a live one.
 </details>
 
 <hr>

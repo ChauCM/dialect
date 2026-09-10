@@ -219,6 +219,7 @@ class ArbParser {
   static ArbPlaceholder _parsePlaceholder(Map<dynamic, dynamic> raw) {
     String? type;
     String? format;
+    String? role;
     final extras = <String, Object?>{};
     raw.forEach((rawK, v) {
       final k = rawK as String;
@@ -227,11 +228,21 @@ class ArbParser {
           type = v is String ? v : null;
         case 'format':
           format = v is String ? v : null;
+        case 'role':
+          // Parsed whatever the string says; `placeholder_role` reports an
+          // unrecognized value. Silently dropping a typo would let an author
+          // believe a check was waived when it was not.
+          role = v is String ? v : null;
         default:
           extras[k] = v;
       }
     });
-    return ArbPlaceholder(type: type, format: format, extras: extras);
+    return ArbPlaceholder(
+      type: type,
+      format: format,
+      role: role,
+      extras: extras,
+    );
   }
 
   static String _nfc(String s) => unorm.nfc(s);

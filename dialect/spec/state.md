@@ -12,7 +12,11 @@
 
 `.dialect/state.json` is that store. It records per-issue acknowledgements keyed by `<rule_name>:<locale>:<translation_key>`, fingerprinted with the source value that was acknowledged. When the source value changes later, the fingerprint mismatches and the warning surfaces again — acknowledgement is **tied to the source state at ack-time**, the same way `@key.source_hash` ties a lock to its source.
 
-`.dialect/` is gitignored by the canonical `dialect init` template — state acknowledgements are workspace-local by design. If a team wants shared acknowledgements, they ungitignore the file; v1.0 does not opine on this.
+**The ledger is committed.** `dialect init` ignores `.dialect/*-plan.md` and leaves `.dialect/state.json` tracked.
+
+An acknowledgement is a linguistic ruling about a string, fingerprinted to that string. Nothing in the record is machine-local — no paths, no environment, no absolute times that mean anything only on one box. And `--strict` reads it: a gate whose verdict depends on an untracked file is not a gate. A repo that ignores the ledger and runs `dialect check --strict` in CI or a pre-push hook cannot pass its own check from a fresh clone, because the adjudications live only in the tree that made them, and the person who gets refused cannot see what was decided or by whom.
+
+Earlier versions ignored all of `.dialect/`, under a comment describing the directory as ephemeral plan files. That was true of the plan files and false of `state.json`, which nothing regenerates. `dialect init` replaces that line where it finds it.
 
 ---
 
@@ -24,7 +28,7 @@ Single file at the project root:
 .dialect/state.json
 ```
 
-`dialect/` (canonical convention dir) and `.dialect/` (workspace state) are different paths. The dot-prefixed one is ephemeral; the un-prefixed one is the canonical, committed config.
+`dialect/` (canonical convention dir) and `.dialect/` (working directory) are different paths. Inside `.dialect/`, the `*-plan.md` files are ephemeral — every command rewrites its own — while `state.json` is durable and committed.
 
 ---
 
@@ -155,10 +159,29 @@ Subsequent `dialect check` runs hide both warnings as long as the source values 
 
 ---
 
+## Ack lifecycle
+
+An entry is in exactly one of four states, and `dialect check --list-acks` is the only thing that reports all four:
+
+| State | Fingerprint | Warning this run | Meaning |
+|---|---|---|---|
+| `live` | matches | suppressed one | Load-bearing. |
+| `inert` | matches | none fired | Still a true ruling about the current text; the warning's cause moved or the rule narrowed. Kept. |
+| `lapsed` | drifted | either | The text was edited after the ruling. Nobody adjudicated what is there now. |
+| `orphaned` | unresolvable | none | The key is gone from the ARB. |
+
+Only the `lapsed`-and-still-firing case reaches a normal run, as `⚠ stale-ack`. The rest are invisible to it by construction: suppression walks the issue list, so an ack with no issue is unreachable from there. That is the common case in a ledger more than a few months old — copy gets rewritten, the fingerprint stops matching, the rule stops firing, and the entry sits there reading exactly like a live ruling. A maintainer carrying "the tree's acks" forward would publish rulings nobody made and nobody can re-derive.
+
+`dialect check --prune-acks` deletes the `lapsed`, `orphaned` and unparseable entries. It keeps `inert` ones: their fingerprint still matches, so they are judgements someone actually made about text that is still there.
+
+Because the ledger is committed, each entry appears in a diff. The case worth a reviewer's attention is an entry that **survives** an edit to the string it rules on — that is a waiver being carried onto text nobody re-read — which is why `--list-acks` exists rather than a bare count.
+
+---
+
 ## Out of scope for v1.0
 
 - ~~`dialect check --ack` flag implementation.~~ **Implemented** — `dialect check --ack <rule>:<locale>:<key> [--note <text>]` writes entries; the file can still be hand-edited.
 - Acknowledgements for structural rules. Structural issues are correctness, not heuristics — fix the underlying problem.
-- Workspace-shared acks (a separate committed file). Teams can choose to un-gitignore `.dialect/state.json`; we don't prescribe.
+- Per-author ack scoping. The ledger is one shared file; `acknowledged_by` records who ruled, but there is no mechanism for one author's acks to apply only to their runs.
 - Migrating between hash algorithms. When needed, fingerprints become `sha256-16:<hex>` so a future algorithm can coexist. Not blocking v1.0.
 - A schema-stamped `$schema` field. The spec at `dialect/spec/state.md` owns compatibility; the version integer is the wire-level signal.

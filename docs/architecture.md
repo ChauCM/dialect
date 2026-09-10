@@ -69,6 +69,22 @@ Source keys without `@key.namespace` are flagged by `dialect check` — the name
 
 The `@key` metadata provides context for translation. When an AI extracts strings, it fills `namespace` + `description` automatically. When translating, it reads them to produce accurate results.
 
+### Placeholder `role`
+
+`type` is the Dart type, and `int` answers two different questions: *how many* and *which one*. The checks that reason about counts have to tell them apart — `"{count} steps"` is broken at 1, while `"Goal {goal} opens"` is correct at every value — so a placeholder may declare what its number means:
+
+```jsonc
+"placeholders": {
+  "goal":  { "type": "int", "role": "identifier" },  // labels something: "Goal 3"
+  "try":   { "type": "int", "role": "ordinal"    },  // places it: "3rd attempt"
+  "count": { "type": "int", "role": "count"      }   // the number a plural agrees with
+}
+```
+
+`role` is a Dialect extension to the ARB placeholder object. `gen_l10n` reads placeholder attributes by name and ignores the rest, so it is inert there — the generated signature is unchanged.
+
+Omit it and Dialect infers from the type and the name; that inference is right most of the time and this is how you settle the cases where it is not. Prefer it to `--ack` for anything that is a fact about the *variable* rather than a judgement about one wording: a role survives a rewrite of the sentence, where an ack expires with it. A misspelled role is a `placeholder_role` error rather than a silent no-op, because otherwise an author would believe a check was waived when it was not.
+
 Keys are sorted alphabetically — `checkoutBookNow` before `commonLoading`. This ordering is enforced by `dialect sync` and expected by `dialect check`.
 
 ---
@@ -116,7 +132,7 @@ $ dialect init
   dialect/translations/  (empty)
   .dialect/init-plan.md
   AGENTS.md (created)
-  .gitignore (added .dialect/)
+  .gitignore (ignored .dialect/*-plan.md)
 
 Detected project type: Flutter
 Init plan written to: .dialect/init-plan.md
@@ -219,7 +235,16 @@ $ dialect check
 dialect check --ack source_equality:vi:settingsEmailLabel --note "Email is canonical in vi"
 ```
 
-This writes `.dialect/state.json` (workspace-local, gitignored), fingerprinting the source/translation value at ack-time per [`dialect/spec/state.md`](../dialect/spec/state.md). The warning stays hidden until that value changes — at which point it re-fires and the report flags the ack as stale (`⚠ stale-ack …`) so you can re-ack or delete it. Only the heuristic rules (`banned_pattern`, `glossary`, `length_ratio`, `plural_shape`, `source_equality`, `untranslated_english`, `width_budget`) are ack-able; structural rules are correctness failures and can't be silenced. Passing an unknown rule to `--ack` prints the current list, read from the same map the suppression logic uses, so the message can't drift from what is actually ack-able.
+This writes `.dialect/state.json` — **a committed file**, fingerprinting the source/translation value at ack-time per [`dialect/spec/state.md`](../dialect/spec/state.md). The warning stays hidden until that value changes — at which point it re-fires and the report flags the ack as stale (`⚠ stale-ack …`) so you can re-ack or delete it. Only the heuristic rules (`banned_pattern`, `glossary`, `length_ratio`, `plural_shape`, `source_equality`, `untranslated_english`, `width_budget`) are ack-able; structural rules are correctness failures and can't be silenced. Passing an unknown rule to `--ack` prints the current list, read from the same map the suppression logic uses, so the message can't drift from what is actually ack-able.
+
+The ledger is committed because an ack is a ruling about a string, not a machine setting, and because `--strict` reads it: a repo that gitignores it cannot pass its own gate from a fresh clone. `dialect init` ignores `.dialect/*-plan.md` only, and replaces the blanket `.dialect/` line older versions wrote.
+
+```bash
+dialect check --list-acks    # live · inert · lapsed · orphaned
+dialect check --prune-acks   # delete the ones that adjudicate nothing
+```
+
+A normal run can only ever report an ack whose warning **fired again** — suppression walks the issue list, so an entry with no issue is unreachable from it. Once copy is rewritten, the fingerprint stops matching *and* the rule usually stops firing, and the entry sits in the ledger reading exactly like a live one. `--list-acks` is what tells the two apart; see [`dialect/spec/state.md`](../dialect/spec/state.md) for the four states.
 
 ### Copy policy (`glossary.yaml`)
 

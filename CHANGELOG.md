@@ -2,6 +2,113 @@
 
 All notable changes to the Dialect CLI are tracked here.
 
+## 1.5.0
+
+Two field reports, and they turn out to be the same shape: a check that could
+not report on itself.
+
+`plural_shape` shipped with a stated invariant — that its misfires were "a
+verb, an adjective, or a unit … all singular in form" — which is not true of
+English. A third-person singular verb ends in `-s`, so the shape test could
+not tell `opens` from `people`, and `"Goal {goal} opens now at step {step}."`
+was refused as rendering `"1 opens"`. The invariant was never true; it was
+only untested, because the calibration corpus happened to contain no
+`Label {n} verb-s` string. A rule that has never been shown a case it should
+refuse has not been calibrated against it.
+
+The ack ledger has the mirror problem. Suppression walks the issue list, so it
+can only ever describe an ack whose warning **fired again**. An ack whose
+warning has stopped firing is unreachable from there — and that is what most
+old entries are. One reported ledger held twelve; a run against an emptied
+copy produced two warnings, not fourteen. Twelve dead rulings, indistinguishable
+in the file from live ones, and the only way to learn it was to empty the file
+and re-run.
+
+1.5.0 and not 1.4.1: `placeholder_role` is a new error-severity rule, `dialect
+init` now rewrites a `.gitignore` line it wrote in an earlier version, and the
+placeholder object gains a field. Nothing breaks, but a repo's files and exit
+codes can both move.
+
+### Fixed — `plural_shape` no longer reads a verb as a plural noun
+
+A regular `-s` candidate now also has to sit after a number that is in **count
+position**: opening its phrase, or following a function word ("and {n} others",
+"in {n} albums"). A number that follows a bare noun is labelling that noun —
+"Goal 3", "step 7" — and governs nothing to its right.
+
+The disambiguator has to be the text *before* the placeholder, because the word
+after it carries no answer: "steps" is a plural noun in "{count} steps" and a
+verb in "Goal {goal} steps". Irregular plurals skip the gate, since "people"
+and "children" are never verbs, and that is the case the rule was written for.
+
+Erring quiet is deliberate. A missed warning costs a re-read; a false one blocks
+a `--strict` push over correct copy. All 28 existing cases still fire or stay
+quiet exactly as before.
+
+### Added — `@key.placeholders.<name>.role`
+
+`type: int` answers two questions at once, *how many* and *which one*, and the
+count-aware checks need them apart. A placeholder can now say which it is:
+
+```jsonc
+"goal":  { "type": "int", "role": "identifier" }   // "Goal 3"
+"try":   { "type": "int", "role": "ordinal"    }   // "3rd attempt"
+"count": { "type": "int", "role": "count"      }   // what a plural agrees with
+```
+
+This is the same distinction `glossary`'s `except:` already draws against
+`--ack`: a standing ruling that must survive a typo fix does not belong in a
+waiver that expires with the wording. A role is a fact about the variable and
+outlives a rewrite; an ack is a judgement about one sentence and should not.
+
+`role` is a Dialect extension to the ARB placeholder object. `gen_l10n` reads
+placeholder attributes by name and ignores the rest, so it is inert there —
+verified against the generated signature, and against a control that still
+throws on a malformed attribute.
+
+### Added — `placeholder_role`, an error
+
+An unrecognized role is a hard error, not a warning. A misspelled `"identifer"`
+would otherwise be the worst kind of quiet failure: the author believes a check
+is settled for that placeholder, the rules fall back to inference and fire
+anyway, and nothing in the output connects the two. The rules that read `role`
+ignore an unknown value, so this is the only thing that would ever say so.
+
+### Added — `dialect check --list-acks` and `--prune-acks`
+
+Every stored ack is classified against the raw, pre-suppression result:
+
+| State | Fingerprint | Warning this run | |
+|---|---|---|---|
+| `live` | matches | suppressed one | Load-bearing. |
+| `inert` | matches | none fired | Still true of the current text. Kept. |
+| `lapsed` | drifted | either | Nobody ruled on what is there now. |
+| `orphaned` | unresolvable | none | The key is gone. |
+
+Only `lapsed`-and-still-firing reaches a normal run, as `⚠ stale-ack`. The other
+three are invisible to it by construction. `--prune-acks` deletes the `lapsed`,
+`orphaned` and unparseable entries and keeps the `inert` ones — their fingerprint
+still matches, so they are judgements someone actually made about text that is
+still there.
+
+### Changed — the ack ledger is committed, and `init` says so
+
+`dialect init` used to write a blanket `.dialect/` ignore under a comment reading
+"ephemeral plan files (regenerated each command run)". True of the plan files,
+false of `state.json`, which nothing regenerates and which `--strict` reads. A
+repo that took the comment at its word could not pass its own gate from a fresh
+clone: a push was refused by warnings someone had already adjudicated in a tree
+the pusher could not see.
+
+The template now ignores `.dialect/*-plan.md` and nothing else, and `init`
+replaces the blanket line where it finds one — Dialect wrote it, so Dialect
+fixes it. `dialect/spec/state.md` no longer declines to opine: an ack is a
+ruling about a string, fingerprinted to that string, with nothing machine-local
+in the record. A gate whose verdict depends on an untracked file is not a gate.
+
+`--ack` now prints that the file should be committed, since that is the moment
+someone creates a durable ruling.
+
 ## 1.4.0
 
 The release a field report bought. `--prune` printed a deletion it had not

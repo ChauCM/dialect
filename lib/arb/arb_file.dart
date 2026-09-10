@@ -188,7 +188,7 @@ class ArbMetadata {
 }
 
 class ArbPlaceholder {
-  ArbPlaceholder({this.type, this.format, this.extras = const {}});
+  ArbPlaceholder({this.type, this.format, this.role, this.extras = const {}});
 
   /// `String`, `int`, `double`, `DateTime` — per ARB convention.
   final String? type;
@@ -196,6 +196,27 @@ class ArbPlaceholder {
   /// Format hint (e.g. `compactLong` for numbers, `yMMMd` for dates).
   final String? format;
 
+  /// What the number *means*, when `type` cannot say.
+  ///
+  /// `int` covers both "how many" and "which one", and the checks that reason
+  /// about counts have to tell those apart: "Goal {goal} opens" is correct at
+  /// every value of `goal`, while "{count} steps" is broken at 1. This is a
+  /// Dialect extension to the ARB placeholder object — `gen_l10n` reads
+  /// placeholder attributes by name and ignores the rest, so it is inert
+  /// there.
+  ///
+  /// One of [placeholderRoles]; `null` means "infer from type and name".
+  final String? role;
+
   /// Preserved unknown fields.
   final Map<String, Object?> extras;
 }
+
+/// Legal values for [ArbPlaceholder.role].
+///
+/// `count` is the one that answers a plural — the value the message's
+/// grammar must agree with. `identifier` labels something ("Goal 3", "Room
+/// 12"); `ordinal` places it in a sequence ("3rd try") and carries its own
+/// agreement through `selectordinal` rather than `plural`. Both of the
+/// latter are quantities the sentence does *not* count.
+const Set<String> placeholderRoles = {'count', 'identifier', 'ordinal'};

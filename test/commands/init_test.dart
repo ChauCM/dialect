@@ -123,25 +123,55 @@ void main() {
         await runInit([]);
         final out = File(p.join(tmp.path, '.gitignore')).readAsStringSync();
         expect(out, startsWith('build/\n*.log\n'));
-        expect(out, contains('.dialect/'));
+        expect(out, contains('.dialect/*-plan.md'));
       },
     );
 
     test(
-      "does not duplicate .dialect/ if it's already in .gitignore",
+      'replaces a blanket .dialect/ ignore, which hid the ack ledger',
       () async {
+        // Dialect wrote this line itself, under a comment calling the
+        // directory ephemeral. `state.json` is not — and `--strict` reads
+        // it, so a repo that ignored the directory could not pass its own
+        // gate from a fresh clone.
         File(
           p.join(tmp.path, '.gitignore'),
         ).writeAsStringSync('build/\n.dialect/\n*.log\n');
         await runInit([]);
         final out = File(p.join(tmp.path, '.gitignore')).readAsStringSync();
+        expect(out, contains('.dialect/*-plan.md'));
         expect(
-          out,
-          'build/\n.dialect/\n*.log\n',
-          reason: 'an existing .dialect/ entry must not be duplicated',
+          out.split('\n').map((l) => l.trim()),
+          isNot(contains('.dialect/')),
+          reason: 'the blanket ignore must be gone, not merely supplemented',
         );
+        expect(out, contains('build/'));
+        expect(out, contains('*.log'));
       },
     );
+
+    test('drops the stale comment above a blanket .dialect/ line', () async {
+      File(p.join(tmp.path, '.gitignore')).writeAsStringSync(
+        '# Dialect ephemeral plan files (regenerated each command run)\n'
+        '.dialect/\n',
+      );
+      await runInit([]);
+      final out = File(p.join(tmp.path, '.gitignore')).readAsStringSync();
+      expect(
+        RegExp(r'# Dialect ephemeral').allMatches(out).length,
+        1,
+        reason: 'the replaced stanza carries its own comment',
+      );
+    });
+
+    test('does not duplicate the plan-file stanza', () async {
+      File(
+        p.join(tmp.path, '.gitignore'),
+      ).writeAsStringSync('build/\n.dialect/*-plan.md\n*.log\n');
+      await runInit([]);
+      final out = File(p.join(tmp.path, '.gitignore')).readAsStringSync();
+      expect(out, 'build/\n.dialect/*-plan.md\n*.log\n');
+    });
 
     test('rejects more than one positional path argument', () async {
       final code = await DialectCommandRunner()

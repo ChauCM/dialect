@@ -16,6 +16,7 @@ import 'structural/namespace_required.dart';
 import 'structural/orphan_metadata.dart';
 import 'structural/output_drift.dart';
 import 'structural/placeholder_match.dart';
+import 'structural/placeholder_role.dart';
 import 'structural/plural_categories.dart';
 import 'structural/tag_balance.dart';
 import 'structural/toolchain_version.dart';
@@ -33,6 +34,7 @@ const List<Rule> structuralRules = [
   NamespaceRequiredRule(),
   MissingKeysRule(),
   PlaceholderMatchRule(),
+  PlaceholderRoleRule(),
   PluralCategoriesRule(),
   TagBalanceRule(),
   EmptyValuesRule(),

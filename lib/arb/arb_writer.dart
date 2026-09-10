@@ -166,6 +166,7 @@ class ArbWriter {
     final parts = <String>[];
     if (ph.type != null) parts.add('"type": ${jsonEncode(ph.type)}');
     if (ph.format != null) parts.add('"format": ${jsonEncode(ph.format)}');
+    if (ph.role != null) parts.add('"role": ${jsonEncode(ph.role)}');
     final extraKeys = ph.extras.keys.toList()..sort();
     for (final k in extraKeys) {
       parts.add('${jsonEncode(k)}: ${jsonEncode(ph.extras[k])}');

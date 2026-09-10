@@ -160,6 +160,126 @@ void main() {
       );
     });
 
+    // A third-person singular verb ends in `-s`, so the shape test alone
+    // cannot tell it from a plural noun. These shipped as false positives
+    // against a `--strict` gate.
+    group('a number that labels the word before it counts nothing', () {
+      final ints = {
+        'goal': ArbPlaceholder(type: 'int'),
+        'step': ArbPlaceholder(type: 'int'),
+        'level': ArbPlaceholder(type: 'int'),
+        'n': ArbPlaceholder(type: 'int'),
+        'day': ArbPlaceholder(type: 'int'),
+      };
+      final quiet = {
+        'the reported string': 'Goal {goal} opens now at step {step}.',
+        'capitalized label': 'Step {step} unlocks tomorrow',
+        'lowercase label': 'Resume at step {step} shows the summary',
+        'another verb': 'Level {level} starts here',
+        'irregular verb': 'Chapter {n} begins',
+        'verb that is also a noun': 'Goal {goal} steps through the list',
+      };
+      quiet.forEach((name, value) {
+        test(name, () => expect(issuesFor(value, declared: ints), isEmpty));
+      });
+
+      test('the reported plural string, whose real count is handled', () {
+        // Diagnostic case: `count` already carries a correct plural block,
+        // and `goal` was flagged inside it. Neither is a defect.
+        expect(
+          issuesFor(
+            '{count, plural, '
+            '=1{Goal {goal} opens now at step {step} with one word:} '
+            'other{Goal {goal} opens now at step {step} with {count} words:}}',
+            declared: {
+              ...ints,
+              'count': ArbPlaceholder(type: 'int'),
+            },
+          ),
+          isEmpty,
+        );
+      });
+    });
+
+    group('count position keeps the real defect firing', () {
+      final loud = {
+        'opens the phrase': '{count} steps remaining',
+        'after a preposition': 'Synced {count} albums for {total} photos',
+        'after a conjunction': '{name} and {others} others stepped',
+        'after a determiner': 'Delete the {count} matches',
+        'after a verb of having': 'You have {count} steps left',
+        'after a degree adverb': 'Only {count} steps left',
+      };
+      loud.forEach((name, value) {
+        test(name, () {
+          final declared = {
+            'others': ArbPlaceholder(type: 'int'),
+            'name': ArbPlaceholder(type: 'String'),
+          };
+          expect(
+            issuesFor(value, declared: declared),
+            isNotEmpty,
+            reason: value,
+          );
+        });
+      });
+
+      test('an irregular plural does not need the position test', () {
+        // "people" is never a verb, so the founding case fires anywhere.
+        expect(
+          issuesFor(
+            'Room {room} people waiting',
+            declared: {'room': ArbPlaceholder(type: 'int')},
+          ),
+          hasLength(1),
+        );
+      });
+    });
+
+    group('a declared role settles it without an ack', () {
+      test('identifier is not a count', () {
+        expect(
+          issuesFor(
+            '{goal} steps opened',
+            declared: {'goal': ArbPlaceholder(type: 'int', role: 'identifier')},
+          ),
+          isEmpty,
+        );
+      });
+
+      test('ordinal is not a count', () {
+        expect(
+          issuesFor(
+            '{try} attempts unlocked',
+            declared: {'try': ArbPlaceholder(type: 'int', role: 'ordinal')},
+          ),
+          isEmpty,
+        );
+      });
+
+      test('count claims a number the name would hide', () {
+        expect(
+          issuesFor(
+            '{goal} people',
+            declared: {'goal': ArbPlaceholder(type: 'String', role: 'count')},
+          ),
+          hasLength(1),
+        );
+      });
+
+      test('an unrecognized role falls back rather than silencing', () {
+        // `placeholder_role` reports the typo; this rule must not treat it
+        // as a waiver.
+        expect(
+          issuesFor(
+            '{count} people',
+            declared: {'count': ArbPlaceholder(type: 'int', role: 'identifer')},
+          ),
+          hasLength(1),
+        );
+      });
+    });
+
     test('a plural on one count does not excuse a bare second count', () {
       final issues = issuesFor(
         '{count, plural, other{{count} photos}} across {total} albums',

@@ -28,13 +28,37 @@ import '../rule.dart';
 ///      fire only when that noun is already **plural** ([_looksPlural]) —
 ///      which is precisely the disagreement: a count that can be 1 in front
 ///      of a word that means many.
+///   4. For a regular `-s` candidate, require the placeholder to be in
+///      **count position** ([_inCountPosition]) — see below.
 ///
-/// Step 3 is what keeps this quiet enough to leave on by default. Across the
-/// first real corpus it ran on (a shipping app, ~900 source keys) it flagged
-/// four strings, all four of them genuine, including one hiding inside the
-/// `other` branch of an existing plural. Where it does misfire, the escape
-/// hatch is the standard one: `dialect check --ack plural_shape:source:<key>`,
-/// whose fingerprint retires the waiver as soon as the copy is edited.
+/// **Why step 4 exists.** An English third-person singular verb ends in `-s`,
+/// so [_looksPlural] cannot tell "opens" from "people" by shape alone, and
+/// `"Goal {goal} opens now"` read as `"1 opens"`. The rule shipped asserting
+/// that its misfires were "a verb, an adjective, or a unit … all singular in
+/// form"; that was true of the calibration corpus, which happened to contain
+/// no `Label {n} verb-s` string, and false of English. The disambiguator has
+/// to be the text *before* the placeholder, because "steps" is a plural noun
+/// in "{count} steps" and a verb in "Goal {goal} steps" — the word itself
+/// carries no answer.
+///
+/// English counts forward: a number that counts either opens its phrase or
+/// follows a function word ("and {n} others", "in {n} albums"), while a
+/// number that follows a bare noun labels that noun ("Goal 3", "step 7") and
+/// the `-s` word after it is the sentence's verb. Irregular plurals skip the
+/// gate: "people" and "children" are never verbs, and that is the case the
+/// rule was written for.
+///
+/// Erring quiet here is deliberate. A missed warning costs a re-read; a false
+/// one blocks a `--strict` push over correct copy.
+///
+/// **Saying it outright.** `type: int` covers both "how many" and "which
+/// one". An author can settle it declaratively with
+/// `"role": "identifier"` (or `"ordinal"`) on the placeholder, which is a
+/// fact about the variable rather than a waiver on one wording — it survives
+/// a rewrite, where an ack does not. Where the rule still misfires on
+/// undeclared copy, the escape hatch is the standard one:
+/// `dialect check --ack plural_shape:source:<key>`, whose fingerprint retires
+/// the waiver as soon as the copy is edited.
 class PluralShapeRule extends Rule {
   const PluralShapeRule();
 
@@ -53,7 +77,8 @@ class PluralShapeRule extends Rule {
       for (final placeholder in _countPlaceholders(entry)) {
         if (pluralized.contains(placeholder)) continue;
         final noun = _wordAfter(entry.value, placeholder);
-        if (noun == null || !_looksPlural(noun)) continue;
+        if (noun == null) continue;
+        if (!_isCountedNoun(noun, entry.value, placeholder)) continue;
 
         issues.add(
           Issue(
@@ -94,10 +119,28 @@ class PluralShapeRule extends Rule {
     final declared = entry.metadata?.placeholders ?? const {};
     return {
       for (final name in names)
-        if (_isCountType(declared[name]?.type) ||
-            (declared[name]?.type == null && _isCountName(name)))
-          name,
+        if (_carriesCount(declared[name], name)) name,
     };
+  }
+
+  /// Whether the placeholder named [name] holds a quantity this rule should
+  /// reason about.
+  ///
+  /// A declared `role` is the author speaking directly and outranks both the
+  /// type and the name: `identifier` and `ordinal` are numbers the sentence
+  /// does not count, and `count` claims one that a name like `goal` would
+  /// otherwise hide. An unrecognized role is ignored here and reported by
+  /// `placeholder_role`, so a typo cannot quietly disable the check.
+  static bool _carriesCount(ArbPlaceholder? declared, String name) {
+    switch (declared?.role) {
+      case 'count':
+        return true;
+      case 'identifier':
+      case 'ordinal':
+        return false;
+    }
+    return _isCountType(declared?.type) ||
+        (declared?.type == null && _isCountName(name));
   }
 
   static bool _isCountType(String? type) {
@@ -174,6 +217,90 @@ class PluralShapeRule extends Rule {
   static bool _isLetter(int c) =>
       (c >= 0x61 && c <= 0x7A) || (c >= 0x41 && c <= 0x5A);
 
+  /// Whether [noun] is a plural noun this [placeholder] is counting, rather
+  /// than the verb of a sentence that merely labels something with a number.
+  ///
+  /// An irregular plural settles it on its own — "people" is never a verb.
+  /// A regular `-s` is ambiguous ("steps", "opens", "matches"), so it also
+  /// has to sit after a number that is in count position.
+  static bool _isCountedNoun(String noun, String value, String placeholder) {
+    if (_irregularPlurals.contains(noun.toLowerCase())) return true;
+    if (!_looksPlural(noun)) return false;
+    return _inCountPosition(value, placeholder);
+  }
+
+  /// Whether the `{placeholder}` occurrence in [value] is positioned to count
+  /// what follows it.
+  ///
+  /// True when the number opens its phrase (nothing before it, or an ICU
+  /// brace, or punctuation) or follows a word that introduces a quantity
+  /// ([_introducers]). False when a bare content word precedes it, because
+  /// then the number labels *that* word — "Goal {goal}", "step {step}",
+  /// "Level {level}" — and governs nothing to its right.
+  static bool _inCountPosition(String value, String placeholder) {
+    final before = _wordBefore(value, placeholder);
+    return before == null || _introducers.contains(before.toLowerCase());
+  }
+
+  /// The bare word immediately preceding the `{placeholder}` occurrence in
+  /// [value], or `null` when the placeholder opens its phrase.
+  ///
+  /// Mirrors [_wordAfter]: exactly one run of spaces, then letters. Anything
+  /// else before the placeholder — a brace, a colon, a digit, the start of
+  /// the string — yields `null`, which reads as "nothing is being labelled".
+  static String? _wordBefore(String value, String placeholder) {
+    final match = RegExp(
+      '\\{\\s*${RegExp.escape(placeholder)}\\s*(?:,[^{}]*)?\\}',
+    ).firstMatch(value);
+    if (match == null) return null;
+
+    var i = match.start;
+    var sawSpace = false;
+    while (i > 0 && value[i - 1] == ' ') {
+      sawSpace = true;
+      i--;
+    }
+    if (!sawSpace) return null;
+
+    final end = i;
+    while (i > 0 && _isLetter(value.codeUnitAt(i - 1))) {
+      i--;
+    }
+    if (i == end) return null;
+    return value.substring(i, end);
+  }
+
+  /// Words after which a number is counting something.
+  ///
+  /// Prepositions, conjunctions, determiners and degree adverbs, plus the
+  /// verbs of having, finding and acting that introduce a quantity in UI
+  /// copy. The list is what keeps a real defect firing once step 4 is in
+  /// place; anything not on it is treated as a noun the number labels, which
+  /// is the quiet side of the trade.
+  static const Set<String> _introducers = {
+    // prepositions and conjunctions
+    'of', 'in', 'on', 'at', 'to', 'from', 'by', 'with', 'for', 'and', 'or',
+    'per', 'than', 'that', 'into', 'onto', 'via', 'plus', 'minus', 'across',
+    'among', 'between', 'over', 'under', 'about', 'after', 'before', 'within',
+    'but', 'nor', 'as',
+    // determiners and quantifiers
+    'the', 'a', 'an', 'all', 'any', 'some', 'no', 'these', 'those', 'another',
+    'every', 'both', 'my', 'your', 'their', 'our', 'its', 'this',
+    // degree and focus adverbs
+    'only', 'just', 'still', 'now', 'nearly', 'almost', 'least', 'most',
+    'up', 'more', 'less', 'fewer', 'around', 'roughly', 'approximately',
+    'exactly', 'already', 'also', 'then', 'first', 'last', 'next', 'other',
+    // verbs that introduce a quantity
+    'is', 'are', 'was', 'were', 'be', 'been', 'has', 'have', 'had',
+    'contains', 'contain', 'includes', 'include', 'shows', 'show', 'found',
+    'find', 'finds', 'added', 'add', 'adds', 'removed', 'remove', 'removes',
+    'deleted', 'delete', 'selected', 'select', 'sent', 'send', 'got', 'get',
+    'gets', 'made', 'make', 'saved', 'save', 'loaded', 'load', 'imported',
+    'import', 'skipped', 'skip', 'completed', 'complete', 'left', 'needs',
+    'need', 'takes', 'take', 'costs', 'cost', 'gives', 'give', 'earned',
+    'earn', 'wrote', 'write', 'read', 'says', 'say',
+  };
+
   /// Whether [word] is in its plural form.
   ///
   /// This is the test that makes the rule precise, and it follows from what
@@ -195,6 +322,10 @@ class PluralShapeRule extends Rule {
   /// is the rarer way round to get it wrong, and catching it would mean
   /// deciding that any singular noun after a count is suspect, which is most
   /// of the corpus.
+  ///
+  /// Shape alone is not enough for the regular case, because a third-person
+  /// singular verb wears the same `-s`; [_isCountedNoun] adds the position
+  /// test that separates them.
   static bool _looksPlural(String word) {
     final lower = word.toLowerCase();
     if (_irregularPlurals.contains(lower)) return true;

@@ -91,9 +91,16 @@ class InitCommand extends Command<int> {
     final agentsOutcome = _writeAgentsSection(targetDir);
     stdout.writeln('  ${agentsOutcome.relPath} (${agentsOutcome.verb})');
 
-    final gitignoreUpdated = _ensureGitignore(targetDir);
-    if (gitignoreUpdated) {
-      stdout.writeln('  .gitignore (added .dialect/)');
+    switch (_ensureGitignore(targetDir)) {
+      case _GitignoreOutcome.added:
+        stdout.writeln('  .gitignore (ignored .dialect/*-plan.md)');
+      case _GitignoreOutcome.migrated:
+        stdout.writeln(
+          '  .gitignore (replaced the blanket `.dialect/` ignore — '
+          '.dialect/state.json is the ack ledger and belongs in the repo)',
+        );
+      case _GitignoreOutcome.unchanged:
+        break;
     }
 
     if (projectType == 'Flutter') {
@@ -422,25 +429,57 @@ class InitCommand extends Command<int> {
 
   // ---- .gitignore --------------------------------------------------------
 
-  bool _ensureGitignore(Directory targetDir) {
+  /// Ensure `.gitignore` ignores Dialect's plan files and **not** its
+  /// acknowledgement ledger.
+  ///
+  /// Dialect used to write a blanket `.dialect/`, under a comment calling the
+  /// directory ephemeral. That was wrong about `state.json`, which nothing
+  /// regenerates and which `--strict` reads: a repo that took the line at its
+  /// word could not pass its own gate from a fresh clone, because the
+  /// adjudications lived only in the tree that made them. Where that exact
+  /// line is still present it is replaced, since Dialect wrote it.
+  _GitignoreOutcome _ensureGitignore(Directory targetDir) {
     final file = File(p.join(targetDir.path, '.gitignore'));
     if (!file.existsSync()) {
       file.writeAsStringSync(gitignoreSnippet);
-      return true;
+      return _GitignoreOutcome.added;
     }
 
     final existing = file.readAsStringSync();
-    final alreadyIgnored = existing
-        .split('\n')
+    final lines = existing.split('\n');
+    final blanket = lines.indexWhere(
+      (l) => l.trim() == '.dialect/' || l.trim() == '.dialect',
+    );
+    if (blanket >= 0) {
+      // Drop the line and the stale comment directly above it, then append
+      // the current stanza.
+      final drop = <int>{blanket};
+      if (blanket > 0 && lines[blanket - 1].trim().startsWith('# Dialect')) {
+        drop.add(blanket - 1);
+      }
+      final kept = [
+        for (var i = 0; i < lines.length; i++)
+          if (!drop.contains(i)) lines[i],
+      ].join('\n');
+      final separator = kept.endsWith('\n') ? '' : '\n';
+      file.writeAsStringSync('$kept$separator$gitignoreSnippet', flush: true);
+      return _GitignoreOutcome.migrated;
+    }
+
+    final alreadyIgnored = lines
         .map((l) => l.trim())
-        .any((l) => l == '.dialect/' || l == '.dialect');
-    if (alreadyIgnored) return false;
+        .any((l) => l == '.dialect/*-plan.md');
+    if (alreadyIgnored) return _GitignoreOutcome.unchanged;
 
     final separator = existing.endsWith('\n') ? '\n' : '\n\n';
     file.writeAsStringSync('$existing$separator$gitignoreSnippet', flush: true);
-    return true;
+    return _GitignoreOutcome.added;
   }
 }
+
+/// What [_ensureGitignore] did, so `init` can report the migration
+/// distinctly from a first-time write.
+enum _GitignoreOutcome { added, migrated, unchanged }
 
 class _AgentsOutcome {
   _AgentsOutcome({required this.relPath, required this.verb});

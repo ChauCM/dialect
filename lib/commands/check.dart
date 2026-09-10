@@ -56,6 +56,23 @@ class CheckCommand extends Command<int> {
       ..addOption(
         'note',
         help: 'Optional justification stored alongside --ack.',
+      )
+      ..addFlag(
+        'list-acks',
+        negatable: false,
+        help:
+            'Classify every acknowledgement in .dialect/state.json — live, '
+            'inert, lapsed, orphaned — instead of running the check. An ack '
+            'whose warning has stopped firing is invisible to a normal run, '
+            'so this is the only way to see one.',
+      )
+      ..addFlag(
+        'prune-acks',
+        negatable: false,
+        help:
+            'Delete acknowledgements that no longer adjudicate anything '
+            '(lapsed, orphaned, or unparseable). Entries whose fingerprint '
+            'still matches are kept.',
       );
   }
 
@@ -98,6 +115,12 @@ class CheckCommand extends Command<int> {
     final ackId = results.option('ack');
     if (ackId != null) {
       return _writeAck(project, root, ackId, results.option('note'));
+    }
+
+    final listAcks = results.flag('list-acks');
+    final pruneAcks = results.flag('prune-acks');
+    if (listAcks || pruneAcks) {
+      return _auditAcks(project, root, prune: pruneAcks);
     }
 
     final stamp = results.flag('stamp');
@@ -223,6 +246,83 @@ class CheckCommand extends Command<int> {
       '${isSourceHashed(rule, locale: locale) ? 'source' : 'translation'} '
       'value changes.',
     );
+    stdout.writeln(
+      '  Commit .dialect/state.json — a teammate or a CI run that checks out '
+      'this branch without it will see the warning you just adjudicated.',
+    );
+    return 0;
+  }
+
+  /// Print (and optionally prune) the acknowledgement ledger.
+  ///
+  /// The classification runs against the **raw** check result, before
+  /// suppression, because that is the only place the distinction between a
+  /// live ack and an inert one exists: both match their fingerprint, and only
+  /// one of them hid something.
+  int _auditAcks(DialectProject project, String root, {required bool prune}) {
+    final state = StateStore.load(root);
+    if (state.checks.isEmpty) {
+      stdout.writeln('No acknowledgements in .dialect/state.json.');
+      return 0;
+    }
+
+    final audits = auditAcks(runChecks(project), project, state);
+    const labels = {
+      AckStatus.live: 'live      ',
+      AckStatus.inert: 'inert     ',
+      AckStatus.lapsed: 'lapsed    ',
+      AckStatus.orphaned: 'orphaned  ',
+      AckStatus.invalid: 'invalid   ',
+    };
+
+    for (final audit in audits) {
+      stdout.writeln('  ${labels[audit.status]}${audit.id}');
+      final note = audit.record.note;
+      if (note != null && note.isNotEmpty) stdout.writeln('             $note');
+    }
+
+    final counts = <AckStatus, int>{};
+    for (final a in audits) {
+      counts[a.status] = (counts[a.status] ?? 0) + 1;
+    }
+    final dead = audits.where((a) => a.isDead).toList();
+
+    stdout.writeln();
+    stdout.writeln(
+      '${audits.length} acknowledgement(s): '
+      '${counts[AckStatus.live] ?? 0} live, '
+      '${counts[AckStatus.inert] ?? 0} inert, '
+      '${counts[AckStatus.lapsed] ?? 0} lapsed, '
+      '${counts[AckStatus.orphaned] ?? 0} orphaned, '
+      '${counts[AckStatus.invalid] ?? 0} invalid.',
+    );
+
+    if (!prune) {
+      if (dead.isNotEmpty) {
+        stdout.writeln(
+          '! ${dead.length} no longer adjudicate anything. They read like '
+          'live rulings in a diff and cannot be re-derived — '
+          '`dialect check --prune-acks` deletes them.',
+        );
+      }
+      if ((counts[AckStatus.inert] ?? 0) > 0) {
+        stdout.writeln(
+          '  inert = the fingerprint still matches but nothing fired for it '
+          'this run. Kept: the ruling is still true of the current text.',
+        );
+      }
+      return 0;
+    }
+
+    if (dead.isEmpty) {
+      stdout.writeln('✓ nothing to prune.');
+      return 0;
+    }
+    for (final audit in dead) {
+      state.checks.remove(audit.id);
+    }
+    state.save(root);
+    stdout.writeln('✓ pruned ${dead.length} acknowledgement(s).');
     return 0;
   }
 }

@@ -152,3 +152,99 @@ AckOutcome applyAcks(
     staleAcks: staleAcks.toList()..sort(),
   );
 }
+
+/// What a stored acknowledgement is currently worth.
+///
+/// [applyAcks] can only ever describe an ack whose issue **fired again** —
+/// it walks the issue list, so an ack whose warning has stopped appearing is
+/// unreachable from there. That is the common case in a long-lived ledger and
+/// the one nobody sees: the copy gets rewritten, the fingerprint stops
+/// matching, the rule stops firing, and the entry sits there reading exactly
+/// like a live ruling. This enum exists so the audit can name that rung
+/// instead of leaving it as the gap between "suppressed" and "stale".
+enum AckStatus {
+  /// Fingerprint matches and it hid a warning this run. Load-bearing.
+  live,
+
+  /// Fingerprint matches, but nothing fired for it this run — the rule
+  /// narrowed, or the warning's cause moved. The ruling is still true of the
+  /// text it was made about, so it is kept, not pruned.
+  inert,
+
+  /// The value was edited after the ack was made, so the adjudication is
+  /// about text that no longer exists. Nobody made this ruling about what is
+  /// there now.
+  lapsed,
+
+  /// The key (or its translation) is gone from the ARB entirely.
+  orphaned,
+
+  /// The id does not parse, or names a rule that cannot be acked — a hand
+  /// edit or a rule that was removed since.
+  invalid,
+}
+
+/// One stored ack, classified.
+class AckAudit {
+  AckAudit({required this.id, required this.status, required this.record});
+
+  final String id;
+  final AckStatus status;
+  final AckRecord record;
+
+  /// Whether `--prune-acks` deletes this entry.
+  ///
+  /// [AckStatus.inert] is deliberately kept: its fingerprint still matches,
+  /// so it is a valid ruling about the current text that simply is not needed
+  /// today. Deleting it would throw away a judgement someone actually made.
+  bool get isDead =>
+      status == AckStatus.lapsed ||
+      status == AckStatus.orphaned ||
+      status == AckStatus.invalid;
+}
+
+/// Classify every entry in [state] against [project], using the **raw**
+/// (pre-suppression) [result] to tell a live ack from an inert one.
+///
+/// Sorted by id, so the output is stable in a diff.
+List<AckAudit> auditAcks(
+  CheckResult result,
+  DialectProject project,
+  StateStore state,
+) {
+  final fired = <String>{};
+  for (final issue in result.issues) {
+    final id = ackId(issue);
+    if (id != null) fired.add(id);
+  }
+
+  final audits = <AckAudit>[];
+  for (final entry in state.checks.entries) {
+    final id = entry.key;
+    final parts = id.split(':');
+    if (parts.length != 3 ||
+        parts.any((p) => p.isEmpty) ||
+        !isAckableRule(parts[0])) {
+      audits.add(
+        AckAudit(id: id, status: AckStatus.invalid, record: entry.value),
+      );
+      continue;
+    }
+    final locale = parts[1] == 'source' ? null : parts[1];
+    final current = ackFingerprint(parts[0], locale, parts[2], project);
+    final AckStatus status;
+    if (current == null) {
+      status = AckStatus.orphaned;
+    } else if (current != entry.value.acknowledged) {
+      status = AckStatus.lapsed;
+    } else if (fired.contains(id)) {
+      status = AckStatus.live;
+    } else {
+      status = AckStatus.inert;
+    }
+    audits.add(AckAudit(id: id, status: status, record: entry.value));
+  }
+
+  audits.sort((a, b) => a.id.compareTo(b.id));
+  return audits;
+}

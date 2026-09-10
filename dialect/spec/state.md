@@ -174,6 +174,13 @@ Only the `lapsed`-and-still-firing case reaches a normal run, as `⚠ stale-ack`
 
 `dialect check --prune-acks` deletes the `lapsed`, `orphaned` and unparseable entries. It keeps `inert` ones: their fingerprint still matches, so they are judgements someone actually made about text that is still there.
 
+**Do not prune `inert` entries in a tidy-up sweep.** It is the one rung whose value is invisible in the moment — nothing fires, so nothing shows the ack doing work, and the pressure to delete it is exactly proportional to how well it is working. A passing test looks deletable for the same reason. Prune one only when you can say *why* it went quiet, because two very different causes look identical in the output:
+
+- **The rule stopped flagging that construct.** The waiver is genuinely spent and deleting it is safe. When Dialect narrowed `plural_shape` in 1.5.0, every ack that existed only to silence that misfire became `inert` on the next run.
+- **The warning's cause moved and can come back.** A translation was rewritten, a glossary term was retired, a locale was dropped. Restore any of those and the warning returns — with no ruling attached, because the sweep deleted it.
+
+`--list-acks` cannot tell those apart; only a person who knows what changed can. The `note` recorded at `--ack` time is what makes that answerable months later, which is the strongest argument for writing one.
+
 Because the ledger is committed, each entry appears in a diff. The case worth a reviewer's attention is an entry that **survives** an edit to the string it rules on — that is a waiver being carried onto text nobody re-read — which is why `--list-acks` exists rather than a bare count.
 
 ---

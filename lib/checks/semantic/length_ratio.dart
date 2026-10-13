@@ -1,5 +1,6 @@
 import '../../arb/arb_file.dart';
 import '../../project/dialect_project.dart';
+import '../display_width.dart';
 import '../rule.dart';
 
 /// Warn when a translation is suspiciously much shorter or longer than
@@ -16,8 +17,13 @@ import '../rule.dart';
 /// ```
 ///
 /// Default for unlisted locales: `[0.3, 2.5]`. Very short source strings
-/// (`< 8` chars) skip the check entirely — `"OK"` → `"はい"` is a 1x
+/// (`< 8` columns) skip the check entirely — `"OK"` → `"はい"` is a 1x
 /// ratio that's meaningless to police.
+///
+/// Both sides are measured in display columns ([displayColumns]), the same
+/// unit `width_budget` uses: a Hangul or hanzi character takes two columns, so
+/// a faithful Korean translation of a long English label is not "too short"
+/// merely because it needs fewer characters.
 ///
 /// Severity is warning. `--strict-length` (separate from `--strict`)
 /// promotes it to an error for CI gating.
@@ -28,8 +34,8 @@ class LengthRatioRule extends Rule {
   /// `dialect.yaml`.
   static const List<double> defaultRange = [0.3, 2.5];
 
-  /// Source strings shorter than this skip the check — short strings'
-  /// ratios are too noisy to be a useful signal.
+  /// Source strings narrower than this (in display columns) skip the check —
+  /// short strings' ratios are too noisy to be a useful signal.
   static const int minSourceLength = 8;
 
   @override
@@ -56,10 +62,11 @@ class LengthRatioRule extends Rule {
       for (final t in arb.entries) {
         final src = sourceByKey[t.key];
         if (src == null) continue;
-        if (src.value.length < minSourceLength) continue;
+        final srcColumns = displayColumns(src.value);
+        if (srcColumns < minSourceLength) continue;
         if (t.value.isEmpty) continue; // empty_values rule covers this
 
-        final ratio = t.value.length / src.value.length;
+        final ratio = displayColumns(t.value) / srcColumns;
         if (ratio < range[0] || ratio > range[1]) {
           final direction = ratio < range[0] ? 'shorter' : 'longer';
           issues.add(

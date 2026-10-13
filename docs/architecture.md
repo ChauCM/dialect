@@ -202,7 +202,7 @@ $ dialect check
 ```
 
 **Structural checks** (deterministic, fast):
-- Every source key exists in all target locale files.
+- Every source key exists in all target locale files. A locale listed under `partial_locales:` in `dialect.yaml` (each must also be in `target_locales`) is still being filled in: it gets one progress line, `ko: 261 of 2,520 keys translated`, at info level, which never fails a run, with or without `--strict`. Every other rule stays as strict on the keys that exist, and `dialect sync` still writes the locale. A partial locale that has every key says so, so the marker can be removed.
 - Placeholder variables match across translations.
 - ICU plural categories are valid for each locale.
 - No empty values left in locale files.
@@ -210,7 +210,7 @@ $ dialect check
 **Semantic heuristics** (deterministic, no AI required — catch the most common `dialect translate` failure modes):
 
 - **Source-equality.** Flag any translation whose value equals the source value. This is the most frequent LLM translation failure: the model silently passes the English string through for terms it doesn't recognize. Catching it here is the difference between "Dialect-translated app looks polished" and "Dialect-translated app has untranslated strings in production."
-- **Length ratio.** Flag translations outside `[0.3×, 2.5×]` of source character length. Configurable per-locale in `dialect.yaml` (German runs long, Japanese can run short). Warning severity — false positives are common, so this never escalates to error in strict mode without explicit opt-in.
+- **Length ratio.** Flag translations outside `[0.3×, 2.5×]` of source length, measured in display columns (East Asian Wide and Fullwidth characters count 2, the same unit as `width_budget`; sources under 8 columns are skipped). Configurable per-locale in `dialect.yaml` (German runs long, Japanese can run short). Warning severity — false positives are common, so this never escalates to error in strict mode without explicit opt-in.
 - **Untranslated English fragments.** Regex for English-looking word sequences in non-English locale files. Catches partial translations where the model translated some clauses but left others in English.
 - **Glossary enforcement.** For every glossary term that appears in a source string, check the corresponding translation contains the prescribed translation from `glossary.yaml`. Escape hatch: `@key.glossary_exempt: true` for keys where the term is used non-literally. This is what makes `glossary.yaml` load-bearing instead of decorative.
 - **Plural shape.** Flag a source string that interpolates a count straight in front of a plural noun — `"{count} people"`, which renders "1 people". `plural_categories` checks that a plural is *complete* once one exists; this checks that one exists at all. Source-side only: once the source is a plural, every translation inherits the shape. A placeholder is read as a count from its declared `type` (`int` / `num` / `double` / `number`) or from a conventional name, and the rule fires only when the noun it governs is already plural — which is precisely the disagreement, and what keeps it quiet enough to default on.
@@ -496,6 +496,17 @@ style:
 ```
 
 A translation passes when it contains the canonical form under the rule above **or** any listed form for its own locale, each a case-insensitive substring used exactly as written. A locale with no list keeps the default rule, and a list never applies to another locale. `forms` must be a non-empty map of locale to a non-empty list of non-empty strings, and each locale must also have a `translations:` entry; anything else is a config error, not silently ignored.
+
+### Outside writers: bulk `accept` and `lock`
+
+A rail that writes `translations/<locale>.arb` itself (an import script, a provider pipeline) should not compute `source_hash` or hand-edit `@key` blocks. Two bulk forms finish the job, and both work on a partial locale:
+
+```bash
+dialect accept --all --locale ko        # stamp every translation that has no source_hash or a stale one
+dialect lock --identical --locale ko    # lock every translation equal to the source (brand names, "YYYY")
+```
+
+`accept` writes `@key.source_hash` (the current source hash) and keeps the value and any `locked` flag. `lock` writes `"locked": true` plus the `source_hash` together, so `lock_integrity` is satisfied and `source_equality` stays quiet. Keys with no translation yet are left alone, nothing else is touched, and a second run changes nothing. Both re-emit the file in canonical form (sorted keys, blank line between groups), as every `lock` and `accept` always has. `--all` cannot be combined with named keys or `--namespace`; `--identical` can be narrowed by them. Without `--locale` they act on every target locale.
 
 ---
 

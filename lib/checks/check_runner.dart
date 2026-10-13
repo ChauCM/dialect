@@ -93,6 +93,8 @@ class CheckResult {
     for (final issue in issues) {
       if (issue.severity == IssueSeverity.error) {
         yield issue;
+      } else if (issue.severity == IssueSeverity.info) {
+        continue; // a note never fails a run, strict or not
       } else if (strict && _promotedUnderStrict(issue, strictLength)) {
         yield issue;
       }

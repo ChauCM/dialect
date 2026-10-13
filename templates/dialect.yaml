@@ -292,6 +292,14 @@ toolchain:
 source_locale: en
 target_locales: []  # add the locales you ship in, e.g. [es, fr, ja]
 
+# Locales still being filled in slice by slice. Each must also be in
+# target_locales. For these, `missing_keys` prints ONE progress line per
+# locale ("ko: 261 of 2,520 keys translated") that never fails a run, with
+# or without --strict. Every other rule is exactly as strict on the keys
+# that exist, and `dialect sync` still writes the locale. When a partial
+# locale has every key, the line says so: remove it from the list.
+# partial_locales: [ko, es]
+
 platforms:
   flutter:
     output: lib/l10n/

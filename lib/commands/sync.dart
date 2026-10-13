@@ -303,7 +303,9 @@ class SyncCommand extends Command<int> {
     final errors = result.issues
         .where((i) => i.severity == IssueSeverity.error)
         .length;
-    final warnings = result.issues.length - errors;
+    final warnings = result.issues
+        .where((i) => i.severity == IssueSeverity.warning)
+        .length;
 
     if (errors == 0 && warnings == 0) {
       stdout.writeln('  check: no issues.');

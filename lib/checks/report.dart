@@ -78,6 +78,9 @@ class CheckReport {
     final warningCount = result.issues
         .where((i) => i.severity == IssueSeverity.warning)
         .length;
+    final noteCount = result.issues
+        .where((i) => i.severity == IssueSeverity.info)
+        .length;
 
     sink.writeln('');
     if (strict) {
@@ -93,12 +96,16 @@ class CheckReport {
           .where((i) => i.severity == IssueSeverity.error)
           .length;
       if (realErrors > 0) parts.add('$realErrors error(s)');
-      sink.writeln(
-        realErrors > 0
-            ? '✗ dialect check: ${parts.join(", ")}'
-            : '! dialect check: ${parts.join(", ")} (warnings only — '
-                  'exit 0 in soft mode; run with --strict in CI)',
-      );
+      if (realErrors == 0 && warningCount == 0) {
+        sink.writeln('✓ dialect check: no issues ($noteCount note(s))');
+      } else {
+        sink.writeln(
+          realErrors > 0
+              ? '✗ dialect check: ${parts.join(", ")}'
+              : '! dialect check: ${parts.join(", ")} (warnings only — '
+                    'exit 0 in soft mode; run with --strict in CI)',
+        );
+      }
     }
     if (suppressed > 0) {
       sink.writeln(
@@ -141,8 +148,12 @@ class CheckReport {
         (!strictLengthGatedRules.contains(issue.ruleName) || strictLength);
     final effective = (issue.severity == IssueSeverity.error || promoted)
         ? IssueSeverity.error
-        : IssueSeverity.warning;
-    final tag = effective == IssueSeverity.error ? '✗' : '⚠';
+        : issue.severity;
+    final tag = switch (effective) {
+      IssueSeverity.error => '✗',
+      IssueSeverity.warning => '⚠',
+      IssueSeverity.info => 'ℹ',
+    };
     sink.writeln('$tag $loc  ${issue.ruleName}  ${issue.message}');
     if (issue.hint != null) {
       sink.writeln('  hint: ${issue.hint}');

@@ -2,6 +2,62 @@
 
 All notable changes to the Dialect CLI are tracked here.
 
+## 1.7.0
+
+The app is adding Korean and Spanish slice by slice. With both in
+`target_locales` and 261 of 2,520 keys translated, `dialect check --strict`
+reported 4,524 `missing_keys` errors and failed the push gate, so a locale
+could not be added until it was finished.
+
+### Added — `partial_locales`
+
+```yaml
+target_locales: [vi, ko, es]
+partial_locales: [ko, es]   # each must also be in target_locales
+```
+
+For a partial locale, `missing_keys` is one `info` line instead of one error
+per key:
+
+```
+ko: 261 of 2,520 keys translated
+```
+
+It never fails a run, with or without `--strict`. Every other rule is exactly
+as strict on the keys that exist (a dropped placeholder or a stale translation
+still fails), and `dialect sync` still writes the locale. When the locale has
+every key the line says it is complete and can be removed from the list. A
+locale in `partial_locales` that is not in `target_locales` is a config error
+(exit 65). A locale not listed behaves exactly as before.
+
+`IssueSeverity` gains `info`: a note that is printed but never counted as a
+warning or an error. `dialect sync`'s post-check counts now ignore notes.
+
+### Added — bulk `accept` and `lock` for outside writers
+
+A rail that writes `ko.arb` itself no longer computes `source_hash`:
+
+```bash
+dialect accept --all --locale ko        # stamp every translation with no or a stale source_hash
+dialect lock --identical --locale ko    # lock every translation equal to the source
+```
+
+Single-key forms are unchanged. Both leave keys with no translation alone,
+touch nothing else in the file, and are idempotent. `--all` cannot be combined
+with named keys or `--namespace`; `--identical` can be narrowed by them.
+
+### Changed — `length_ratio` counts display columns
+
+`length_ratio` measured UTF-16 units, so a faithful Korean label ("비밀번호
+입력", 7 characters) read as 0.27x of its English and tripped the default
+`[0.3, 2.5]` band. It now uses the same display-column count as
+`width_budget` (one implementation, `lib/checks/display_width.dart`), on both
+sides of the ratio and on the `< 8` short-source skip. Latin and Vietnamese,
+precomposed or decomposed, measure exactly as before; only characters outside
+the Basic Multilingual Plane (emoji) differ, one column instead of two UTF-16
+units. Per-locale `length_ratio:` overrides tuned in characters for a CJK
+locale were tuned against the old count and may now be looser than needed.
+
 ## 1.6.0
 
 A glossary term can now name the inflected forms it accepts.

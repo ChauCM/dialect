@@ -8,6 +8,7 @@ class DialectConfig {
   DialectConfig({
     required this.sourceLocale,
     required this.targetLocales,
+    this.partialLocales = const [],
     this.platforms = const {},
     this.publishEnvs = const {},
     this.extras = const {},
@@ -19,6 +20,12 @@ class DialectConfig {
   /// Translation targets (e.g. `[es, ja, ar]`). Empty after `dialect
   /// init` — the user fills this in before their first `dialect check`.
   final List<String> targetLocales;
+
+  /// Target locales still being filled in slice by slice (`partial_locales:`).
+  /// Always a subset of [targetLocales]. For these, `missing_keys` reports
+  /// one summary note instead of one error per missing key; every other rule
+  /// is exactly as strict on the keys that exist.
+  final List<String> partialLocales;
 
   /// Per-platform output config keyed by platform name (`flutter`,
   /// `ios`, `android`, `backend`). v1.0 ships only the `arb` format
@@ -68,6 +75,33 @@ class DialectConfig {
     } else {
       throw FormatException(
         'target_locales must be a list, got ${raw.runtimeType}.',
+      );
+    }
+
+    final partialLocales = <String>[];
+    final rawPartial = root['partial_locales'];
+    if (rawPartial == null) {
+      // Optional: every target locale is expected to be complete.
+    } else if (rawPartial is yaml.YamlList) {
+      for (final v in rawPartial) {
+        if (v is! String || v.isEmpty) {
+          throw FormatException(
+            'partial_locales must be a list of locale strings; '
+            'got ${v.runtimeType}.',
+          );
+        }
+        if (!targetLocales.contains(v)) {
+          throw FormatException(
+            'partial_locales lists `$v`, which is not in target_locales '
+            '(${targetLocales.join(', ')}). Add it to target_locales, or '
+            'remove it from partial_locales.',
+          );
+        }
+        if (!partialLocales.contains(v)) partialLocales.add(v);
+      }
+    } else {
+      throw FormatException(
+        'partial_locales must be a list, got ${rawPartial.runtimeType}.',
       );
     }
 
@@ -124,6 +158,7 @@ class DialectConfig {
       if (k is! String) continue;
       if (k == 'source_locale' ||
           k == 'target_locales' ||
+          k == 'partial_locales' ||
           k == 'platforms' ||
           k == 'publish') {
         continue;
@@ -134,6 +169,7 @@ class DialectConfig {
     return DialectConfig(
       sourceLocale: sourceLocale,
       targetLocales: targetLocales,
+      partialLocales: partialLocales,
       platforms: platforms,
       publishEnvs: publishEnvs,
       extras: extras,

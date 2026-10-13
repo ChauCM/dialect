@@ -67,6 +67,16 @@ class LockCommand extends Command<int> {
         valueHelp: 'locale',
       )
       ..addFlag(
+        'identical',
+        negatable: false,
+        help:
+            'Act only on translations that equal the source value exactly '
+            '(brand names, codes, "YYYY"), across every source key unless '
+            'keys or --namespace narrow it. The one-command path for a writer '
+            'outside Dialect: it locks what `source_equality` would flag as a '
+            'copy, stamping the source_hash with it.',
+      )
+      ..addFlag(
         'remove',
         negatable: false,
         help:
@@ -85,7 +95,8 @@ class LockCommand extends Command<int> {
 
   @override
   String get invocation =>
-      'dialect lock <key>... [--namespace <name>] [--locale <locale>]';
+      'dialect lock <key>... [--namespace <name>] [--locale <locale>]\n'
+      '       dialect lock --identical [--locale <locale>]';
 
   @override
   Future<int> run() async {
@@ -106,6 +117,7 @@ class LockCommand extends Command<int> {
       return 65;
     }
 
+    final identical = argResults!.flag('identical');
     final KeySelection selection;
     try {
       selection = resolveSelection(
@@ -114,6 +126,11 @@ class LockCommand extends Command<int> {
         positionals: argResults!.rest,
         namespace: argResults!.option('namespace'),
         locale: argResults!.option('locale'),
+        // `--identical` with nothing named means the whole source.
+        all:
+            identical &&
+            argResults!.rest.isEmpty &&
+            argResults!.option('namespace') == null,
       );
     } on SelectionFailure catch (f) {
       f.lines.forEach(stderr.writeln);
@@ -136,6 +153,15 @@ class LockCommand extends Command<int> {
       for (final locale in selection.locales) {
         final arb = project.translations[locale]!;
         final entry = arb.entryFor(key);
+        // `--identical` narrows to translations that are exact copies of the
+        // source; a key with no translation, or a different one, is none of
+        // its business (and is not "skipped": nothing was asked of it).
+        if (identical &&
+            (entry == null ||
+                entry.value.isEmpty ||
+                entry.value != project.source.entryFor(key)!.value)) {
+          continue;
+        }
         if (entry == null || entry.value.isEmpty) {
           // Locking asserts a human approved a specific value; there is no
           // value here to approve. That's missing_keys / empty_values.
@@ -177,6 +203,13 @@ class LockCommand extends Command<int> {
         '${selection.locales.join(', ')}. Translate them first.',
       );
       return 65;
+    }
+
+    if (identical && changed.isEmpty && unchanged.isEmpty) {
+      stdout.writeln(
+        '  no translation in ${selection.locales.join(', ')} is identical to '
+        'the source — nothing to $verb.',
+      );
     }
 
     if (changed.isNotEmpty) {

@@ -36,7 +36,8 @@ class SelectionFailure implements Exception {
 }
 
 /// Resolve [positionals] + [namespace] + [locale] into a [KeySelection]
-/// against [project]. Throws [SelectionFailure] with a ready-to-print message
+/// against [project]. With [all], the selection is every source key instead
+/// (the bulk form for a writer outside Dialect, which has no list to name). Throws [SelectionFailure] with a ready-to-print message
 /// when the request cannot be honoured.
 ///
 /// Every positional is a key. Locale selection is `--locale`, because a
@@ -49,6 +50,7 @@ KeySelection resolveSelection({
   required List<String> positionals,
   String? namespace,
   String? locale,
+  bool all = false,
 }) {
   final targets = project.translations.keys.toList();
 
@@ -60,6 +62,21 @@ KeySelection resolveSelection({
   }
 
   final selected = <String>{};
+
+  if (all) {
+    // `--all` is the whole source, so naming keys or a namespace as well is a
+    // contradiction rather than a refinement.
+    if (positionals.isNotEmpty || namespace != null) {
+      throw SelectionFailure(64, [
+        '--all selects every source key; it cannot be combined with named '
+            'keys or --namespace.',
+      ]);
+    }
+    return KeySelection(
+      keys: [for (final e in project.source.entries) e.key]..sort(),
+      locales: locale != null ? [locale] : targets,
+    );
+  }
 
   if (namespace != null) {
     final inNamespace = [

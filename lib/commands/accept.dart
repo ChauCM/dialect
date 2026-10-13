@@ -62,6 +62,19 @@ class AcceptCommand extends Command<int> {
             'Act on one target locale. Default: every target locale that '
             'carries the key.',
         valueHelp: 'locale',
+      )
+      ..addFlag(
+        'all',
+        negatable: false,
+        help:
+            'Act on every source key instead of naming them: stamp each '
+            'translation that exists but carries no source_hash or a stale '
+            'one. This is the one-command path for a writer outside Dialect '
+            '(an import rail, a script) that writes the translation ARB '
+            'itself and should not compute hashes. Keys with no translation '
+            'yet are left alone. Like naming the keys, it asserts the '
+            'translations are current for the source as it stands, so run it '
+            'on values you have reviewed.',
       );
   }
 
@@ -75,7 +88,8 @@ class AcceptCommand extends Command<int> {
 
   @override
   String get invocation =>
-      'dialect accept <key>... [--namespace <name>] [--locale <locale>]';
+      'dialect accept <key>... [--namespace <name>] [--locale <locale>]\n'
+      '       dialect accept --all [--locale <locale>]';
 
   @override
   Future<int> run() async {
@@ -102,6 +116,7 @@ class AcceptCommand extends Command<int> {
         positionals: argResults!.rest,
         namespace: argResults!.option('namespace'),
         locale: argResults!.option('locale'),
+        all: argResults!.flag('all'),
       );
     } on SelectionFailure catch (f) {
       f.lines.forEach(stderr.writeln);

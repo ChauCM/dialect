@@ -8,7 +8,10 @@ import '../project/dialect_project.dart';
 /// `--strict` (CI): warnings get promoted to errors before exit-code is
 /// computed, except length-ratio which stays a warning unless
 /// `--strict-length` is also passed.
-enum IssueSeverity { warning, error }
+///
+/// `info` is a note that never fails a run, strict or not (for example the
+/// per-locale progress line for a partial locale).
+enum IssueSeverity { info, warning, error }
 
 /// A single check finding. The report formatter turns these into
 /// `path/to/file.arb:42  rule_name  message` lines plus an indented

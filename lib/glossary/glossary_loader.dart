@@ -30,6 +30,7 @@ class GlossaryTerm {
     required this.term,
     required this.meaning,
     required this.translations,
+    this.forms = const {},
   });
 
   /// Canonical source-locale form, e.g. `"Book"`. Used for the
@@ -43,6 +44,14 @@ class GlossaryTerm {
 
   /// Canonical translation per locale.
   final Map<String, String> translations;
+
+  /// Accepted forms per locale, from the optional `forms:` field. Each is a
+  /// stem or word the `glossary` rule accepts in a translation *in addition
+  /// to* the canonical form, matched as a case-insensitive substring. A
+  /// locale with no entry keeps the default prefix rule on its canonical.
+  /// The list is for inflections the prefix rule cannot reach: a Korean
+  /// label `외움` against its modifier `외운` or verb `외우다`.
+  final Map<String, List<String>> forms;
 }
 
 /// One `banned:` entry: copy this project does not ship, plus the reason a
@@ -183,10 +192,59 @@ class Glossary {
           term: term,
           meaning: meaning is String ? meaning.trim() : '',
           translations: translations,
+          forms: _parseForms(raw['forms'], term, translations),
         ),
       );
     }
     return terms;
+  }
+
+  /// Parse a term's optional `forms:` field: `{locale: [form, ...]}`.
+  /// Absent is fine; present-but-wrong is a [FormatException] naming the
+  /// term, because a silently ignored list would leave the author believing
+  /// an inflection was accepted when the rule still refuses it. A locale with
+  /// no canonical translation is rejected too: the rule skips such a locale,
+  /// so its list could never apply and is almost certainly a typo.
+  static Map<String, List<String>> _parseForms(
+    Object? raw,
+    String term,
+    Map<String, String> translations,
+  ) {
+    if (raw == null) return const {};
+    if (raw is! yaml.YamlMap || raw.isEmpty) {
+      throw FormatException(
+        'glossary.yaml: term `$term` has a `forms:` field that is not a '
+        'non-empty map of locale to list of strings, e.g. '
+        '`forms: {ko: [외운, 외우]}`.',
+      );
+    }
+    final forms = <String, List<String>>{};
+    for (final entry in raw.entries) {
+      final locale = entry.key;
+      final list = entry.value;
+      if (locale is! String || locale.isEmpty) {
+        throw FormatException(
+          'glossary.yaml: term `$term` has a `forms:` key that is not a '
+          'locale tag.',
+        );
+      }
+      if (!translations.containsKey(locale)) {
+        throw FormatException(
+          'glossary.yaml: term `$term` lists `forms:` for `$locale`, but has '
+          'no `translations:` entry for it, so the forms could never apply.',
+        );
+      }
+      if (list is! yaml.YamlList ||
+          list.isEmpty ||
+          list.any((v) => v is! String || v.trim().isEmpty)) {
+        throw FormatException(
+          'glossary.yaml: term `$term` `forms:` for `$locale` must be a '
+          'non-empty list of non-empty strings.',
+        );
+      }
+      forms[locale] = [for (final v in list) (v as String).trim()];
+    }
+    return forms;
   }
 
   /// Parse the `banned:` block. A `reason:` is required — an issue that says

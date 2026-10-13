@@ -484,6 +484,19 @@ style:
     ja: "です/ます (polite)"
 ```
 
+**How a translation matches a term.** The `glossary` rule looks for the locale's canonical translation as a case-insensitive substring, dropping its last two characters when it is longer than four (so `Reservar` also accepts `Reserva`), and requiring the full form at four characters or fewer. That prefix cannot reach every inflection: Korean `외움` (a label) is refused on `외운` (modifier) and `외우다` (verb), and Spanish `conocido` on `conocer`. A term can list the extra forms it accepts, per locale:
+
+```yaml
+  - term: "memorized"
+    translations:
+      ko: "외움"
+      es: "memorizado"
+    forms:
+      ko: [외운, 외우]
+```
+
+A translation passes when it contains the canonical form under the rule above **or** any listed form for its own locale, each a case-insensitive substring used exactly as written. A locale with no list keeps the default rule, and a list never applies to another locale. `forms` must be a non-empty map of locale to a non-empty list of non-empty strings, and each locale must also have a `translations:` entry; anything else is a config error, not silently ignored.
+
 ---
 
 ## Namespaces

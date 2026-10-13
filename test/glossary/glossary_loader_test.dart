@@ -39,6 +39,61 @@ terms:
       expect(g.terms.single.translations, isEmpty);
     });
 
+    group('`forms:`', () {
+      test('parses a per-locale list and trims the entries', () {
+        final g = Glossary.parse('''
+terms:
+  - term: "memorized"
+    translations:
+      ko: "외움"
+      es: "memorizado"
+    forms:
+      ko: [외운, " 외우 "]
+''');
+        expect(g.terms.single.forms, {
+          'ko': ['외운', '외우'],
+        });
+      });
+
+      test('absent forms is an empty map', () {
+        final g = Glossary.parse('''
+terms:
+  - term: "Book"
+    translations:
+      es: "Reservar"
+''');
+        expect(g.terms.single.forms, isEmpty);
+      });
+
+      test('malformed forms is a FormatException naming the term', () {
+        const head =
+            'terms:\n  - term: "Book"\n    translations:\n'
+            '      es: "Reservar"\n    forms:';
+        for (final bad in [
+          ' {}', // empty map
+          ' []', // not a map
+          ' conoc', // scalar
+          ' {es: []}', // empty list
+          ' {es: conoc}', // list expected
+          ' {es: [""]}', // empty entry
+          ' {es: [3]}', // non-string entry
+          ' {fr: [x]}', // locale with no canonical translation
+        ]) {
+          expect(
+            () => Glossary.parse('$head$bad\n'),
+            throwsA(
+              isA<FormatException>().having(
+                (e) => e.message,
+                'message',
+                contains('`Book`'),
+              ),
+            ),
+            reason: 'forms:$bad',
+          );
+        }
+      });
+    });
+
     test('throws on malformed shape (term: list, terms: scalar, …)', () {
       expect(
         () => Glossary.parse('terms: not-a-list'),

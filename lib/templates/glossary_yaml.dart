@@ -15,6 +15,14 @@ const String glossaryYamlTemplate = r'''# ======================================
 # style:   tone and formality, read by whoever (or whatever)
 #          writes the translations rather than by a check.
 #
+# A translation matches a term when it contains the locale's
+# canonical form (the last 2 characters are ignored when it is
+# longer than 4). For inflections that prefix cannot reach, list
+# extra accepted forms per locale on the term:
+#     forms: {ko: [외운, 외우]}
+# Each is a case-insensitive substring; they apply only to that
+# locale, and the locale must also have a `translations:` entry.
+#
 # Escape hatch: if a string uses a term in a non-literal sense
 # (e.g. "Book club" really means a physical book), mark the
 # key with @key.glossary_exempt: true in the source ARB.

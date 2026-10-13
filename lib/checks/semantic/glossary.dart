@@ -33,6 +33,12 @@ import '../rule.dart';
 ///     also matches "Reserva"/"Reservamos"/"Reservación"). Languages
 ///     with little suffix inflection (CJK) get the full canonical.
 ///
+/// A term may also list `forms:` for a locale: extra stems or words, each a
+/// case-insensitive substring, that count as using the term. They are for
+/// inflections the prefix cannot reach (Korean `외움` → `외운`, `외우다`). A
+/// translation passes when it matches the canonical rule OR any listed form;
+/// a locale with no list behaves exactly as above.
+///
 /// The match is intentionally permissive. False positives are dismissed
 /// per-term via `@key.glossary_exempt`; the warning hint says so, and
 /// names the specific term to add.
@@ -70,7 +76,10 @@ class GlossaryRule extends Rule {
           if (!_sourceContainsTerm(src.value, term.term)) continue;
           final canonical = term.translations[locale];
           if (canonical == null) continue; // glossary doesn't cover this locale
-          if (_translationContainsCanonical(t.value, canonical)) continue;
+          if (_translationContainsCanonical(t.value, canonical) ||
+              _translationContainsForm(t.value, term.forms[locale])) {
+            continue;
+          }
 
           issues.add(
             Issue(
@@ -128,6 +137,18 @@ class GlossaryRule extends Rule {
         ? cLower.substring(0, cLower.length - 2)
         : cLower;
     return tLower.contains(prefix);
+  }
+
+  /// True when [translation] contains any of the term's accepted [forms] for
+  /// this locale (case-insensitive substring). Each form is used exactly as
+  /// listed, with no prefix trimming: the author wrote the stem they mean.
+  static bool _translationContainsForm(
+    String translation,
+    List<String>? forms,
+  ) {
+    if (forms == null) return false;
+    final tLower = translation.toLowerCase();
+    return forms.any((f) => tLower.contains(f.toLowerCase()));
   }
 
   static Set<String> _tokenize(String value) {

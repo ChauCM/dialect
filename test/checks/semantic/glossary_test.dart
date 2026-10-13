@@ -109,6 +109,120 @@ void main() {
       expect(const GlossaryRule().run(p), isEmpty);
     });
 
+    group('accepted forms (`forms:`)', () {
+      // Parsed from YAML so the tests exercise the file shape a project
+      // actually writes, not just the constructor.
+      final glossary = Glossary.parse('''
+terms:
+  - term: "memorized"
+    meaning: "Label: a word the learner has memorized."
+    translations:
+      ko: "외움"
+    forms:
+      ko: [외운, 외우]
+  - term: "known"
+    meaning: "Label: a word the learner knows."
+    translations:
+      es: "conocido"
+      ko: "익숙함"
+    forms:
+      es: [conoc]
+''');
+
+      dynamic p(String locale, String source, String value) => project(
+        targetLocales: [locale],
+        source: arb(
+          locale: 'en',
+          entries: [ArbEntry(key: 'k', value: source)],
+        ),
+        translations: {
+          locale: arb(
+            locale: locale,
+            entries: [ArbEntry(key: 'k', value: value)],
+          ),
+        },
+        glossary: glossary,
+      );
+
+      test('without forms, behavior is the prefix rule exactly as before', () {
+        final plain = Glossary.parse('''
+terms:
+  - term: "memorized"
+    meaning: "x"
+    translations:
+      ko: "외움"
+''');
+        dynamic q(String value) => project(
+          targetLocales: const ['ko'],
+          source: arb(
+            locale: 'en',
+            entries: [ArbEntry(key: 'k', value: 'memorized')],
+          ),
+          translations: {
+            'ko': arb(
+              locale: 'ko',
+              entries: [ArbEntry(key: 'k', value: value)],
+            ),
+          },
+          glossary: plain,
+        );
+        // A 2-character canonical needs the full form: the modifier fails.
+        expect(const GlossaryRule().run(q('외움')), isEmpty);
+        expect(const GlossaryRule().run(q('외운 단어')), hasLength(1));
+        expect(plain.terms.single.forms, isEmpty);
+      });
+
+      test('ko 외움 accepts the modifier and the verb, refuses neither', () {
+        expect(
+          const GlossaryRule().run(p('ko', 'memorized', '외운 단어')),
+          isEmpty,
+        );
+        expect(
+          const GlossaryRule().run(p('ko', 'memorized', '단어를 외우다')),
+          isEmpty,
+        );
+        // The canonical itself still passes.
+        expect(const GlossaryRule().run(p('ko', 'memorized', '외움')), isEmpty);
+        // None of the canonical or the listed forms: still refused.
+        expect(
+          const GlossaryRule().run(p('ko', 'memorized', '기억한 단어')),
+          hasLength(1),
+        );
+      });
+
+      test('es conocido with forms [conoc] accepts conocer', () {
+        expect(
+          const GlossaryRule().run(p('es', 'known', 'Quiero conocer más')),
+          isEmpty,
+        );
+        expect(
+          const GlossaryRule().run(p('es', 'known', 'Quiero saber más')),
+          hasLength(1),
+        );
+      });
+
+      test('forms match case-insensitively', () {
+        expect(
+          const GlossaryRule().run(p('es', 'known', 'CONOCER más')),
+          isEmpty,
+        );
+      });
+
+      test('forms for one locale do not apply to another', () {
+        // `known` lists forms only for es; its ko canonical keeps the
+        // default rule, so the es stem does not rescue a ko translation
+        // and a ko modifier is still refused.
+        expect(
+          const GlossaryRule().run(p('ko', 'known', '익숙한 단어')),
+          hasLength(1),
+        );
+        expect(
+          const GlossaryRule().run(p('ko', 'known', 'conoc 단어')),
+          hasLength(1),
+        );
+      });
+    });
+
     group('term-scoped glossary_exempt', () {
       // Two locked terms in one string, each non-literal for its own reason —
       // the Toni Speak case. A blanket exemption would waive both plus every

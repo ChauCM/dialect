@@ -2,6 +2,44 @@
 
 All notable changes to the Dialect CLI are tracked here.
 
+## 1.6.0
+
+A glossary term can now name the inflected forms it accepts.
+
+The `glossary` rule matches the canonical translation as a case-insensitive
+substring, minus its last two characters when it is longer than four. That
+prefix is right for Spanish `Reservar` → `Reserva`, and wrong wherever the
+stem changes: Korean `외움` (a label) was refused on `외운` (the modifier) and
+`외우다` (the verb), `익숙함` on `익숙한` and `익숙하다`, and Spanish
+`conocido` on `conocer`. Under `dialect check --strict` those became
+failures on correct translations, with no way to say so but a `glossary_exempt`
+on every key.
+
+### Added — `forms:` on a glossary term
+
+```yaml
+terms:
+  - term: "memorized"
+    translations:
+      ko: "외움"
+    forms:
+      ko: [외운, 외우]
+```
+
+A translation satisfies the term when it contains the canonical form under the
+existing rule **or** any form listed for its own locale, each a
+case-insensitive substring used as written. A locale with no list behaves
+exactly as before, and a list never applies to another locale.
+
+`forms` must be a non-empty map of locale to a non-empty list of non-empty
+strings, and each locale must also have a `translations:` entry. Anything else
+is a `FormatException` naming the term (exit 65 from `dialect check`) rather
+than an ignored field, because a list that is silently dropped leaves the
+author believing an inflection is accepted while the rule still refuses it.
+
+1.6.0 and not 1.5.1: a new `glossary.yaml` field is new surface. A project
+that does not use it sees no change.
+
 ## 1.5.0
 
 Two field reports, and they turn out to be the same shape: a check that could

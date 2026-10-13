@@ -37,6 +37,25 @@ is a `FormatException` naming the term (exit 65 from `dialect check`) rather
 than an ignored field, because a list that is silently dropped leaves the
 author believing an inflection is accepted while the rule still refuses it.
 
+### Changed — `width_budget` counts display columns, not characters
+
+A slot budget measured code points, so a Korean or Chinese label that fills
+twice the room of a Latin one of the same length passed. Width is now counted
+in display columns on the literal copy: East Asian Wide and Fullwidth
+characters (Hangul syllables and jamo, CJK ideographs including the
+extensions, kana, CJK symbols and punctuation, fullwidth forms) count 2,
+everything else 1. Emoji are not counted wide, and combining marks still count
+1 each (there is no zero-width handling), so Latin and Vietnamese measure
+exactly as before.
+
+Every cap goes through the one measurement: the source length, both sides of a
+`max_ratio`, `max_length`, `x-max-length`, `grace`, and the budget line in
+`dialect translate` plans. Messages say "columns".
+
+**A cap tuned in characters for a CJK locale needs doubling.** A `max_length`
+of 8 that meant eight Hangul syllables now allows four. Latin caps are
+unchanged.
+
 1.6.0 and not 1.5.1: a new `glossary.yaml` field is new surface. A project
 that does not use it sees no change.
 

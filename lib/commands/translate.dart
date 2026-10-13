@@ -285,8 +285,8 @@ class TranslateCommand extends Command<int> {
     final budget = widthBudgetFor(src, project);
     if (budget != null) {
       buf.writeln(
-        '  - budget: keep within ~${budget.maxChars} characters '
-        '(${budget.label}; source is ${budget.sourceChars}). Tight UI slot — '
+        '  - budget: keep within ~${budget.maxColumns} columns '
+        '(${budget.label}; source is ${budget.sourceColumns}). Tight UI slot — '
         'use the shortest faithful form, dropping context-implied words '
         '(a profile-header "Edit profile" → "Edit"). Glossary terms stay.',
       );

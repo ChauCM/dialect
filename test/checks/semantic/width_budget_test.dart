@@ -2,6 +2,7 @@ import 'package:dialect/arb/arb_file.dart';
 import 'package:dialect/checks/check_runner.dart';
 import 'package:dialect/checks/rule.dart';
 import 'package:dialect/checks/semantic/width_budget.dart';
+import 'package:dialect/project/dialect_project.dart';
 import 'package:test/test.dart';
 
 import '../_helpers.dart';
@@ -300,6 +301,108 @@ void main() {
     });
   });
 
+  group('width is counted in display columns', () {
+    // East Asian Wide and Fullwidth code points are two columns; everything
+    // else is one. Combining marks keep their old treatment: a code point
+    // each (no zero-width handling).
+    DialectProject one({
+      required String locale,
+      required String source,
+      required String value,
+      required Map<String, Object?> extras,
+      Map<String, Object?> config = const {},
+      String sourceLocale = 'en',
+    }) => project(
+      sourceLocale: sourceLocale,
+      targetLocales: [locale],
+      source: arb(
+        locale: sourceLocale,
+        entries: [src('k', source, extras: extras)],
+      ),
+      translations: {
+        locale: arb(
+          locale: locale,
+          entries: [ArbEntry(key: 'k', value: value)],
+        ),
+      },
+      extras: config,
+    );
+
+    test('a Hangul string over a cap that passed by code-point count', () {
+      // 6 code points, 11 columns (익숙한 = 6, space = 1, 단어 = 4).
+      final p = one(
+        locale: 'ko',
+        source: 'Known',
+        value: '익숙한 단어',
+        extras: {'x-max-length': 8},
+      );
+      final issues = const WidthBudgetRule().run(p);
+      expect(issues, hasLength(1));
+      expect(issues.single.message, contains('11 columns'));
+      expect(issues.single.message, contains('budget of 8'));
+    });
+
+    test('mixed Latin and Hangul: exact column count', () {
+      final p = one(
+        locale: 'ko',
+        source: 'Level 외움', // "Level " = 6, 외움 = 4
+        value: 'x',
+        extras: {'x-slot': 'button'},
+        config: const {
+          'slots': {
+            'button': {'max_ratio': 1.4},
+          },
+        },
+      );
+      final info = widthBudgetFor(p.source.entries.single, p)!;
+      expect(info.sourceColumns, 10);
+      expect(info.maxColumns, 14); // max(round(10*1.4)=14, 10+4=14)
+    });
+
+    test('ratio slot: hanzi on both sides is measured the same way', () {
+      // Source 学习 中文 = 4 + 1 + 4 = 9 columns. grace 0, ratio 1.2 -> 11.
+      DialectProject p(String value) => one(
+        locale: 'ja',
+        sourceLocale: 'zh',
+        source: '学习 中文',
+        value: value,
+        extras: {'x-slot': 'tab'},
+        config: const {
+          'slots': {
+            'tab': {'max_ratio': 1.2, 'grace': 0},
+          },
+        },
+      );
+      // 6 code points but 12 columns: over 11. Code points would give
+      // 6 vs a budget of 6 and pass.
+      final over = const WidthBudgetRule().run(p('学习日本语中'));
+      expect(over, hasLength(1));
+      expect(over.single.message, contains('12 columns'));
+      expect(over.single.message, contains('budget of 11'));
+      expect(over.single.message, contains('source is 9'));
+      // 9 columns: fits.
+      expect(const WidthBudgetRule().run(p('学习 日本')), isEmpty);
+    });
+
+    test('Latin and Vietnamese are measured as before', () {
+      WidthBudgetInfo info(String source) {
+        final p = one(
+          locale: 'vi',
+          source: source,
+          value: 'x',
+          extras: {'x-max-length': 20},
+        );
+        return widthBudgetFor(p.source.entries.single, p)!;
+      }
+
+      expect(info('Edit profile').sourceColumns, 12);
+      // Precomposed: one code point per letter.
+      expect(info('Ch\u1ec9nh s\u1eeda').sourceColumns, 9);
+      // Decomposed: each combining mark still counts one, as it always did.
+      expect(info('Chi\u0309nh su\u031B\u0309a').sourceColumns, 12);
+    });
+  });
+
   group('widthBudgetFor helper', () {
     test('resolves the effective budget for the translate plan', () {
       final p = project(
@@ -322,8 +425,8 @@ void main() {
       );
       final info = widthBudgetFor(p.source.entries.single, p);
       expect(info, isNotNull);
-      expect(info!.sourceChars, 12);
-      expect(info.maxChars, 17); // max(round(12*1.4)=17, 12+4=16)
+      expect(info!.sourceColumns, 12);
+      expect(info.maxColumns, 17); // max(round(12*1.4)=17, 12+4=16)
       expect(info.label, contains('button'));
     });
 

@@ -123,7 +123,7 @@
 #       "@statusChip":  { "x-max-length": 10 }   # hard cap
 #     Slot policies live once in the `slots:` block near the
 #     bottom of this file (`max_ratio` = "stay within N× the
-#     source"; `max_length` = an absolute character cap).
+#     source"; `max_length` = an absolute cap in display columns).
 #   - This is OPT-IN. A key with neither field is never checked,
 #     so body copy, legal text and empty-state prose keep all
 #     the room they need. Only tag genuinely tight slots.
@@ -320,8 +320,11 @@ length_ratio: {}
 # checked — body copy and anything that auto-sizes keeps all its room.
 #   max_ratio  — stay within N× the source ("similar length"), floored at
 #                source+grace so short labels never false-trip.
-#   max_length — an absolute character cap (a real pixel-bounded slot).
-#   grace      — optional; extra characters a ratio always allows (default 4).
+#   max_length — an absolute cap (a real pixel-bounded slot).
+#   grace      — optional; extra columns a ratio always allows (default 4).
+# Everything is counted in display columns: Hangul, hanzi, kana, CJK
+# punctuation and fullwidth forms are 2, every other character is 1. A cap
+# tuned in characters for a CJK locale needs doubling.
 # Soft by design: plain --strict leaves these warnings; --strict-length makes
 # them fail. The real payoff is `dialect translate`, which hands the budget to
 # the agent so the short faithful form is written up front.

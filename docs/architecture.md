@@ -499,6 +499,12 @@ A translation passes when it contains the canonical form under the rule above **
 
 ---
 
+## Slot budgets (`width_budget`)
+
+A source `@key` block can opt a string into a width budget with `"x-slot": "<name>"` (a policy under `slots:` in `dialect.yaml`) or a hard `"x-max-length": <n>`. Width is counted in **display columns** on the literal copy, placeholder names excluded: Hangul, hanzi, kana, CJK punctuation and fullwidth forms count 2, every other character 1. Combining marks count 1 each, so a decomposed Vietnamese letter is wider than its precomposed form. `max_length`, `max_ratio` (both sides in columns), `grace` and `x-max-length` are all in columns, so a cap tuned in characters for a CJK locale needs doubling.
+
+---
+
 ## Namespaces
 
 Not every string is shared across platforms. The `@key.namespace` metadata controls which strings sync to which platform:
